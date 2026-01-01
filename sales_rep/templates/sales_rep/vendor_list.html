@@ -1,0 +1,192 @@
+{% extends 'sales_rep/base.html' %}
+
+{% block title %}Vendor List - Vendor Approval{% endblock %}
+
+{% block content %}
+<div class="stats">
+    <div class="stat-card">
+        <h3>{{ pending_count }}</h3>
+        <p>Pending Approval</p>
+    </div>
+    <div class="stat-card">
+        <h3>{{ approved_count }}</h3>
+        <p>Approved Vendors</p>
+    </div>
+    <div class="stat-card">
+        <h3>{{ vendors|length }}</h3>
+        <p>Total Vendors</p>
+    </div>
+</div>
+
+<div class="card">
+    <h2 style="margin-bottom: 20px;">Vendor Management</h2>
+    
+    <form method="get" class="filters">
+        <input type="text" name="search" placeholder="Search by name, email, business..." value="{{ search_query }}">
+        <select name="status">
+            <option value="all" {% if status_filter == 'all' %}selected{% endif %}>All Status</option>
+            <option value="pending" {% if status_filter == 'pending' %}selected{% endif %}>Pending</option>
+            <option value="approved" {% if status_filter == 'approved' %}selected{% endif %}>Approved</option>
+        </select>
+        <button type="submit" class="btn btn-primary">Filter</button>
+        <a href="{% url 'sales_rep:vendor_list' %}" class="btn btn-secondary">Clear</a>
+    </form>
+    
+    <form method="post" action="{% url 'sales_rep:bulk_approve' %}" id="bulkForm">
+        {% csrf_token %}
+        
+        <!-- Desktop Table View -->
+        <div class="table-container">
+            <table class="table desktop-table">
+                <thead>
+                    <tr>
+                        <th><input type="checkbox" id="selectAll"></th>
+                        <th>Business Name</th>
+                        <th>Username</th>
+                        <th>Email</th>
+                        <th>Phone</th>
+                        <th>Status</th>
+                        <th>Created</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for vendor in vendors %}
+                    <tr>
+                        <td><input type="checkbox" name="vendor_ids" value="{{ vendor.id }}"></td>
+                        <td><strong>{{ vendor.business_name|default:"N/A" }}</strong></td>
+                        <td>{{ vendor.user.username }}</td>
+                        <td>{{ vendor.user.email }}</td>
+                        <td>{{ vendor.phone|default:"N/A" }}</td>
+                        <td>
+                            {% if vendor.is_approved and vendor.user.is_active %}
+                                <span class="badge badge-approved">✓ Approved</span>
+                            {% else %}
+                                <span class="badge badge-pending">⏳ Pending</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ vendor.created_at|date:"M d, Y" }}</td>
+                        <td>
+                            <a href="{% url 'sales_rep:vendor_detail' vendor.id %}" class="btn btn-secondary" style="padding: 5px 10px; font-size: 0.8rem;">View</a>
+                            {% if not vendor.is_approved %}
+                                <button type="button" onclick="approveVendor('{{ vendor.id }}')" class="btn btn-success" style="padding: 5px 10px; font-size: 0.8rem;">Approve</button>
+                            {% else %}
+                                <button type="button" onclick="rejectVendor('{{ vendor.id }}')" class="btn btn-danger" style="padding: 5px 10px; font-size: 0.8rem;">Reject</button>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" style="text-align: center; padding: 20px; color: #7f8c8d;">
+                            No vendors found.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Mobile Card View -->
+        {% for vendor in vendors %}
+        <div class="mobile-card">
+            <div class="mobile-card-header">
+                <div>
+                    <div class="mobile-card-title">{{ vendor.business_name|default:vendor.user.username }}</div>
+                    <div style="font-size: 0.85rem; color: #7f8c8d; margin-top: 5px;">{{ vendor.user.email }}</div>
+                </div>
+                <div>
+                    <input type="checkbox" name="vendor_ids" value="{{ vendor.id }}">
+                </div>
+            </div>
+            <div class="mobile-card-body">
+                <div><strong>Username:</strong> {{ vendor.user.username }}</div>
+                <div><strong>Phone:</strong> {{ vendor.phone|default:"N/A" }}</div>
+                <div><strong>Status:</strong> 
+                    {% if vendor.is_approved and vendor.user.is_active %}
+                        <span class="badge badge-approved">✓ Approved</span>
+                    {% else %}
+                        <span class="badge badge-pending">⏳ Pending</span>
+                    {% endif %}
+                </div>
+                <div><strong>Created:</strong> {{ vendor.created_at|date:"M d, Y" }}</div>
+            </div>
+            <div class="mobile-card-actions">
+                <a href="{% url 'sales_rep:vendor_detail' vendor.id %}" class="btn btn-secondary">View</a>
+                {% if not vendor.is_approved %}
+                    <button type="button" onclick="approveVendor('{{ vendor.id }}')" class="btn btn-success">Approve</button>
+                {% else %}
+                    <button type="button" onclick="rejectVendor('{{ vendor.id }}')" class="btn btn-danger">Reject</button>
+                {% endif %}
+            </div>
+        </div>
+        {% empty %}
+        <div class="mobile-card">
+            <div style="text-align: center; padding: 20px; color: #7f8c8d;">
+                No vendors found.
+            </div>
+        </div>
+        {% endfor %}
+        
+        <div style="margin-top: 20px;">
+            <button type="submit" class="btn btn-success">Bulk Approve Selected</button>
+        </div>
+    </form>
+</div>
+
+<script>
+    // Select all checkbox
+    document.getElementById('selectAll')?.addEventListener('change', function(e) {
+        const checkboxes = document.querySelectorAll('input[name="vendor_ids"]');
+        checkboxes.forEach(cb => cb.checked = e.target.checked);
+    });
+    
+    function approveVendor(vendorId) {
+        if (confirm('Are you sure you want to approve this vendor?')) {
+            fetch(`/sales-rep/vendors/${vendorId}/approve/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred. Please try again.');
+            });
+        }
+    }
+    
+    function rejectVendor(vendorId) {
+        if (confirm('Are you sure you want to reject/deactivate this vendor?')) {
+            fetch(`/sales-rep/vendors/${vendorId}/reject/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred. Please try again.');
+            });
+        }
+    }
+</script>
+{% endblock %}
+

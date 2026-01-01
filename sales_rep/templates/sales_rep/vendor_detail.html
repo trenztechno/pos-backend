@@ -1,0 +1,139 @@
+{% extends 'sales_rep/base.html' %}
+
+{% block title %}{{ vendor.business_name|default:vendor.user.username }} - Vendor Details{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <h2>Vendor Details</h2>
+        <a href="{% url 'sales_rep:vendor_list' %}" class="btn btn-secondary">← Back to List</a>
+    </div>
+    
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px;">
+        <div>
+            <h3 style="margin-bottom: 15px; color: #2c3e50;">Business Information</h3>
+            <div style="margin-bottom: 10px;">
+                <strong>Business Name:</strong><br>
+                <span style="color: #7f8c8d;">{{ vendor.business_name|default:"Not provided" }}</span>
+            </div>
+            <div style="margin-bottom: 10px;">
+                <strong>Phone:</strong><br>
+                <span style="color: #7f8c8d;">{{ vendor.phone|default:"Not provided" }}</span>
+            </div>
+            <div style="margin-bottom: 10px;">
+                <strong>Address:</strong><br>
+                <span style="color: #7f8c8d;">{{ vendor.address|default:"Not provided" }}</span>
+            </div>
+        </div>
+        
+        <div>
+            <h3 style="margin-bottom: 15px; color: #2c3e50;">Account Information</h3>
+            <div style="margin-bottom: 10px;">
+                <strong>Username:</strong><br>
+                <span style="color: #7f8c8d;">{{ vendor.user.username }}</span>
+            </div>
+            <div style="margin-bottom: 10px;">
+                <strong>Email:</strong><br>
+                <span style="color: #7f8c8d;">{{ vendor.user.email }}</span>
+            </div>
+            <div style="margin-bottom: 10px;">
+                <strong>First Name:</strong><br>
+                <span style="color: #7f8c8d;">{{ vendor.user.first_name|default:"Not provided" }}</span>
+            </div>
+            <div style="margin-bottom: 10px;">
+                <strong>Last Name:</strong><br>
+                <span style="color: #7f8c8d;">{{ vendor.user.last_name|default:"Not provided" }}</span>
+            </div>
+        </div>
+        
+        <div>
+            <h3 style="margin-bottom: 15px; color: #2c3e50;">Status</h3>
+            <div style="margin-bottom: 10px;">
+                <strong>Approval Status:</strong><br>
+                {% if vendor.is_approved and vendor.user.is_active %}
+                    <span class="badge badge-approved">✓ Approved</span>
+                {% else %}
+                    <span class="badge badge-pending">⏳ Pending Approval</span>
+                {% endif %}
+            </div>
+            <div style="margin-bottom: 10px;">
+                <strong>Account Active:</strong><br>
+                {% if vendor.user.is_active %}
+                    <span class="badge badge-approved">Active</span>
+                {% else %}
+                    <span class="badge badge-pending">Inactive</span>
+                {% endif %}
+            </div>
+            <div style="margin-bottom: 10px;">
+                <strong>Registered:</strong><br>
+                <span style="color: #7f8c8d;">{{ vendor.created_at|date:"F d, Y g:i A" }}</span>
+            </div>
+            <div style="margin-bottom: 10px;">
+                <strong>Last Updated:</strong><br>
+                <span style="color: #7f8c8d;">{{ vendor.updated_at|date:"F d, Y g:i A" }}</span>
+            </div>
+        </div>
+    </div>
+    
+    <div style="margin-top: 30px; padding-top: 20px; border-top: 2px solid #e0e0e0;">
+        {% if not vendor.is_approved %}
+            <button onclick="approveVendor('{{ vendor.id }}')" class="btn btn-success">✓ Approve Vendor</button>
+        {% else %}
+            <button onclick="rejectVendor('{{ vendor.id }}')" class="btn btn-danger">✗ Reject/Deactivate Vendor</button>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+    function approveVendor(vendorId) {
+        if (confirm('Are you sure you want to approve this vendor? They will be able to login and use the system.')) {
+            fetch(`/sales-rep/vendors/${vendorId}/approve/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}',
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert(data.message);
+                    location.reload();
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred. Please try again.');
+            });
+        }
+    }
+    
+    function rejectVendor(vendorId) {
+        if (confirm('Are you sure you want to reject/deactivate this vendor? They will not be able to login.')) {
+            fetch(`/sales-rep/vendors/${vendorId}/reject/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}',
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert(data.message);
+                    location.reload();
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred. Please try again.');
+            });
+        }
+    }
+</script>
+{% endblock %}
+
