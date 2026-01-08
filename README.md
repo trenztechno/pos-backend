@@ -227,6 +227,19 @@ The API documentation includes:
 - **PATCH /items/<uuid>** - Update item (requires auth)
 - **DELETE /items/<uuid>** - Delete item (requires auth)
 - **PATCH /items/<uuid>/status** - Update item status (requires auth)
+- **POST /items/sync** - Batch sync items (offline-first) (requires auth)
+- **POST /items/categories/sync** - Batch sync categories (offline-first) (requires auth)
+
+### Inventory Management (Raw Materials)
+
+- **GET /inventory/unit-types/** - Get available unit types (no auth required)
+- **GET /inventory/** - Get all inventory items (requires auth)
+  - Query params: `is_active=<true|false>`, `low_stock=<true>`, `search=<term>`, `unit_type=<type>`
+- **POST /inventory/** - Create inventory item (requires auth)
+- **GET /inventory/<uuid>** - Get inventory item details (requires auth)
+- **PATCH /inventory/<uuid>** - Update inventory item (requires auth)
+- **PATCH /inventory/<uuid>/stock/** - Update stock quantity (set/add/subtract) (requires auth)
+- **DELETE /inventory/<uuid>** - Delete inventory item (requires auth)
 
 ### Sales Backup
 
@@ -241,9 +254,12 @@ The API documentation includes:
 ```
 pos/
 ├── backend/          # Django project settings
-├── items/            # Inventory management app
+├── auth_app/         # Authentication & vendor management
+├── items/            # Products/items management app
+├── inventory_app/    # Raw materials inventory management
 ├── sales/            # Sales backup app
 ├── settings/         # Settings backup app
+├── sales_rep/        # Sales rep web interface
 ├── manage.py
 └── requirements.txt
 ```
@@ -265,6 +281,7 @@ pos/
 - **Sales Rep Interface:** Mobile-friendly web UI for vendor approval
 - **Multi-Category Support:** Items can belong to multiple categories
 - **Offline Sync:** Batch sync endpoints for categories and items
+- **Inventory Management:** Complete raw materials inventory system with 16 unit types, stock tracking, low stock alerts, and supplier management
 
 ## Documentation
 

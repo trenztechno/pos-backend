@@ -21,22 +21,35 @@ def log_vendor_approval(vendor, approved_by, action='approved'):
         }
     )
 
-def log_item_change(item, user, action='created', changes=None):
+def log_item_change(item, user, action='created', changes=None, item_type='item', details=None, notes=None):
     """
-    Log item create/update/delete
+    Log item create/update/delete (for both items and inventory items)
     """
+    vendor_name = item.vendor.business_name if hasattr(item, 'vendor') and item.vendor else 'None'
+    vendor_id = str(item.vendor.id) if hasattr(item, 'vendor') and item.vendor else None
+    
+    event_type = 'inventory_change' if item_type == 'inventory' else 'item_change'
+    item_label = 'Inventory item' if item_type == 'inventory' else 'Item'
+    
+    message = f"{item_label} {action}: {item.name} (ID: {item.id}) | "
+    message += f"Vendor: {vendor_name} | "
+    message += f"Changed by: {user.username if user else 'system'}"
+    if details:
+        message += f" | {details}"
+    if notes:
+        message += f" | Notes: {notes}"
+    
     audit_logger.info(
-        f"Item {action}: {item.name} (ID: {item.id}) | "
-        f"Vendor: {item.vendor.business_name if item.vendor else 'None'} | "
-        f"Changed by: {user.username if user else 'system'}",
+        message,
         extra={
-            'event_type': 'item_change',
+            'event_type': event_type,
             'item_id': str(item.id),
             'item_name': item.name,
-            'vendor_id': str(item.vendor.id) if item.vendor else None,
+            'vendor_id': vendor_id,
             'action': action,
             'user': user.username if user else 'system',
             'changes': changes or {},
+            'item_type': item_type,
         }
     )
 

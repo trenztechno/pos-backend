@@ -15,10 +15,11 @@
 3. [Vendor Registration & Approval](#vendor-registration--approval)
 4. [Categories](#categories)
 5. [Items](#items)
-6. [Offline Sync (Categories & Items)](#offline-sync-categories--items)
-7. [Sales Backup](#sales-backup)
-8. [Settings](#settings)
-9. [Error Responses](#error-responses)
+6. [Inventory Management](#inventory-management)
+7. [Offline Sync (Categories & Items)](#offline-sync-categories--items)
+8. [Sales Backup](#sales-backup)
+9. [Settings](#settings)
+10. [Error Responses](#error-responses)
 
 ---
 
@@ -737,6 +738,333 @@ Quick update for item status or stock quantity (kept for backward compatibility)
 
 ---
 
+## Inventory Management
+
+**⚠️ Important:** Inventory items are for **raw materials** that vendors use to make their products. This is separate from the Items API which is for products that vendors sell.
+
+All inventory endpoints require authentication and vendor approval.
+
+### Get Available Unit Types
+
+**GET** `/inventory/unit-types/`
+
+**No authentication required**
+
+Returns all available unit types for inventory items.
+
+**Success Response (200):**
+```json
+[
+  {"value": "kg", "label": "Kilogram (kg)"},
+  {"value": "g", "label": "Gram (g)"},
+  {"value": "L", "label": "Liter (L)"},
+  {"value": "mL", "label": "Milliliter (mL)"},
+  {"value": "pcs", "label": "Piece (pcs)"},
+  {"value": "pkt", "label": "Packet (pkt)"},
+  {"value": "box", "label": "Box (box)"},
+  {"value": "carton", "label": "Carton (carton)"},
+  {"value": "bag", "label": "Bag (bag)"},
+  {"value": "bottle", "label": "Bottle (bottle)"},
+  {"value": "can", "label": "Can (can)"},
+  {"value": "dozen", "label": "Dozen (dozen)"},
+  {"value": "m", "label": "Meter (m)"},
+  {"value": "cm", "label": "Centimeter (cm)"},
+  {"value": "sqm", "label": "Square Meter (sqm)"},
+  {"value": "cum", "label": "Cubic Meter (cum)"}
+]
+```
+
+---
+
+### Get All Inventory Items
+
+**GET** `/inventory/`
+
+**Requires authentication + vendor approval**
+
+Returns all inventory items (raw materials) for the authenticated vendor.
+
+**Query Parameters:**
+- `is_active` (optional): Filter by active status (`true`/`false`). Default: `true`
+- `low_stock` (optional): Filter items with low stock (`true`). Default: `false`
+- `search` (optional): Search by name, description, SKU, barcode, or supplier name
+- `unit_type` (optional): Filter by unit type (e.g., `kg`, `L`, `pcs`)
+
+**Success Response (200):**
+```json
+[
+  {
+    "id": "770e8400-e29b-41d4-a716-446655440000",
+    "name": "Wheat Flour",
+    "quantity": "50.5",
+    "unit_type": "kg",
+    "unit_type_display": "Kilogram (kg)",
+    "sku": "FLOUR-001",
+    "is_active": true,
+    "is_low_stock": false,
+    "needs_reorder": false,
+    "updated_at": "2024-01-01T10:00:00Z"
+  },
+  {
+    "id": "770e8400-e29b-41d4-a716-446655440001",
+    "name": "Cooking Oil",
+    "quantity": "2.5",
+    "unit_type": "L",
+    "unit_type_display": "Liter (L)",
+    "sku": "OIL-001",
+    "is_active": true,
+    "is_low_stock": true,
+    "needs_reorder": true,
+    "updated_at": "2024-01-01T10:00:00Z"
+  }
+]
+```
+
+**Example (cURL):**
+```bash
+# Get all active inventory items
+curl -H "Authorization: Token YOUR_TOKEN" \
+  http://localhost:8000/inventory/
+
+# Get low stock items
+curl -H "Authorization: Token YOUR_TOKEN" \
+  http://localhost:8000/inventory/?low_stock=true
+
+# Search inventory
+curl -H "Authorization: Token YOUR_TOKEN" \
+  http://localhost:8000/inventory/?search=flour
+```
+
+---
+
+### Create Inventory Item
+
+**POST** `/inventory/`
+
+**Requires authentication + vendor approval**
+
+Creates a new inventory item (raw material).
+
+**Request Body:**
+```json
+{
+  "name": "Wheat Flour",
+  "description": "Premium quality wheat flour for baking",
+  "quantity": "50.0",
+  "unit_type": "kg",
+  "sku": "FLOUR-001",
+  "barcode": "1234567890123",
+  "supplier_name": "ABC Suppliers",
+  "supplier_contact": "+1234567890",
+  "min_stock_level": "10.0",
+  "reorder_quantity": "100.0",
+  "is_active": true
+}
+```
+
+**Required Fields:**
+- `name`: Name of the raw material
+- `quantity`: Current stock quantity (decimal, >= 0)
+- `unit_type`: Unit of measurement (see unit types endpoint)
+
+**Optional Fields:**
+- `description`: Description
+- `sku`: Stock Keeping Unit
+- `barcode`: Barcode
+- `supplier_name`: Supplier name
+- `supplier_contact`: Supplier contact
+- `min_stock_level`: Minimum stock level for alerts (decimal, >= 0)
+- `reorder_quantity`: Recommended reorder quantity (decimal, >= 0)
+- `is_active`: Active status (default: `true`)
+
+**Success Response (201):**
+```json
+{
+  "id": "770e8400-e29b-41d4-a716-446655440000",
+  "vendor": "550e8400-e29b-41d4-a716-446655440010",
+  "vendor_name": "ABC Store",
+  "name": "Wheat Flour",
+  "description": "Premium quality wheat flour for baking",
+  "quantity": "50.0",
+  "unit_type": "kg",
+  "unit_type_display": "Kilogram (kg)",
+  "sku": "FLOUR-001",
+  "barcode": "1234567890123",
+  "supplier_name": "ABC Suppliers",
+  "supplier_contact": "+1234567890",
+  "min_stock_level": "10.0",
+  "reorder_quantity": "100.0",
+  "is_active": true,
+  "is_low_stock": false,
+  "needs_reorder": false,
+  "created_at": "2024-01-01T10:00:00Z",
+  "updated_at": "2024-01-01T10:00:00Z",
+  "last_restocked_at": null
+}
+```
+
+**Error Response (400):**
+```json
+{
+  "error": "Inventory item with name \"Wheat Flour\" already exists for your vendor account"
+}
+```
+
+---
+
+### Get Inventory Item Details
+
+**GET** `/inventory/<uuid:id>/`
+
+**Requires authentication + vendor approval**
+
+Returns details of a specific inventory item.
+
+**Success Response (200):**
+```json
+{
+  "id": "770e8400-e29b-41d4-a716-446655440000",
+  "vendor": "550e8400-e29b-41d4-a716-446655440010",
+  "vendor_name": "ABC Store",
+  "name": "Wheat Flour",
+  "description": "Premium quality wheat flour for baking",
+  "quantity": "50.0",
+  "unit_type": "kg",
+  "unit_type_display": "Kilogram (kg)",
+  "sku": "FLOUR-001",
+  "barcode": "1234567890123",
+  "supplier_name": "ABC Suppliers",
+  "supplier_contact": "+1234567890",
+  "min_stock_level": "10.0",
+  "reorder_quantity": "100.0",
+  "is_active": true,
+  "is_low_stock": false,
+  "needs_reorder": false,
+  "created_at": "2024-01-01T10:00:00Z",
+  "updated_at": "2024-01-01T10:00:00Z",
+  "last_restocked_at": null
+}
+```
+
+---
+
+### Update Inventory Item
+
+**PATCH** `/inventory/<uuid:id>/`
+
+**Requires authentication + vendor approval**
+
+Updates an inventory item. Supports partial updates.
+
+**Request Body (partial update):**
+```json
+{
+  "description": "Updated description",
+  "min_stock_level": "15.0",
+  "supplier_name": "New Supplier"
+}
+```
+
+**Success Response (200):**
+```json
+{
+  "id": "770e8400-e29b-41d4-a716-446655440000",
+  ...
+  "description": "Updated description",
+  "min_stock_level": "15.0",
+  "supplier_name": "New Supplier",
+  ...
+}
+```
+
+---
+
+### Update Inventory Stock
+
+**PATCH** `/inventory/<uuid:id>/stock/`
+
+**Requires authentication + vendor approval**
+
+Updates stock quantity with different actions: set, add, or subtract.
+
+**Request Body:**
+```json
+{
+  "action": "add",
+  "quantity": "10.0",
+  "notes": "Received new shipment"
+}
+```
+
+**Action Types:**
+- `set`: Set exact quantity (default)
+- `add`: Add to current quantity
+- `subtract`: Subtract from current quantity
+
+**Success Response (200):**
+```json
+{
+  "id": "770e8400-e29b-41d4-a716-446655440000",
+  ...
+  "quantity": "60.0",
+  "last_restocked_at": "2024-01-01T11:00:00Z",
+  ...
+}
+```
+
+**Error Response (400):**
+```json
+{
+  "error": "Cannot subtract more than current quantity"
+}
+```
+
+**Example (cURL):**
+```bash
+# Add stock
+curl -X PATCH \
+  -H "Authorization: Token YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"action": "add", "quantity": "10.0", "notes": "New shipment"}' \
+  http://localhost:8000/inventory/770e8400-e29b-41d4-a716-446655440000/stock/
+
+# Subtract stock
+curl -X PATCH \
+  -H "Authorization: Token YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"action": "subtract", "quantity": "5.0"}' \
+  http://localhost:8000/inventory/770e8400-e29b-41d4-a716-446655440000/stock/
+
+# Set exact quantity
+curl -X PATCH \
+  -H "Authorization: Token YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"action": "set", "quantity": "100.0"}' \
+  http://localhost:8000/inventory/770e8400-e29b-41d4-a716-446655440000/stock/
+```
+
+---
+
+### Delete Inventory Item
+
+**DELETE** `/inventory/<uuid:id>/`
+
+**Requires authentication + vendor approval**
+
+Deletes an inventory item.
+
+**Success Response (204):**
+No content
+
+**Error Response (404):**
+```json
+{
+  "error": "Inventory item not found"
+}
+```
+
+---
+
 ## Offline Sync (Categories & Items)
 
 ### Sync Categories
@@ -1229,6 +1557,12 @@ curl -X POST http://localhost:8000/items/sync \
 - Queue operations when offline, sync when internet available
 
 ### ✅ Item Images
+
+### ✅ Inventory Management
+- Raw materials inventory tracking
+- Multiple unit types (kg, L, pcs, boxes, etc.)
+- Stock level management with alerts
+- Supplier information tracking
 - Items can have images (JPG, PNG, WebP formats)
 - Images stored in `media/items/{item_id}/` folder (local) or S3 bucket
 - Full image URLs provided in API responses (`image_url` field)

@@ -68,6 +68,9 @@ GET  /items/categories/      → Get all categories
 POST /items/                  → Create item
 POST /items/sync              → Batch sync (offline) ⭐
 POST /backup/sync             → Upload bills
+GET  /inventory/              → Get inventory (raw materials)
+POST /inventory/              → Create inventory item
+PATCH /inventory/<id>/stock/   → Update stock
 ```
 
 ---

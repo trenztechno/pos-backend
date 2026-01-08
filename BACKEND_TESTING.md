@@ -164,6 +164,17 @@ Total: 11/11 tests passed
 - **PATCH /items/<uuid>/** - Update item
 - **PATCH /items/<uuid>/status/** - Update item status
 - **DELETE /items/<uuid>/** - Delete item
+- **POST /items/sync** - Batch sync items
+- **POST /items/categories/sync** - Batch sync categories
+- **GET /inventory/unit-types/** - Get unit types
+- **GET /inventory/** - Get inventory items
+- **POST /inventory/** - Create inventory item
+- **GET /inventory/<uuid>/** - Get inventory item detail
+- **PATCH /inventory/<uuid>/** - Update inventory item
+- **PATCH /inventory/<uuid>/stock/** - Update stock (add/subtract)
+- **DELETE /inventory/<uuid>/** - Delete inventory item
+- **PATCH /items/<uuid>/status/** - Update item status
+- **DELETE /items/<uuid>/** - Delete item
 - **POST /items/categories/sync** - Batch sync categories
 - **POST /items/sync** - Batch sync items
 - **POST /backup/sync** - Sales backup

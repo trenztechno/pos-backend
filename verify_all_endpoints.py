@@ -34,6 +34,7 @@ from rest_framework.test import APIClient
 from django.contrib.auth.models import User
 from auth_app.models import Vendor, SalesRep
 from items.models import Item, Category
+from inventory_app.models import InventoryItem
 from sales.models import SalesBackup
 from settings.models import AppSettings
 from rest_framework.authtoken.models import Token
@@ -628,7 +629,111 @@ def test_api_endpoints():
         print(f"✗ POST /items/sync - Error: {e}")
         results.append(False)
     
-    # Test 17: Sales Backup
+    # Test 17: Get Unit Types (Inventory)
+    try:
+        response = client.get('/inventory/unit-types/')
+        if response.status_code == 200:
+            print("✓ GET /inventory/unit-types/ - Working")
+            results.append(True)
+        else:
+            print(f"✗ GET /inventory/unit-types/ - Status: {response.status_code}")
+            results.append(False)
+    except Exception as e:
+        print(f"✗ GET /inventory/unit-types/ - Error: {e}")
+        results.append(False)
+    
+    # Test 18: Get Inventory Items
+    try:
+        response = client.get('/inventory/')
+        if response.status_code == 200:
+            print("✓ GET /inventory/ - Working")
+            results.append(True)
+        else:
+            print(f"✗ GET /inventory/ - Status: {response.status_code}")
+            results.append(False)
+    except Exception as e:
+        print(f"✗ GET /inventory/ - Error: {e}")
+        results.append(False)
+    
+    # Test 19: Create Inventory Item
+    try:
+        response = client.post('/inventory/', {
+            'name': 'Test Raw Material',
+            'description': 'Test inventory item for verification',
+            'quantity': '10.5',
+            'unit_type': 'kg',
+            'min_stock_level': '5.0',
+            'reorder_quantity': '20.0'
+        }, format='json')
+        if response.status_code in [200, 201]:
+            inventory_id = response.data.get('id')
+            print("✓ POST /inventory/ - Working")
+            results.append(True)
+            
+            # Test 20: Get Inventory Item Detail
+            if inventory_id:
+                response = client.get(f'/inventory/{inventory_id}/')
+                if response.status_code == 200:
+                    print(f"✓ GET /inventory/{inventory_id}/ - Working")
+                    results.append(True)
+                else:
+                    print(f"✗ GET /inventory/{inventory_id}/ - Status: {response.status_code}")
+                    results.append(False)
+                
+                # Test 21: Update Inventory Item
+                response = client.patch(f'/inventory/{inventory_id}/', {
+                    'description': 'Updated description'
+                }, format='json')
+                if response.status_code == 200:
+                    print(f"✓ PATCH /inventory/{inventory_id}/ - Working")
+                    results.append(True)
+                else:
+                    print(f"✗ PATCH /inventory/{inventory_id}/ - Status: {response.status_code}")
+                    results.append(False)
+                
+                # Test 22: Update Inventory Stock (Add)
+                response = client.patch(f'/inventory/{inventory_id}/stock/', {
+                    'action': 'add',
+                    'quantity': '5.0',
+                    'notes': 'Test stock addition'
+                }, format='json')
+                if response.status_code == 200:
+                    print(f"✓ PATCH /inventory/{inventory_id}/stock/ (add) - Working")
+                    results.append(True)
+                else:
+                    print(f"✗ PATCH /inventory/{inventory_id}/stock/ (add) - Status: {response.status_code}")
+                    results.append(False)
+                
+                # Test 23: Update Inventory Stock (Subtract)
+                response = client.patch(f'/inventory/{inventory_id}/stock/', {
+                    'action': 'subtract',
+                    'quantity': '2.0'
+                }, format='json')
+                if response.status_code == 200:
+                    print(f"✓ PATCH /inventory/{inventory_id}/stock/ (subtract) - Working")
+                    results.append(True)
+                else:
+                    print(f"✗ PATCH /inventory/{inventory_id}/stock/ (subtract) - Status: {response.status_code}")
+                    results.append(False)
+                
+                # Test 24: Delete Inventory Item
+                response = client.delete(f'/inventory/{inventory_id}/')
+                if response.status_code in [200, 204]:
+                    print(f"✓ DELETE /inventory/{inventory_id}/ - Working")
+                    results.append(True)
+                else:
+                    print(f"✗ DELETE /inventory/{inventory_id}/ - Status: {response.status_code}")
+                    results.append(False)
+        else:
+            print(f"✗ POST /inventory/ - Status: {response.status_code}")
+            results.append(False)
+    except Exception as e:
+        print(f"✗ POST /inventory/ - Error: {e}")
+        import traceback
+        traceback.print_exc()
+        results.append(False)
+    
+    # Test 25: Sales Backup
     try:
         response = client.post('/backup/sync', {
             'device_id': 'test_device_123',
@@ -666,7 +771,7 @@ def test_api_endpoints():
         print(f"✗ POST /settings/push - Error: {e}")
         results.append(False)
     
-    # Test 19: Logout
+    # Test 27: Logout
     try:
         response = client.post('/auth/logout')
         if response.status_code in [200, 204]:

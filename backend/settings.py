@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     'corsheaders',
     'auth_app',
     'items',
+    'inventory_app',
     'sales',
     'settings',
     'sales_rep',
