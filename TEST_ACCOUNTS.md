@@ -32,6 +32,7 @@ These vendors are **already approved** and can login immediately to test the API
 - **Username:** `vendor1`
 - **Password:** `vendor123`
 - **Business Name:** ABC Store
+- **GST Number:** `29ABCDE1234F1Z5`
 - **Status:** ✅ Approved & Active
 - **Test Data:**
   - Categories: Breakfast, Lunch, Dinner (vendor-specific) + Drinks, Snacks (global)
@@ -42,6 +43,7 @@ These vendors are **already approved** and can login immediately to test the API
 - **Username:** `vendor2`
 - **Password:** `vendor123`
 - **Business Name:** XYZ Restaurant
+- **GST Number:** `27XYZAB5678G2H6`
 - **Status:** ✅ Approved & Active
 - **Test Data:**
   - Categories: Appetizers, Main Course, Desserts (vendor-specific) + Drinks, Snacks (global)
@@ -56,6 +58,7 @@ These vendors are **already approved** and can login immediately to test the API
 - **Username:** `pendingvendor`
 - **Password:** `pending123`
 - **Business Name:** Pending Business
+- **GST Number:** `19PENDING9999X9Y9`
 - **Status:** ⏳ Pending Approval
 - **Purpose:** Test the approval workflow
   - Try to login → Should get "pending approval" message
@@ -169,7 +172,28 @@ curl -X POST http://localhost:8000/items/ \
   }'
 ```
 
-### 6. Test Approval Flow
+### 6. Test Password Reset Flow
+```bash
+# Step 1: Verify GST number
+curl -X POST http://localhost:8000/auth/forgot-password \
+  -H "Content-Type: application/json" \
+  -d '{"gst_no": "29ABCDE1234F1Z5"}'
+```
+**Expected:** Success with business name and username
+
+```bash
+# Step 2: Reset password
+curl -X POST http://localhost:8000/auth/reset-password \
+  -H "Content-Type: application/json" \
+  -d '{
+    "gst_no": "29ABCDE1234F1Z5",
+    "new_password": "newpassword123",
+    "new_password_confirm": "newpassword123"
+  }'
+```
+**Expected:** Password reset successful message
+
+### 7. Test Approval Flow
 1. Login as sales rep: `http://localhost:8000/sales-rep/`
 2. View pending vendors
 3. Approve `pendingvendor`

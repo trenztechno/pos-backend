@@ -4,20 +4,23 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.authtoken.models import Token
 from django.contrib.auth import authenticate
-from .serializers import LoginSerializer, RegisterSerializer
+from .serializers import LoginSerializer, RegisterSerializer, ForgotPasswordSerializer, ResetPasswordSerializer
+from .models import Vendor
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def register(request):
     """
-    POST /auth/register - Register new user (requires admin approval)
+    POST /auth/register - Register new vendor (requires admin approval)
     Body: {
-        "username": "user",
-        "email": "user@example.com",
+        "username": "vendor1",
+        "email": "vendor@example.com",
         "password": "password123",
         "password_confirm": "password123",
-        "first_name": "John",
-        "last_name": "Doe"
+        "business_name": "ABC Store",
+        "phone": "+1234567890",
+        "gst_no": "29ABCDE1234F1Z5",
+        "address": "123 Main St, City"
     }
     Returns: {"message": "Registration successful. Please wait for admin approval."}
     """
@@ -86,3 +89,67 @@ def logout(request):
             return Response({'message': 'Token already deleted'}, status=status.HTTP_200_OK)
     
     return Response({'error': 'Not authenticated'}, status=status.HTTP_401_UNAUTHORIZED)
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def forgot_password(request):
+    """
+    POST /auth/forgot-password - Verify GST number to initiate password reset
+    Body: {"gst_no": "29ABCDE1234F1Z5"}
+    Returns: {"message": "GST number verified. You can now reset your password.", "gst_no": "29ABCDE1234F1Z5"}
+    """
+    serializer = ForgotPasswordSerializer(data=request.data)
+    
+    if serializer.is_valid():
+        gst_no = serializer.validated_data['gst_no']
+        vendor = Vendor.objects.get(gst_no=gst_no)
+        
+        return Response({
+            'message': 'GST number verified. You can now reset your password.',
+            'gst_no': gst_no,
+            'business_name': vendor.business_name,
+            'username': vendor.user.username
+        }, status=status.HTTP_200_OK)
+    
+    return Response({
+        'error': 'GST number verification failed',
+        'details': serializer.errors
+    }, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def reset_password(request):
+    """
+    POST /auth/reset-password - Reset password using GST number
+    Body: {
+        "gst_no": "29ABCDE1234F1Z5",
+        "new_password": "newpassword123",
+        "new_password_confirm": "newpassword123"
+    }
+    Returns: {"message": "Password reset successful. You can now login with your new password."}
+    """
+    serializer = ResetPasswordSerializer(data=request.data)
+    
+    if serializer.is_valid():
+        gst_no = serializer.validated_data['gst_no']
+        new_password = serializer.validated_data['new_password']
+        
+        vendor = Vendor.objects.get(gst_no=gst_no)
+        user = vendor.user
+        
+        # Set new password
+        user.set_password(new_password)
+        user.save()
+        
+        # Delete any existing tokens (force re-login)
+        Token.objects.filter(user=user).delete()
+        
+        return Response({
+            'message': 'Password reset successful. You can now login with your new password.',
+            'username': user.username
+        }, status=status.HTTP_200_OK)
+    
+    return Response({
+        'error': 'Password reset failed',
+        'details': serializer.errors
+    }, status=status.HTTP_400_BAD_REQUEST)

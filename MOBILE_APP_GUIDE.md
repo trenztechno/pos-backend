@@ -285,7 +285,9 @@ async function createBill(billData) {
 
 ### Authentication
 - `POST /auth/login` - Get token (use on app startup)
-- `POST /auth/register` - Register new vendor (optional)
+- `POST /auth/register` - Register new vendor (requires: username, email, password, business_name, phone, gst_no, address)
+- `POST /auth/forgot-password` - Verify GST number to initiate password reset
+- `POST /auth/reset-password` - Reset password using GST number
 
 ### Categories
 - `GET /items/categories/` - Get all categories (initial sync)
@@ -483,6 +485,9 @@ vendor2 / vendor123  (Approved, ready to use)
 ### Key Endpoints
 ```
 POST /auth/login                    → Get token
+POST /auth/register                 → Register new vendor (all fields required)
+POST /auth/forgot-password          → Verify GST number for password reset
+POST /auth/reset-password           → Reset password using GST number
 GET  /items/                        → Get all items
 GET  /items/categories/             → Get all categories
 POST /items/sync                    → Batch sync items ⭐

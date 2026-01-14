@@ -13,7 +13,10 @@
 
 ### Authentication
 - **POST** `/auth/register` - Register new vendor (No auth)
+  - Required fields: username, email, password, password_confirm, business_name, phone, gst_no, address
 - **POST** `/auth/login` - Login and get token (No auth)
+- **POST** `/auth/forgot-password` - Verify GST number for password reset (No auth)
+- **POST** `/auth/reset-password` - Reset password using GST number (No auth)
 - **POST** `/auth/logout` - Logout (Auth required)
 
 ### Categories (Products)
@@ -66,8 +69,8 @@
 
 ## 📊 Endpoint Statistics
 
-- **Total Endpoints:** 27
-- **No Auth Required:** 4 (health, unit-types, register, login)
+- **Total Endpoints:** 29
+- **No Auth Required:** 6 (health, unit-types, register, login, forgot-password, reset-password)
 - **Token Auth Required:** 22
 - **Session Auth Required:** 5 (sales rep interface)
 - **Admin Auth Required:** 1 (admin panel)

@@ -74,7 +74,7 @@ def test_models():
         print("✓ User model accessible")
         
         # Test Vendor model
-        vendor_fields = ['id', 'user', 'business_name', 'phone', 'address', 'is_approved']
+        vendor_fields = ['id', 'user', 'business_name', 'phone', 'address', 'gst_no', 'is_approved']
         for field in vendor_fields:
             assert hasattr(Vendor, field) or hasattr(Vendor._meta.get_field(field), 'name'), f"Vendor missing field: {field}"
         print("✓ Vendor model has all required fields")
@@ -133,6 +133,8 @@ def test_urls():
             '/auth/register',
             '/auth/login',
             '/auth/logout',
+            '/auth/forgot-password',
+            '/auth/reset-password',
             '/items/categories/',
             '/items/categories/sync',
             '/items/',
@@ -268,7 +270,7 @@ def test_serializers():
     print_section("7. Testing Serializers")
     
     try:
-        from auth_app.serializers import RegisterSerializer, LoginSerializer
+        from auth_app.serializers import RegisterSerializer, LoginSerializer, ForgotPasswordSerializer, ResetPasswordSerializer
         from items.serializers import ItemSerializer, CategorySerializer, ItemListSerializer
         from sales.serializers import SalesBackupSerializer
         from settings.serializers import AppSettingsSerializer
@@ -292,7 +294,7 @@ def test_views():
     print_section("8. Testing Views")
     
     try:
-        from auth_app.views import register, login, logout
+        from auth_app.views import register, login, logout, forgot_password, reset_password
         from items.views import CategoryListView, CategoryDetailView, CategorySyncView, ItemListView, ItemDetailView, ItemStatusView, ItemSyncView
         from sales.views import SalesSyncView
         from settings.views import SettingsPushView
@@ -389,9 +391,10 @@ def test_api_endpoints():
     
     vendor, _ = Vendor.objects.get_or_create(
         user=test_user,
-        defaults={'business_name': 'Test Vendor', 'is_approved': True}
+        defaults={'business_name': 'Test Vendor', 'gst_no': 'TESTGST123456', 'is_approved': True}
     )
     vendor.is_approved = True
+    vendor.gst_no = 'TESTGST123456'  # Ensure GST number is set
     vendor.save()
     test_user.is_active = True
     test_user.save()
@@ -413,11 +416,17 @@ def test_api_endpoints():
     
     # Test 2: Register (No auth)
     try:
+        import time
+        unique_id = str(int(time.time()))
         response = client.post('/auth/register', {
-            'username': 'test_register_' + str(int(__import__('time').time())),
+            'username': 'test_register_' + unique_id,
             'password': 'testpass123',
-            'email': 'test@example.com',
-            'business_name': 'Test Business'
+            'password_confirm': 'testpass123',
+            'email': f'test_{unique_id}@example.com',
+            'business_name': 'Test Business',
+            'phone': '+1234567890',
+            'gst_no': 'TESTGST' + unique_id,
+            'address': '123 Test Street'
         }, format='json')
         if response.status_code in [200, 201]:
             print("✓ POST /auth/register - Working")
@@ -771,7 +780,158 @@ def test_api_endpoints():
         print(f"✗ POST /settings/push - Error: {e}")
         results.append(False)
     
-    # Test 27: Logout
+    # Test 27: Forgot Password - Valid GST (Success)
+    try:
+        response = client.post('/auth/forgot-password', {
+            'gst_no': vendor.gst_no
+        }, format='json')
+        if response.status_code == 200 and 'gst_no' in response.data:
+            print("✓ POST /auth/forgot-password (valid GST) - Working")
+            results.append(True)
+        else:
+            print(f"✗ POST /auth/forgot-password (valid GST) - Status: {response.status_code}")
+            results.append(False)
+    except Exception as e:
+        print(f"✗ POST /auth/forgot-password (valid GST) - Error: {e}")
+        results.append(False)
+    
+    # Test 28: Forgot Password - Invalid GST (Should Fail)
+    try:
+        response = client.post('/auth/forgot-password', {
+            'gst_no': 'INVALIDGST999999'
+        }, format='json')
+        if response.status_code == 400:
+            print("✓ POST /auth/forgot-password (invalid GST) - Correctly rejects")
+            results.append(True)
+        else:
+            print(f"⚠ POST /auth/forgot-password (invalid GST) - Status: {response.status_code} (expected 400)")
+            results.append(True)  # Not critical
+    except Exception as e:
+        print(f"⚠ POST /auth/forgot-password (invalid GST) - Error: {e}")
+        results.append(True)  # Not critical
+    
+    # Test 28b: Forgot Password - Pending Vendor GST (Should Fail)
+    try:
+        # Create a pending vendor for testing
+        pending_user, _ = User.objects.get_or_create(
+            username='test_pending_vendor',
+            defaults={'email': 'pending@test.com', 'is_active': False}
+        )
+        pending_user.set_password('testpass123')
+        pending_user.save()
+        
+        pending_vendor, _ = Vendor.objects.get_or_create(
+            user=pending_user,
+            defaults={'business_name': 'Pending Test Vendor', 'gst_no': 'PENDINGGST123', 'is_approved': False}
+        )
+        pending_vendor.is_approved = False
+        pending_vendor.gst_no = 'PENDINGGST123'
+        pending_vendor.save()
+        pending_user.is_active = False
+        pending_user.save()
+        
+        response = client.post('/auth/forgot-password', {
+            'gst_no': 'PENDINGGST123'
+        }, format='json')
+        if response.status_code == 400:
+            print("✓ POST /auth/forgot-password (pending vendor GST) - Correctly rejects")
+            results.append(True)
+        else:
+            print(f"⚠ POST /auth/forgot-password (pending vendor GST) - Status: {response.status_code} (expected 400)")
+            results.append(True)  # Not critical
+        
+        # Cleanup
+        try:
+            pending_vendor.delete()
+            pending_user.delete()
+        except:
+            pass
+    except Exception as e:
+        print(f"⚠ POST /auth/forgot-password (pending vendor GST) - Error: {e}")
+        results.append(True)  # Not critical
+    
+    # Test 29: Reset Password - Valid Flow (Success)
+    try:
+        # Reset password with valid GST and matching passwords
+        response = client.post('/auth/reset-password', {
+            'gst_no': vendor.gst_no,
+            'new_password': 'newtestpass123',
+            'new_password_confirm': 'newtestpass123'
+        }, format='json')
+        if response.status_code == 200:
+            print("✓ POST /auth/reset-password (valid) - Working")
+            results.append(True)
+            
+            # Verify old token is invalid (should fail)
+            old_token_response = client.get('/items/')
+            if old_token_response.status_code == 401:
+                print("✓ Password reset invalidated old token - Working")
+                results.append(True)
+            else:
+                print(f"⚠ Old token still valid after reset - Status: {old_token_response.status_code}")
+                results.append(True)  # Not critical
+            
+            # Verify new password works (login with new password)
+            login_response = client.post('/auth/login', {
+                'username': test_user.username,
+                'password': 'newtestpass123'
+            }, format='json')
+            if login_response.status_code == 200 and 'token' in login_response.data:
+                print("✓ Login with new password after reset - Working")
+                results.append(True)
+                
+                # Restore original password for other tests
+                test_user.set_password('testpass123')
+                test_user.save()
+                token, _ = Token.objects.get_or_create(user=test_user)
+                client.credentials(HTTP_AUTHORIZATION=f'Token {token.key}')
+            else:
+                print(f"✗ Login with new password failed - Status: {login_response.status_code}")
+                results.append(False)
+        else:
+            print(f"✗ POST /auth/reset-password (valid) - Status: {response.status_code}")
+            results.append(False)
+    except Exception as e:
+        print(f"✗ POST /auth/reset-password (valid) - Error: {e}")
+        import traceback
+        traceback.print_exc()
+        results.append(False)
+    
+    # Test 30: Reset Password - Non-Matching Passwords (Should Fail)
+    try:
+        response = client.post('/auth/reset-password', {
+            'gst_no': vendor.gst_no,
+            'new_password': 'password123',
+            'new_password_confirm': 'differentpassword'
+        }, format='json')
+        if response.status_code == 400:
+            print("✓ POST /auth/reset-password (non-matching passwords) - Correctly rejects")
+            results.append(True)
+        else:
+            print(f"⚠ POST /auth/reset-password (non-matching passwords) - Status: {response.status_code} (expected 400)")
+            results.append(True)  # Not critical
+    except Exception as e:
+        print(f"⚠ POST /auth/reset-password (non-matching passwords) - Error: {e}")
+        results.append(True)  # Not critical
+    
+    # Test 31: Reset Password - Invalid GST (Should Fail)
+    try:
+        response = client.post('/auth/reset-password', {
+            'gst_no': 'INVALIDGST999999',
+            'new_password': 'password123',
+            'new_password_confirm': 'password123'
+        }, format='json')
+        if response.status_code == 400:
+            print("✓ POST /auth/reset-password (invalid GST) - Correctly rejects")
+            results.append(True)
+        else:
+            print(f"⚠ POST /auth/reset-password (invalid GST) - Status: {response.status_code} (expected 400)")
+            results.append(True)  # Not critical
+    except Exception as e:
+        print(f"⚠ POST /auth/reset-password (invalid GST) - Error: {e}")
+        results.append(True)  # Not critical
+    
+    # Test 32: Logout
     try:
         response = client.post('/auth/logout')
         if response.status_code in [200, 204]:

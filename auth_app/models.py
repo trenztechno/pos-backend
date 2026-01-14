@@ -12,6 +12,7 @@ class Vendor(models.Model):
     business_name = models.CharField(max_length=255, blank=True, null=True)
     phone = models.CharField(max_length=20, blank=True, null=True)
     address = models.TextField(blank=True, null=True)
+    gst_no = models.CharField(max_length=50, unique=True, blank=True, null=True, help_text="GST Number for password reset")
     is_approved = models.BooleanField(default=False)  # Admin approval status
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -21,6 +22,7 @@ class Vendor(models.Model):
         indexes = [
             models.Index(fields=['id']),
             models.Index(fields=['is_approved']),
+            models.Index(fields=['gst_no']),
         ]
     
     def __str__(self):

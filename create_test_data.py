@@ -45,6 +45,7 @@ def create_test_vendors():
         defaults={
             'business_name': 'ABC Store',
             'phone': '+1234567890',
+            'gst_no': '29ABCDE1234F1Z5',
             'address': '123 Main Street, City',
             'is_approved': True,
         }
@@ -52,6 +53,7 @@ def create_test_vendors():
     if not created:
         vendor1.is_approved = True
         vendor1.business_name = 'ABC Store'
+        vendor1.gst_no = '29ABCDE1234F1Z5'
         vendor1.save()
     vendor1_user.is_active = True
     vendor1_user.save()
@@ -83,6 +85,7 @@ def create_test_vendors():
         defaults={
             'business_name': 'XYZ Restaurant',
             'phone': '+0987654321',
+            'gst_no': '27XYZAB5678G2H6',
             'address': '456 Oak Avenue, Town',
             'is_approved': True,
         }
@@ -90,6 +93,7 @@ def create_test_vendors():
     if not created:
         vendor2.is_approved = True
         vendor2.business_name = 'XYZ Restaurant'
+        vendor2.gst_no = '27XYZAB5678G2H6'
         vendor2.save()
     vendor2_user.is_active = True
     vendor2_user.save()
@@ -121,12 +125,14 @@ def create_test_vendors():
         defaults={
             'business_name': 'Pending Business',
             'phone': '+1111111111',
+            'gst_no': '19PENDING9999X9Y9',
             'address': '789 Test Street',
             'is_approved': False,
         }
     )
     if not created:
         pending_vendor.is_approved = False
+        pending_vendor.gst_no = '19PENDING9999X9Y9'
         pending_vendor.save()
     pending_user.is_active = False
     pending_user.save()
