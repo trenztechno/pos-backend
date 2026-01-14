@@ -48,6 +48,10 @@ def login(request):
     POST /auth/login - Login and get token
     Body: {"username": "user", "password": "pass"}
     Returns: {"token": "abc123...", "user_id": 1, "username": "user"}
+    
+    NOTE: Login does NOT require GST number. Vendors can login with just username and password.
+    GST number is only required for password reset, not for login.
+    This ensures backward compatibility with existing vendors.
     """
     serializer = LoginSerializer(data=request.data)
     
