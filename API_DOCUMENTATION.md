@@ -4,7 +4,7 @@
 
 **Base URL:** `http://localhost:8000` (or your server URL)
 
-**Authentication:** All endpoints (except `/health/`, `/auth/login`, and `/auth/register`) require Token Authentication.
+**Authentication:** All endpoints (except `/health/`, `/auth/login`, `/auth/register`, `/auth/forgot-password`, and `/auth/reset-password`) require Token Authentication.
 
 ---
 
@@ -12,6 +12,11 @@
 
 1. [Health Check](#health-check)
 2. [Authentication](#authentication)
+   - [Register New Vendor](#register-new-vendor)
+   - [Login](#login)
+   - [Forgot Password](#forgot-password-verify-username-and-gst-number)
+   - [Reset Password](#reset-password)
+   - [Logout](#logout)
 3. [Vendor Registration & Approval](#vendor-registration--approval)
 4. [Categories](#categories)
 5. [Items](#items)
@@ -159,6 +164,22 @@ Creates a new vendor account. The account will be **inactive** and require admin
 }
 ```
 
+**Example (cURL):**
+```bash
+curl -X POST http://localhost:8000/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{
+    "username": "vendor1",
+    "email": "vendor1@example.com",
+    "password": "password123",
+    "password_confirm": "password123",
+    "business_name": "ABC Store",
+    "phone": "+1234567890",
+    "gst_no": "29ABCDE1234F1Z5",
+    "address": "123 Main St, City, State"
+  }'
+```
+
 ---
 
 ### Login
@@ -205,6 +226,16 @@ Login to get an authentication token. Only approved vendors can login.
 }
 ```
 
+**Example (cURL):**
+```bash
+curl -X POST http://localhost:8000/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{
+    "username": "vendor1",
+    "password": "password123"
+  }'
+```
+
 ---
 
 ### Logout
@@ -225,6 +256,12 @@ Authorization: Token <your_token>
 {
   "message": "Logout successful"
 }
+```
+
+**Example (cURL):**
+```bash
+curl -X POST http://localhost:8000/auth/logout \
+  -H "Authorization: Token YOUR_TOKEN_HERE"
 ```
 
 ---
@@ -436,9 +473,11 @@ fetch('http://localhost:8000/items/', {
 ### Registration Flow
 
 1. **Vendor registers** via `POST /auth/register`
+   - **Required fields:** `username`, `email`, `password`, `password_confirm`, `business_name`, `phone`, `gst_no`, `address`
    - Creates User account (inactive)
-   - Creates Vendor profile (not approved)
+   - Creates Vendor profile (not approved, with GST number)
    - Returns: "Registration successful. Your account is pending approval."
+   - **Note:** GST number is required and must be unique. It will be used for password reset.
 
 2. **Vendor tries to login** (before approval)
    - Returns 403: "Your vendor account is pending approval..."
@@ -1560,9 +1599,14 @@ curl -X POST http://localhost:8000/auth/register \
     "email": "vendor1@example.com",
     "password": "password123",
     "password_confirm": "password123",
-    "business_name": "ABC Store"
+    "business_name": "ABC Store",
+    "phone": "+1234567890",
+    "gst_no": "29ABCDE1234F1Z5",
+    "address": "123 Main St, City, State"
   }'
 ```
+
+**Note:** All fields are required: `username`, `email`, `password`, `password_confirm`, `business_name`, `phone`, `gst_no`, and `address`.
 
 ### 2. Sales Rep or Admin Approves Vendor
 
@@ -1592,9 +1636,54 @@ curl -X POST http://localhost:8000/auth/login \
 {
   "token": "9944b09199c62bcf9418ad846dd0e4bbdfc6ee4b",
   "user_id": 1,
+  "username": "vendor1",
+  "message": "Login successful"
+}
+```
+
+### 3.5. Password Reset (If Vendor Forgets Password)
+
+**Step 1: Verify Username and GST Number**
+```bash
+curl -X POST http://localhost:8000/auth/forgot-password \
+  -H "Content-Type: application/json" \
+  -d '{
+    "username": "vendor1",
+    "gst_no": "29ABCDE1234F1Z5"
+  }'
+```
+
+**Response:**
+```json
+{
+  "message": "Username and GST number verified. You can now reset your password.",
+  "username": "vendor1",
+  "gst_no": "29ABCDE1234F1Z5",
+  "business_name": "ABC Store"
+}
+```
+
+**Step 2: Reset Password**
+```bash
+curl -X POST http://localhost:8000/auth/reset-password \
+  -H "Content-Type: application/json" \
+  -d '{
+    "username": "vendor1",
+    "gst_no": "29ABCDE1234F1Z5",
+    "new_password": "newpassword123",
+    "new_password_confirm": "newpassword123"
+  }'
+```
+
+**Response:**
+```json
+{
+  "message": "Password reset successful. You can now login with your new password.",
   "username": "vendor1"
 }
 ```
+
+**Note:** After password reset, all existing tokens are invalidated. The vendor must login again with the new password.
 
 ### 4. Create Categories
 
