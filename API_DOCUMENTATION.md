@@ -28,6 +28,25 @@
 
 ---
 
+## Default Test Credentials
+
+**⚠️ Important:** All examples in this documentation use these default test credentials created by `setup.sh` and `create_test_data.py`.
+
+### Admin & Sales Rep
+- **Admin:** `admin` / `admin123` (Django Admin: `http://localhost:8000/admin/`)
+- **Sales Rep:** `salesrep1` / `salesrep123` (Sales Rep Interface: `http://localhost:8000/sales-rep/`)
+
+### Approved Vendors (Ready to Use)
+- **Vendor 1:** `vendor1` / `vendor123` (ABC Store, GST: `29ABCDE1234F1Z5`)
+- **Vendor 2:** `vendor2` / `vendor123` (XYZ Restaurant, GST: `27XYZAB5678G2H6`)
+
+### Pending Vendor (For Testing)
+- **Pending Vendor:** `pendingvendor` / `pending123` (Pending Business, GST: `19PENDING9999X9Y9`)
+
+**Note:** All login examples use `vendor1` / `vendor123`. Registration examples use generic credentials for NEW vendors (not the test accounts).
+
+---
+
 ## Health Check
 
 ### Check Server Status
@@ -116,16 +135,18 @@ Creates a new vendor account. The account will be **inactive** and require admin
 **Request Body (All fields required):**
 ```json
 {
-  "username": "vendor1",
-  "email": "vendor1@example.com",
+  "username": "newvendor",
+  "email": "newvendor@example.com",
   "password": "password123",
   "password_confirm": "password123",
-  "business_name": "ABC Store",
+  "business_name": "New Business Store",
   "phone": "+1234567890",
-  "gst_no": "29ABCDE1234F1Z5",
+  "gst_no": "29NEWVENDOR1234F1Z5",
   "address": "123 Main St, City, State"
 }
 ```
+
+**Note:** This example uses a NEW username (`newvendor`). The test vendor `vendor1` already exists - use it for login examples, not registration.
 
 **Field Descriptions:**
 - `username`: Unique username for login (required)
@@ -141,8 +162,8 @@ Creates a new vendor account. The account will be **inactive** and require admin
 ```json
 {
   "message": "Registration successful. Your vendor account is pending approval. Please wait for admin approval.",
-  "username": "vendor1",
-  "business_name": "ABC Store",
+  "username": "newvendor",
+  "business_name": "New Business Store",
   "status": "pending_approval"
 }
 ```
@@ -169,16 +190,18 @@ Creates a new vendor account. The account will be **inactive** and require admin
 curl -X POST http://localhost:8000/auth/register \
   -H "Content-Type: application/json" \
   -d '{
-    "username": "vendor1",
-    "email": "vendor1@example.com",
+    "username": "newvendor",
+    "email": "newvendor@example.com",
     "password": "password123",
     "password_confirm": "password123",
-    "business_name": "ABC Store",
+    "business_name": "New Business Store",
     "phone": "+1234567890",
-    "gst_no": "29ABCDE1234F1Z5",
+    "gst_no": "29NEWVENDOR1234F1Z5",
     "address": "123 Main St, City, State"
   }'
 ```
+
+**Note:** Use a unique username and GST number. The test vendor `vendor1` already exists - use it for login, not registration.
 
 ---
 
@@ -194,7 +217,7 @@ Login to get an authentication token. Only approved vendors can login.
 ```json
 {
   "username": "vendor1",
-  "password": "password123"
+  "password": "vendor123"
 }
 ```
 
@@ -232,7 +255,7 @@ curl -X POST http://localhost:8000/auth/login \
   -H "Content-Type: application/json" \
   -d '{
     "username": "vendor1",
-    "password": "password123"
+    "password": "vendor123"
   }'
 ```
 
@@ -1595,28 +1618,31 @@ or
 curl -X POST http://localhost:8000/auth/register \
   -H "Content-Type: application/json" \
   -d '{
-    "username": "vendor1",
-    "email": "vendor1@example.com",
+    "username": "newvendor",
+    "email": "newvendor@example.com",
     "password": "password123",
     "password_confirm": "password123",
-    "business_name": "ABC Store",
+    "business_name": "New Business Store",
     "phone": "+1234567890",
-    "gst_no": "29ABCDE1234F1Z5",
+    "gst_no": "29NEWVENDOR1234F1Z5",
     "address": "123 Main St, City, State"
   }'
 ```
 
-**Note:** All fields are required: `username`, `email`, `password`, `password_confirm`, `business_name`, `phone`, `gst_no`, and `address`.
+**Note:** 
+- All fields are required: `username`, `email`, `password`, `password_confirm`, `business_name`, `phone`, `gst_no`, and `address`.
+- Use a unique username and GST number. The test vendor `vendor1` already exists - use it for login examples below.
 
 ### 2. Sales Rep or Admin Approves Vendor
 
 **Option A: Sales Rep Interface (Recommended - Mobile Friendly)**
 - Go to: `http://localhost:8000/sales-rep/`
-- Login with sales rep credentials (default: `salesrep1` / `salesrep123`)
+- Login with sales rep credentials: `salesrep1` / `salesrep123`
 - View pending vendors → Click "Approve" button
 
 **Option B: Django Admin Panel**
 - Go to: `http://localhost:8000/admin/`
+- Login with admin credentials: `admin` / `admin123`
 - Navigate to: **Vendors** section
 - Select vendor(s) → Actions: "Approve selected vendors" → Go
 
@@ -1627,7 +1653,7 @@ curl -X POST http://localhost:8000/auth/login \
   -H "Content-Type: application/json" \
   -d '{
     "username": "vendor1",
-    "password": "password123"
+    "password": "vendor123"
   }'
 ```
 

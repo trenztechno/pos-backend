@@ -170,3 +170,4 @@ curl -X POST http://localhost:8000/auth/forgot-password \
 ✅ **Backward Compatible:** Existing vendors can still login  
 ✅ **Protected Workflow:** No breaking changes to login flow
 
+
