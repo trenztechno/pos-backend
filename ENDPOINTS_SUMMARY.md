@@ -15,6 +15,7 @@
 - **POST** `/auth/register` - Register new vendor (No auth)
   - Required fields: username, email, password, password_confirm, business_name, phone, gst_no, address
 - **POST** `/auth/login` - Login and get token (No auth)
+  - Returns vendor object in response
 - **POST** `/auth/forgot-password` - Verify GST number for password reset (No auth)
 - **POST** `/auth/reset-password` - Reset password using GST number (No auth)
 - **POST** `/auth/logout` - Logout (Auth required)

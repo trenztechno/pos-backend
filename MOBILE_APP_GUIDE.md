@@ -71,11 +71,18 @@ console.log('Token:', token);
   "token": "9944b09199c62bcf9418ad846dd0e4bbdfc6ee4b",
   "user_id": 1,
   "username": "vendor1",
-  "message": "Login successful"
+  "message": "Login successful",
+  "vendor": {
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "business_name": "ABC Store",
+    "gst_no": "29ABCDE1234F1Z5"
+  }
 }
 ```
 
 **Save this token securely!** Use it in all API calls.
+
+**Important:** Billing mode (GST/Non-GST) is set per bill, not per vendor. Each bill can be either GST or Non-GST.
 
 ### Step 4: Test API Endpoints
 
@@ -252,23 +259,77 @@ async function syncQueuedOperations() {
 ```javascript
 // Creating a bill - NEVER wait for server!
 async function createBill(billData) {
-  // 1. Generate UUID on client
+  // 1. Get billing_mode from user selection (per bill, not per vendor)
+  const billingMode = billData.billing_mode || 'gst'; // User selects GST or Non-GST for this bill
+  
+  // 2. Calculate totals based on billing_mode
+  let subtotal = 0;
+  let cgst = 0;
+  let sgst = 0;
+  let igst = 0;
+  let totalTax = 0;
+  let total = 0;
+  
+  // Calculate subtotal
+  billData.items.forEach(item => {
+    subtotal += item.price * item.quantity;
+  });
+  
+  if (billingMode === 'gst') {
+    // Calculate GST (example: 18% total = 9% CGST + 9% SGST for intra-state)
+    // For intra-state: CGST + SGST
+    // For inter-state: IGST only
+    const gstRate = 0.18; // 18% total
+    const isInterState = billData.is_inter_state || false; // User selects if inter-state
+    
+    if (isInterState) {
+      // Inter-state: IGST only
+      igst = subtotal * gstRate;
+      totalTax = igst;
+    } else {
+      // Intra-state: CGST + SGST (split equally)
+      cgst = subtotal * (gstRate / 2); // 9%
+      sgst = subtotal * (gstRate / 2); // 9%
+      totalTax = cgst + sgst;
+    }
+    total = subtotal + totalTax;
+  } else {
+    // Non-GST: no tax
+    total = subtotal;
+  }
+  
+  // 3. Generate UUID on client
   const billId = generateUUID();
   
-  // 2. Save to local SQLite immediately
+  // 4. Prepare bill data for storage
+  const billPayload = {
+    bill_id: billId,
+    billing_mode: billingMode,
+    items: billData.items,
+    subtotal: subtotal,
+    total: total,
+    timestamp: new Date().toISOString()
+  };
+  
+  // Add GST tax details if GST bill
+  if (billingMode === 'gst') {
+    billPayload.cgst = cgst;
+    billPayload.sgst = sgst;
+    billPayload.igst = igst;
+    billPayload.total_tax = totalTax;
+  }
+  
+  // 5. Save to local SQLite immediately
   await db.insert('bills', {
     id: billId,
-    items: JSON.stringify(billData.items),
-    total: billData.total,
-    tax: billData.tax,
-    timestamp: new Date().toISOString(),
+    bill_data: JSON.stringify(billPayload),
     is_synced: false
   });
   
-  // 3. Print immediately (Bluetooth printer) - Don't wait!
-  await printBill(billData);
+  // 6. Print immediately (Bluetooth printer) - Don't wait!
+  await printBill(billPayload);
   
-  // 4. Queue for background sync
+  // 7. Queue for background sync
   if (isOnline()) {
     await syncBillToServer(billId);
   } else {
@@ -344,7 +405,46 @@ async function createBill(billData) {
 - ✅ **Use `category_ids` array** when creating/updating items
 - ✅ **Example:** `category_ids: ["uuid1", "uuid2"]`
 
-### 6. Image Handling
+### 6. Billing Mode (GST vs Non-GST) - Per Bill ⭐ **IMPORTANT**
+- ✅ **Billing mode is set per bill**, not per vendor
+- ✅ **Each bill can be GST or Non-GST** - user selects when creating bill
+- ✅ **For GST bills**, include tax details:
+  - `cgst`: Central GST amount (for intra-state)
+  - `sgst`: State GST amount (for intra-state)
+  - `igst`: Integrated GST amount (for inter-state)
+  - `total_tax`: Sum of all taxes
+- ✅ **For Non-GST bills**, no tax fields needed
+- ✅ **Include `billing_mode` in bill JSON** when syncing to server
+
+**GST Bill Example:**
+```javascript
+const billData = {
+  bill_id: "uuid",
+  billing_mode: "gst",
+  items: [...],
+  subtotal: 1000.00,
+  cgst: 90.00,      // 9% for intra-state
+  sgst: 90.00,      // 9% for intra-state
+  igst: 0.00,       // 0 for intra-state, 180.00 for inter-state
+  total_tax: 180.00,
+  total: 1180.00,
+  timestamp: "2024-01-01T10:00:00Z"
+};
+```
+
+**Non-GST Bill Example:**
+```javascript
+const billData = {
+  bill_id: "uuid",
+  billing_mode: "non_gst",
+  items: [...],
+  subtotal: 1000.00,
+  total: 1000.00,
+  timestamp: "2024-01-01T10:00:00Z"
+};
+```
+
+### 7. Image Handling
 - ✅ **Images stored on server** (local or S3)
 - ✅ **Use `image_url` field** from API response
 - ✅ **Download and cache** images locally during initial sync

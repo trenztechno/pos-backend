@@ -43,6 +43,10 @@ class VendorAdmin(admin.ModelAdmin):
         ('Vendor Information', {
             'fields': ('user', 'business_name', 'phone', 'address')
         }),
+        ('GST Information', {
+            'fields': ('gst_no',),
+            'description': 'GST number is used for password reset. Billing mode (GST/Non-GST) is set per bill, not per vendor.'
+        }),
         ('Approval Status', {
             'fields': ('is_approved',),
             'description': '✓ Check "Approved" to approve vendor. Unapproved vendors cannot login until approved.'

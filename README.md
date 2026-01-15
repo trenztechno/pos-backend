@@ -11,6 +11,7 @@ Django + PostgreSQL backend for the offline-first billing application.
 - **Offline Authority:** Mobile device is source of truth for Sales, Server is source of truth for Inventory
 - **UUIDs:** All models use UUID (v4) primary keys
 - **No Sales API Latency:** Bills are saved locally first, then synced in background
+- **Billing Modes:** Supports both GST and Non-GST billing modes per bill (not per vendor)
 
 ## Quick Start
 
@@ -275,6 +276,8 @@ pos/
 - **User-Friendly Errors:** Clear "Please login" messages for authentication failures
 
 ### Advanced Features
+- **Billing Modes:** Support for both GST and Non-GST billing modes per bill (vendors can create both types)
+- **GST Tax Details:** Full support for CGST, SGST, and IGST in GST bills
 - **Item Images:** Support for item images with local/S3 storage toggle
 - **Health Check:** `/health/` endpoint for monitoring and load balancers
 - **Comprehensive Logging:** API, error, and audit logging with rotation

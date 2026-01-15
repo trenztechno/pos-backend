@@ -27,6 +27,24 @@ This document explains the authentication flow and ensures backward compatibilit
 3. Checks if vendor is approved and active
 4. Returns token if valid
 5. **Does NOT check GST number** - backward compatible
+6. **Returns vendor data** (for vendors)
+
+**Login Response (for vendors):**
+```json
+{
+  "token": "...",
+  "user_id": 1,
+  "username": "vendor1",
+  "message": "Login successful",
+  "vendor": {
+    "id": "...",
+    "business_name": "ABC Store",
+    "gst_no": "29ABCDE1234F1Z5"
+  }
+}
+```
+
+**Note:** Billing mode (GST/Non-GST) is set per bill, not per vendor. Each bill can be either GST or Non-GST.
 
 ---
 
@@ -43,6 +61,8 @@ This document explains the authentication flow and ensures backward compatibilit
 - `phone` (required)
 - `gst_no` (required) ⭐ **New vendors must have GST**
 - `address` (required)
+
+**Note:** Billing mode (GST/Non-GST) is set per bill when creating bills, not during registration.
 
 **Why GST is Required:**
 - New vendors need GST for password reset functionality

@@ -6,6 +6,12 @@
 
 **Authentication:** All endpoints (except `/health/`, `/auth/login`, `/auth/register`, `/auth/forgot-password`, and `/auth/reset-password`) require Token Authentication.
 
+**Billing Modes:** The system supports per-bill billing modes (not vendor-specific):
+- **GST Billing** (`"gst"`): GST calculations are applied to the bill (CGST, SGST, IGST)
+- **Non-GST Billing** (`"non_gst"`): No GST calculations are applied
+
+Each bill can be either GST or Non-GST. The `billing_mode` field in the bill data determines how taxes are calculated. Vendors can create both types of bills.
+
 ---
 
 ## Table of Contents
@@ -14,9 +20,9 @@
 2. [Authentication](#authentication)
    - [Register New Vendor](#register-new-vendor)
    - [Login](#login)
+   - [Logout](#logout)
    - [Forgot Password](#forgot-password-verify-username-and-gst-number)
    - [Reset Password](#reset-password)
-   - [Logout](#logout)
 3. [Vendor Registration & Approval](#vendor-registration--approval)
 4. [Categories](#categories)
 5. [Items](#items)
@@ -158,6 +164,8 @@ Creates a new vendor account. The account will be **inactive** and require admin
 - `gst_no`: GST number (required, must be unique, used for password reset)
 - `address`: Business address (required)
 
+**Note:** Billing mode (GST/Non-GST) is set per bill, not per vendor. Vendors can create both GST and Non-GST bills.
+
 **Success Response (201):**
 ```json
 {
@@ -201,7 +209,7 @@ curl -X POST http://localhost:8000/auth/register \
   }'
 ```
 
-**Note:** Use a unique username and GST number. The test vendor `vendor1` already exists - use it for login, not registration.
+**Note:** Use a unique username and GST number. The test vendor `vendor1` already exists - use it for login, not registration. Billing mode (GST/Non-GST) is set per bill, not during registration.
 
 ---
 
@@ -227,9 +235,16 @@ Login to get an authentication token. Only approved vendors can login.
   "token": "9944b09199c62bcf9418ad846dd0e4bbdfc6ee4b",
   "user_id": 1,
   "username": "vendor1",
-  "message": "Login successful"
+  "message": "Login successful",
+  "vendor": {
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "business_name": "ABC Store",
+    "gst_no": "29ABCDE1234F1Z5"
+  }
 }
 ```
+
+**Note:** The `vendor` object is only included for vendor accounts. Billing mode (GST/Non-GST) is set per bill when creating bills, not at vendor level.
 
 **Error Responses:**
 
@@ -1456,18 +1471,76 @@ Batch sync items for offline-first mobile apps. Supports create, update, and del
 Batch upload sales/bill data. Accepts single bill or array of bills. Server acts as passive receiver - no validation.
 
 **Request Body (Single Bill):**
+
+**GST Bill Example:**
 ```json
 {
   "bill_data": {
     "bill_id": "bill-123",
-    "items": [...],
-    "total": 500.00,
-    "tax": 50.00,
+    "billing_mode": "gst",
+    "items": [
+      {
+        "id": "item-uuid-1",
+        "name": "Product A",
+        "price": 100.00,
+        "quantity": 2,
+        "subtotal": 200.00
+      }
+    ],
+    "subtotal": 200.00,
+    "cgst": 18.00,
+    "sgst": 18.00,
+    "igst": 0.00,
+    "total_tax": 36.00,
+    "total": 236.00,
     "timestamp": "2024-01-01T10:00:00Z"
   },
   "device_id": "device-001"
 }
 ```
+
+**Non-GST Bill Example:**
+```json
+{
+  "bill_data": {
+    "bill_id": "bill-124",
+    "billing_mode": "non_gst",
+    "items": [
+      {
+        "id": "item-uuid-1",
+        "name": "Product B",
+        "price": 150.00,
+        "quantity": 1,
+        "subtotal": 150.00
+      }
+    ],
+    "subtotal": 150.00,
+    "total": 150.00,
+    "timestamp": "2024-01-01T10:00:00Z"
+  },
+  "device_id": "device-001"
+}
+```
+
+**Bill Data Structure:**
+
+**Required Fields:**
+- `bill_id`: Unique bill identifier (UUID or string)
+- `billing_mode`: `"gst"` or `"non_gst"` - Determines if GST calculations are applied
+- `items`: Array of bill items
+- `subtotal`: Total before tax
+- `total`: Final total amount
+- `timestamp`: ISO 8601 timestamp
+
+**For GST Bills (`billing_mode: "gst"`):**
+- `cgst`: Central GST amount (required)
+- `sgst`: State GST amount (required for intra-state)
+- `igst`: Integrated GST amount (required for inter-state, 0 for intra-state)
+- `total_tax`: Sum of all taxes (cgst + sgst + igst)
+
+**For Non-GST Bills (`billing_mode: "non_gst"`):**
+- No tax fields required
+- `total` should equal `subtotal`
 
 **Request Body (Multiple Bills):**
 ```json

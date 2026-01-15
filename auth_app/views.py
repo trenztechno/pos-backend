@@ -59,12 +59,26 @@ def login(request):
         user = serializer.validated_data['user']
         token, created = Token.objects.get_or_create(user=user)
         
-        return Response({
+        # Get vendor profile if exists (for vendors)
+        response_data = {
             'token': token.key,
             'user_id': user.id,
             'username': user.username,
             'message': 'Login successful'
-        }, status=status.HTTP_200_OK)
+        }
+        
+        # Add vendor-specific data if user is a vendor
+        try:
+            vendor = user.vendor_profile
+            response_data['vendor'] = {
+                'id': str(vendor.id),
+                'business_name': vendor.business_name,
+                'gst_no': vendor.gst_no,
+            }
+        except Vendor.DoesNotExist:
+            pass  # Not a vendor, skip vendor data
+        
+        return Response(response_data, status=status.HTTP_200_OK)
     
     # Check if error is about pending approval
     error_message = serializer.errors.get('non_field_errors', [])

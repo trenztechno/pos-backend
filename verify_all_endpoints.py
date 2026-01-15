@@ -426,7 +426,7 @@ def test_api_endpoints():
             'business_name': 'Test Business',
             'phone': '+1234567890',
             'gst_no': 'TESTGST' + unique_id,
-            'address': '123 Test Street'
+            'address': '123 Test Street',
         }, format='json')
         if response.status_code in [200, 201]:
             print("✓ POST /auth/register - Working")
@@ -984,6 +984,8 @@ def test_api_endpoints():
         if response.status_code in [200, 204]:
             print("✓ POST /auth/logout - Working")
             results.append(True)
+            # Clear credentials after logout (token is deleted)
+            client.credentials()
         else:
             print(f"✗ POST /auth/logout - Status: {response.status_code}")
             results.append(False)
