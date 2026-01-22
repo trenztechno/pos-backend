@@ -4,26 +4,26 @@
 
 ---
 
-## 🧪 Main Test File
+## Main Test File
 
 **`verify_all_endpoints.py`** - This is your comprehensive test file!
 
 This script tests **absolutely everything**:
-- ✅ All models and their fields
-- ✅ All URL patterns
-- ✅ Authentication system
-- ✅ Middleware configuration
-- ✅ Logging system
-- ✅ Storage configuration (local/S3)
-- ✅ Serializers
-- ✅ Views
-- ✅ Admin configuration
-- ✅ Sales rep interface
-- ✅ **API endpoints with actual HTTP requests** ⭐
+- All models and their fields
+- All URL patterns
+- Authentication system
+- Middleware configuration
+- Logging system
+- Storage configuration (local/S3)
+- Serializers
+- Views
+- Admin configuration
+- Sales rep interface
+- **API endpoints with actual HTTP requests** (60+ test scenarios)
 
 ---
 
-## 🚀 How to Use
+## How to Use
 
 ### Run the Test:
 
@@ -51,8 +51,9 @@ python verify_all_endpoints.py
    - Tests authentication flow
    - Tests CRUD operations for categories
    - Tests CRUD operations for items
+   - Tests image uploads (multipart/form-data)
    - Tests sync endpoints
-   - Tests sales backup
+   - Tests sales backup (upload and download)
    - Tests settings push
    - Tests logout
 
@@ -84,27 +85,27 @@ python verify_all_endpoints.py
 Total: 11/11 tests passed
 ======================================================================
 
-🎉 All functionality verified successfully!
+All functionality verified successfully!
 ```
 
 ---
 
-## 📋 When to Run This
+## When to Run This
 
 **Run this test file:**
-- ✅ After making any changes to models
-- ✅ After adding/modifying endpoints
-- ✅ After changing authentication logic
-- ✅ After updating views or serializers
-- ✅ Before deploying to production
-- ✅ After pulling new code
-- ✅ When debugging issues
+- After making any changes to models
+- After adding/modifying endpoints
+- After changing authentication logic
+- After updating views or serializers
+- Before deploying to production
+- After pulling new code
+- When debugging issues
 
 **Basically: Run it whenever you want to ensure everything works!**
 
 ---
 
-## 🔍 What Gets Tested
+## What Gets Tested
 
 ### 1. Models
 - All model fields exist
@@ -149,7 +150,7 @@ Total: 11/11 tests passed
 - Views importable
 - Templates exist
 
-### 11. API Endpoints (HTTP Requests) ⭐
+### 11. API Endpoints (HTTP Requests) (60+ scenarios)
 - **GET /health/** - Health check
 - **POST /auth/register** - User registration (with FSSAI license)
 - **POST /auth/login** - Login and get token (returns vendor data with fssai_license, logo_url, footer_note)
@@ -164,8 +165,10 @@ Total: 11/11 tests passed
 - **POST /items/categories/sync** - Batch sync categories
 - **GET /items/** - Get items (with filters: category, search, is_active)
 - **POST /items/** - Create item (with GST fields: mrp_price, price_type, gst_percentage, veg_nonveg)
+- **POST /items/** - Create item with image upload (multipart/form-data)
 - **GET /items/<uuid>/** - Get item detail
 - **PATCH /items/<uuid>/** - Update item
+- **PATCH /items/<uuid>/** - Update item with image upload (multipart/form-data)
 - **PATCH /items/<uuid>/status/** - Update item status
 - **DELETE /items/<uuid>/** - Delete item
 - **POST /items/sync** - Batch sync items
@@ -176,33 +179,114 @@ Total: 11/11 tests passed
 - **PATCH /inventory/<uuid>/** - Update inventory item
 - **PATCH /inventory/<uuid>/stock/** - Update stock (set/add/subtract)
 - **DELETE /inventory/<uuid>/** - Delete inventory item
-- **GET /backup/sync** - Download bills from server (NEW - bi-directional sync)
+- **GET /backup/sync** - Download bills from server (bi-directional sync)
   - Query params: since, limit, billing_mode, start_date, end_date
 - **POST /backup/sync** - Upload bills (GST and Non-GST, single or batch)
   - Tests: duplicate handling, minimal data, item linking
 - **POST /settings/push** - Push device settings
-- **PATCH /items/<uuid>/status/** - Update item status
-- **DELETE /items/<uuid>/** - Delete item
-- **POST /items/sync** - Batch sync items
-- **POST /items/categories/sync** - Batch sync categories
-- **GET /inventory/unit-types/** - Get unit types
-- **GET /inventory/** - Get inventory items
-- **POST /inventory/** - Create inventory item
-- **GET /inventory/<uuid>/** - Get inventory item detail
-- **PATCH /inventory/<uuid>/** - Update inventory item
-- **PATCH /inventory/<uuid>/stock/** - Update stock (add/subtract)
-- **DELETE /inventory/<uuid>/** - Delete inventory item
-- **PATCH /items/<uuid>/status/** - Update item status
-- **DELETE /items/<uuid>/** - Delete item
-- **POST /items/categories/sync** - Batch sync categories
-- **POST /items/sync** - Batch sync items
-- **POST /backup/sync** - Sales backup
-- **POST /settings/push** - Settings backup
-- **POST /auth/logout** - Logout
+
+**Total: 60+ test scenarios covering all endpoints, image uploads, edge cases, and error handling**
 
 ---
 
-## ⚠️ Troubleshooting
+## Default Setup Verification
+
+**`verify_default_setup.py`** - Verify all default accounts and test data are present
+
+### Run the Verification:
+
+```bash
+source venv/bin/activate
+python verify_default_setup.py
+```
+
+### What It Verifies:
+
+1. **Default Accounts:**
+   - Admin: admin / admin123
+   - Sales Rep: salesrep1 / salesrep123
+   - Vendor 1: vendor1 / vendor123 (ABC Store)
+   - Vendor 2: vendor2 / vendor123 (XYZ Restaurant)
+   - Mobile Dev: mobiledev / mobile123 (Mobile Dev Restaurant)
+
+2. **Test Data:**
+   - Categories (global and vendor-specific)
+   - Items (with GST fields and images)
+   - Bills (GST and Non-GST)
+
+3. **Mobile Developer Data:**
+   - 15+ items with images
+   - 8 categories
+   - Sample bills (GST and Non-GST)
+   - Vendor logo and FSSAI license
+
+4. **API Access:**
+   - Login with default credentials
+   - API access with tokens
+   - Image URLs accessibility
+
+### Expected Output:
+
+```
+======================================================================
+  DEFAULT SETUP VERIFICATION
+======================================================================
+
+======================================================================
+  1. Verifying Default Accounts
+======================================================================
+✓ Admin account: admin / admin123 (Superuser)
+✓ Sales Rep account: salesrep1 / salesrep123 (Active)
+✓ Vendor 1: vendor1 / vendor123 (ABC Store, Approved)
+✓ Vendor 2: vendor2 / vendor123 (XYZ Restaurant, Approved)
+✓ Mobile Dev: mobiledev / mobile123 (Mobile Dev Restaurant, Approved)
+
+======================================================================
+  2. Verifying Test Data
+======================================================================
+  Total Categories: 15
+✓ Global Categories: 3 found
+✓ Vendor-Specific Categories: 12 found
+  Total Items: 22
+✓ Items with GST fields (mrp_price): 15
+✓ Items with images: 15
+
+======================================================================
+  3. Verifying Mobile Developer Data
+======================================================================
+✓ Categories: 9 available (expected: 6+)
+✓ Items: 15 found (expected: 15+)
+✓ Items with complete GST fields: 15
+✓ Items with images: 15
+✓ Sample Bills: 2 found
+  - GST Bills: 1
+  - Non-GST Bills: 1
+
+======================================================================
+  4. Verifying API Access
+======================================================================
+✓ Vendor 1 login successful
+✓ Vendor 1 API access working
+✓ Mobile Dev login successful
+✓ Mobile Dev API access working (15 items)
+
+======================================================================
+  VERIFICATION SUMMARY
+======================================================================
+PASS: Default Accounts
+PASS: Test Data
+PASS: Mobile Dev Data
+PASS: API Access
+PASS: Image URLs
+
+Total: 5/5 checks passed
+```
+
+**Use this script to confirm to developers that all default accounts and data mentioned in documentation are present.**
+
+---
+
+## Troubleshooting
 
 ### If tests fail:
 
@@ -221,16 +305,17 @@ Total: 11/11 tests passed
 
 ---
 
-## 📝 Notes
+## Notes
 
 - The test creates a temporary test user and vendor
 - Test data is cleaned up after tests complete
 - Some 404 errors on detail endpoints are expected (vendor isolation)
 - The test uses Django's test client (APIClient) for HTTP requests
+- Image upload tests use PIL to generate test images
 
 ---
 
-## 🎯 Quick Command
+## Quick Command
 
 **Just run this whenever you make changes:**
 
@@ -242,5 +327,4 @@ source venv/bin/activate && python verify_all_endpoints.py
 
 ---
 
-**This is your go-to test file for ensuring all server functionality works! 🚀**
-
+**This is your go-to test file for ensuring all server functionality works!**

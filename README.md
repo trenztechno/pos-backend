@@ -350,7 +350,9 @@ See [API_DOCUMENTATION.md](API_DOCUMENTATION.md) for complete API reference.
 
 ## Testing
 
-Run comprehensive tests:
+### Comprehensive Endpoint Testing
+
+Run comprehensive tests for all endpoints:
 
 ```bash
 source venv/bin/activate
@@ -361,8 +363,27 @@ This tests:
 - All models and fields
 - All URL patterns
 - Authentication system
-- All API endpoints (51+ tests)
+- All API endpoints (60+ tests including image uploads)
 - Error handling and edge cases
+- Image uploads (multipart/form-data)
+- Bi-directional sync
+- GST/Non-GST billing
+
+### Default Setup Verification
+
+Verify that all default accounts and test data are present:
+
+```bash
+source venv/bin/activate
+python verify_default_setup.py
+```
+
+This verifies:
+- Default accounts (admin, salesrep, vendors, mobiledev)
+- Test data (categories, items, bills)
+- Mobile developer data (15+ items, 8 categories, sample bills)
+- API access with default credentials
+- Image URLs accessibility
 
 See [BACKEND_TESTING.md](BACKEND_TESTING.md) for testing guide.
 
