@@ -15,7 +15,7 @@
 - **POST** `/auth/register` - Register new vendor (No auth)
   - Required fields: username, email, password, password_confirm, business_name, phone, gst_no, address
 - **POST** `/auth/login` - Login and get token (No auth)
-  - Returns vendor object in response
+  - Returns vendor object with `logo_url` (pre-signed URL if S3 enabled)
 - **POST** `/auth/forgot-password` - Verify GST number for password reset (No auth)
 - **POST** `/auth/reset-password` - Reset password using GST number (No auth)
 - **POST** `/auth/logout` - Logout (Auth required)
@@ -32,8 +32,11 @@
 - **GET** `/items/` - List all items (Auth required)
   - Query params: `category=<uuid>`, `search=<term>`
 - **POST** `/items/` - Create item (Auth required)
+  - Use `multipart/form-data` to upload images
+  - Response includes `image_url` with pre-signed URL (if S3 enabled)
 - **GET** `/items/<uuid:id>/` - Get item details (Auth required)
 - **PATCH** `/items/<uuid:id>/` - Update item (Auth required)
+  - Use `multipart/form-data` to update images
 - **DELETE** `/items/<uuid:id>/` - Delete item (Auth required)
 - **PATCH** `/items/<uuid:id>/status/` - Update item status (Auth required)
 - **POST** `/items/sync` - Batch sync items (Auth required)

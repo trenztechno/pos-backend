@@ -37,7 +37,7 @@ If you prefer public bucket access:
 USE_S3_PRESIGNED_URLS=False
 ```
 
-Then configure bucket policy for public read (see `S3_403_FIX.md`)
+Then configure bucket policy for public read (see troubleshooting section in `STORAGE_CONFIGURATION.md`)
 
 ## URL Expiration
 

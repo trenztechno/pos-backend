@@ -183,6 +183,40 @@ Just change `USE_S3` in `.env` file:
 
 **No breaking changes** - system handles both storage backends seamlessly!
 
+## Pre-Signed URLs (Recommended - More Secure) 🔒
+
+**By default, the system uses pre-signed URLs for S3 images.** This is more secure than public bucket access:
+
+### Benefits:
+- ✅ **No public bucket needed** - Bucket can remain private
+- ✅ **Temporary access** - URLs expire after set time (default: 1 hour)
+- ✅ **More secure** - Only authenticated API users get image URLs
+- ✅ **No 403 errors** - Works without bucket policy changes
+
+### Configuration:
+
+Add to `.env` file:
+```bash
+# Pre-signed URL settings (default: enabled)
+USE_S3_PRESIGNED_URLS=True
+S3_PRESIGNED_URL_EXPIRATION=3600  # 1 hour in seconds (default)
+```
+
+### How It Works:
+1. When API returns image URLs, it generates temporary pre-signed URLs
+2. URLs are valid for the expiration time (default: 1 hour)
+3. Mobile app can cache and use these URLs
+4. URLs automatically expire, preventing unauthorized access
+
+### Disable Pre-Signed URLs:
+If you want public bucket access instead:
+```bash
+USE_S3_PRESIGNED_URLS=False
+```
+Then configure bucket policy for public read (see troubleshooting section below)
+
+**See [PRESIGNED_URLS_GUIDE.md](PRESIGNED_URLS_GUIDE.md) for complete details.**
+
 ## Benefits of S3
 
 ✅ **Scalability** - Handle millions of images  
@@ -192,6 +226,7 @@ Just change `USE_S3` in `.env` file:
 ✅ **No server storage** - Frees up server disk space  
 ✅ **Easy backup** - Built-in versioning and backup  
 ✅ **Mobile-friendly** - Direct S3 URLs work great for mobile apps  
+✅ **Secure** - Pre-signed URLs by default (no public bucket needed)  
 
 ## Troubleshooting
 
@@ -201,11 +236,44 @@ Just change `USE_S3` in `.env` file:
 ### Error: "AWS credentials are missing"
 **Solution:** Check your `.env` file has all required AWS variables set
 
-### Images not accessible after switching to S3
-**Solution:** 
-1. Check bucket policy allows public read
-2. Verify CORS configuration
-3. Check AWS credentials have S3 permissions
+### ⚠️ Images return 403 Forbidden (Most Common Issue)
+**Problem:** Images are uploaded but return `403 Forbidden` when accessed.
+
+**Solution (If using pre-signed URLs - Recommended):**
+- Pre-signed URLs should work without bucket policy changes
+- Check `USE_S3_PRESIGNED_URLS=True` in `.env`
+- Verify AWS credentials are correct
+- Check IAM user has `s3:GetObject` permission
+- See [PRESIGNED_URLS_GUIDE.md](PRESIGNED_URLS_GUIDE.md) for troubleshooting
+
+**Solution (If using public bucket - Not Recommended):**
+1. **Unblock Public Access:**
+   - S3 Console → Your Bucket → Permissions
+   - Edit "Block public access" settings
+   - **Uncheck all 4 boxes** (or at least uncheck ACL-related ones)
+   - Save and confirm
+
+2. **Set Bucket Policy for Public Read:**
+   - Go to Permissions → Bucket policy → Edit
+   - Add this policy (replace `your-bucket-name`):
+   ```json
+   {
+       "Version": "2012-10-17",
+       "Statement": [{
+           "Sid": "PublicReadGetObject",
+           "Effect": "Allow",
+           "Principal": "*",
+           "Action": "s3:GetObject",
+           "Resource": "arn:aws:s3:::your-bucket-name/*"
+       }]
+   }
+   ```
+
+3. **Verify CORS Configuration:**
+   - Go to Permissions → CORS → Edit
+   - Add CORS config (see Step 3 in main guide above)
+
+**Note:** We recommend using pre-signed URLs instead of public bucket access for better security.
 
 ### Images show 404 after upload
 **Solution:**
