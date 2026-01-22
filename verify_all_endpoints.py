@@ -556,7 +556,7 @@ def test_api_endpoints():
             response_filtered = client.get('/items/categories/?is_active=true')
             if response_filtered.status_code == 200:
                 print("  ✓ GET /items/categories/?is_active=true - Working")
-                results.append(True)
+            results.append(True)
         else:
             print(f"✗ GET /items/categories/ - Status: {response.status_code}")
             results.append(False)
@@ -650,7 +650,7 @@ def test_api_endpoints():
                 response_active = client.get('/items/?is_active=true')
                 if response_active.status_code == 200:
                     print("  ✓ GET /items/?is_active=true - Working")
-                    results.append(True)
+            results.append(True)
         else:
             print(f"✗ GET /items/ - Status: {response.status_code}")
             results.append(False)
@@ -863,7 +863,7 @@ def test_api_endpoints():
             response_low = client.get('/inventory/?low_stock=true')
             if response_low.status_code == 200:
                 print("  ✓ GET /inventory/?low_stock=true - Working")
-                results.append(True)
+            results.append(True)
         else:
             print(f"✗ GET /inventory/ - Status: {response.status_code}")
             results.append(False)
