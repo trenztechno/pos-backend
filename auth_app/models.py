@@ -1,6 +1,14 @@
 from django.db import models
 from django.contrib.auth.models import User
+from django.core.validators import FileExtensionValidator
 import uuid
+import os
+
+def vendor_logo_upload_path(instance, filename):
+    """Generate upload path for vendor logos: media/vendors/{vendor_id}/logo.{ext}"""
+    ext = filename.split('.')[-1]
+    filename = f"logo.{ext}"
+    return os.path.join('vendors', str(instance.id), filename)
 
 class Vendor(models.Model):
     """
@@ -12,7 +20,18 @@ class Vendor(models.Model):
     business_name = models.CharField(max_length=255, blank=True, null=True)
     phone = models.CharField(max_length=20, blank=True, null=True)
     address = models.TextField(blank=True, null=True)
-    gst_no = models.CharField(max_length=50, unique=True, blank=True, null=True, help_text="GST Number for password reset")
+    gst_no = models.CharField(max_length=50, unique=True, blank=True, null=True, help_text="GST Number (GSTIN) for password reset and bills")
+    fssai_license = models.CharField(max_length=50, blank=True, null=True, help_text="FSSAI License Number (required for restaurant bills)")
+    logo = models.ImageField(
+        upload_to=vendor_logo_upload_path,
+        blank=True,
+        null=True,
+        help_text="Restaurant/Vendor logo (JPG, PNG, WebP)",
+        validators=[
+            FileExtensionValidator(allowed_extensions=['jpg', 'jpeg', 'png', 'webp'])
+        ]
+    )
+    footer_note = models.TextField(blank=True, null=True, help_text="Footer note to be displayed on bills (e.g., 'Thank you for visiting!')")
     is_approved = models.BooleanField(default=False)  # Admin approval status
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

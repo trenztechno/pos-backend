@@ -159,9 +159,10 @@ Creates a new vendor account. The account will be **inactive** and require admin
 - `email`: Valid email address (required, must be unique)
 - `password`: Password (minimum 6 characters, required)
 - `password_confirm`: Password confirmation (must match password, required)
-- `business_name`: Name of the business (required)
+- `business_name`: Name of the business/restaurant (required)
 - `phone`: Phone number with country code (required)
-- `gst_no`: GST number (required, must be unique, used for password reset)
+- `gst_no`: GST number (GSTIN) (required, must be unique, used for password reset and bills)
+- `fssai_license`: FSSAI License Number (optional during registration, can be added later via admin)
 - `address`: Business address (required)
 
 **Note:** Billing mode (GST/Non-GST) is set per bill, not per vendor. Vendors can create both GST and Non-GST bills.
@@ -238,13 +239,21 @@ Login to get an authentication token. Only approved vendors can login.
   "message": "Login successful",
   "vendor": {
     "id": "550e8400-e29b-41d4-a716-446655440000",
-    "business_name": "ABC Store",
-    "gst_no": "29ABCDE1234F1Z5"
+    "business_name": "ABC Restaurant",
+    "gst_no": "29ABCDE1234F1Z5",
+    "fssai_license": "12345678901234",
+    "logo_url": "http://localhost:8000/media/vendors/vendor-id/logo.png",
+    "footer_note": "Thank you for visiting!"
   }
 }
 ```
 
-**Note:** The `vendor` object is only included for vendor accounts. Billing mode (GST/Non-GST) is set per bill when creating bills, not at vendor level.
+**Note:** The `vendor` object is only included for vendor accounts. It contains:
+- `logo_url`: URL to restaurant logo (null if not uploaded)
+- `fssai_license`: FSSAI License Number (required for restaurant bills)
+- `footer_note`: Footer note to display on bills (optional)
+
+Billing mode (GST/Non-GST) is set per bill when creating bills, not at vendor level.
 
 **Error Responses:**
 
@@ -803,19 +812,41 @@ Creates a new item. Items can be assigned to multiple categories.
   "name": "Coca Cola",
   "description": "Cold drink",
   "price": "25.00",
+  "mrp_price": "25.00",
+  "price_type": "exclusive",
+  "gst_percentage": "18.00",
+  "veg_nonveg": "veg",
+  "additional_discount": "0.00",
   "stock_quantity": 100,
   "sku": "COKE-001",
   "barcode": "1234567890123",
   "category_ids": [
-    "550e8400-e29b-41d4-a716-446655440000",
-    "550e8400-e29b-41d4-a716-446655440001"
+    "550e8400-e29b-41d4-a716-446655440000"
   ],
   "is_active": true,
   "sort_order": 1
 }
 ```
 
-**Note:** `category_ids` is an array - items can belong to multiple categories!
+**Field Descriptions:**
+- `name`: Item name (required) - Shown clearly if no image uploaded
+- `description`: Item description (optional)
+- `price`: Base price (required)
+- `mrp_price`: MRP Price - **MANDATORY** (Exclusive or Inclusive based on price_type)
+- `price_type`: `"exclusive"` or `"inclusive"` (default: `"exclusive"`)
+  - **Exclusive**: GST not included in MRP (GST added separately)
+  - **Inclusive**: GST included in MRP (GST already in price)
+- `gst_percentage`: GST percentage - 0%, 5%, 8%, 18%, or custom (optional, not compulsory for item creation)
+- `veg_nonveg`: `"veg"` or `"nonveg"` (optional)
+- `additional_discount`: Additional discount amount (optional, default: 0)
+- `category_ids`: Array of category UUIDs (breakfast, lunch, dinner, snacks, beverage, desserts, etc.)
+- `image`: Item image file (optional - item name shown if no image)
+
+**Note:** 
+- `category_ids` is an array - items can belong to multiple categories!
+- Image upload is optional - item names are shown clearly if no image
+- GST percentage is not compulsory during item creation
+- MRP price is MANDATORY for new items
 
 **Success Response (201):**
 ```json
@@ -831,12 +862,17 @@ Creates a new item. Items can be assigned to multiple categories.
   "name": "Coca Cola",
   "description": "Cold drink",
   "price": "25.00",
+  "mrp_price": "25.00",
+  "price_type": "exclusive",
+  "gst_percentage": "18.00",
+  "veg_nonveg": "veg",
+  "additional_discount": "0.00",
   "stock_quantity": 100,
   "sku": "COKE-001",
   "barcode": "1234567890123",
   "is_active": true,
   "sort_order": 1,
-  "vendor_name": "ABC Store",
+  "vendor_name": "ABC Restaurant",
   "image": null,
   "image_url": null,
   "last_updated": "2024-01-01T10:00:00Z",
@@ -883,12 +919,17 @@ Returns details of a specific item.
   "name": "Coca Cola",
   "description": "Cold drink",
   "price": "25.00",
+  "mrp_price": "25.00",
+  "price_type": "exclusive",
+  "gst_percentage": "18.00",
+  "veg_nonveg": "veg",
+  "additional_discount": "0.00",
   "stock_quantity": 100,
   "sku": "COKE-001",
   "barcode": "1234567890123",
   "is_active": true,
   "sort_order": 1,
-  "vendor_name": "ABC Store",
+  "vendor_name": "ABC Restaurant",
   "image": "items/660e8400-e29b-41d4-a716-446655440000/660e8400-e29b-41d4-a716-446655440000.jpg",
   "image_url": "http://localhost:8000/media/items/660e8400-e29b-41d4-a716-446655440000/660e8400-e29b-41d4-a716-446655440000.jpg",
   "last_updated": "2024-01-01T10:00:00Z",
@@ -1472,19 +1513,31 @@ Batch upload sales/bill data. Accepts single bill or array of bills. Server acts
 
 **Request Body (Single Bill):**
 
-**GST Bill Example:**
+**GST Bill Example (Complete Format):**
 ```json
 {
   "bill_data": {
+    "invoice_number": "INV-2024-001",
     "bill_id": "bill-123",
     "billing_mode": "gst",
+    "restaurant_name": "ABC Restaurant",
+    "address": "123 Main St, City, State",
+    "gstin": "29ABCDE1234F1Z5",
+    "fssai_license": "12345678901234",
+    "logo_url": "http://localhost:8000/media/vendors/vendor-id/logo.png",
+    "bill_number": "BN-2024-001",
+    "bill_date": "2024-01-01",
     "items": [
       {
         "id": "item-uuid-1",
         "name": "Product A",
         "price": 100.00,
+        "mrp_price": 100.00,
+        "price_type": "exclusive",
+        "gst_percentage": 18.00,
         "quantity": 2,
-        "subtotal": 200.00
+        "subtotal": 200.00,
+        "item_gst": 36.00
       }
     ],
     "subtotal": 200.00,
@@ -1493,47 +1546,69 @@ Batch upload sales/bill data. Accepts single bill or array of bills. Server acts
     "igst": 0.00,
     "total_tax": 36.00,
     "total": 236.00,
+    "footer_note": "Thank you for visiting!",
     "timestamp": "2024-01-01T10:00:00Z"
   },
   "device_id": "device-001"
 }
 ```
 
-**Non-GST Bill Example:**
+**Non-GST Bill Example (Complete Format):**
 ```json
 {
   "bill_data": {
+    "invoice_number": "INV-2024-002",
     "bill_id": "bill-124",
     "billing_mode": "non_gst",
+    "restaurant_name": "ABC Restaurant",
+    "address": "123 Main St, City, State",
+    "gstin": "29ABCDE1234F1Z5",
+    "fssai_license": "12345678901234",
+    "logo_url": "http://localhost:8000/media/vendors/vendor-id/logo.png",
+    "bill_number": "BN-2024-002",
+    "bill_date": "2024-01-01",
     "items": [
       {
         "id": "item-uuid-1",
         "name": "Product B",
         "price": 150.00,
+        "mrp_price": 150.00,
         "quantity": 1,
         "subtotal": 150.00
       }
     ],
     "subtotal": 150.00,
     "total": 150.00,
+    "footer_note": "Thank you for visiting!",
     "timestamp": "2024-01-01T10:00:00Z"
   },
   "device_id": "device-001"
 }
 ```
 
-**Bill Data Structure:**
+**Bill Data Structure (Complete):**
 
-**Required Fields:**
-- `bill_id`: Unique bill identifier (UUID or string)
+**Required Fields (All Bills):**
+- `invoice_number`: Auto-generated invoice number (sequential, syncs with GST and non-GST bills)
+- `bill_id`: Unique bill identifier (UUID)
 - `billing_mode`: `"gst"` or `"non_gst"` - Determines if GST calculations are applied
-- `items`: Array of bill items
+- `restaurant_name`: Restaurant/Vendor business name
+- `address`: Restaurant/Vendor address
+- `gstin`: GST Number (GSTIN)
+- `fssai_license`: FSSAI License Number (required for restaurant bills)
+- `bill_number`: Bill number (can be same as invoice_number or separate)
+- `bill_date`: Bill date (YYYY-MM-DD format, mandatory with bill number)
+- `items`: Array of bill items with item details
 - `subtotal`: Total before tax
 - `total`: Final total amount
 - `timestamp`: ISO 8601 timestamp
 
+**Optional Fields:**
+- `logo_url`: URL to restaurant logo (from vendor.logo)
+- `footer_note`: Footer note to display on bill (from vendor.footer_note)
+
 **For GST Bills (`billing_mode: "gst"`):**
-- `cgst`: Central GST amount (required)
+- `cgst`: Central GST amount (required for intra-state)
 - `sgst`: State GST amount (required for intra-state)
 - `igst`: Integrated GST amount (required for inter-state, 0 for intra-state)
 - `total_tax`: Sum of all taxes (cgst + sgst + igst)
@@ -1541,6 +1616,48 @@ Batch upload sales/bill data. Accepts single bill or array of bills. Server acts
 **For Non-GST Bills (`billing_mode: "non_gst"`):**
 - No tax fields required
 - `total` should equal `subtotal`
+- Product GST should NOT be added to totaling bill
+
+**Item Structure in Bills:**
+- `id`: Item UUID
+- `name`: Item name
+- `price`: Base price
+- `mrp_price`: MRP price (exclusive or inclusive based on price_type)
+- `price_type`: `"exclusive"` or `"inclusive"` (GST calculation mode)
+- `gst_percentage`: GST percentage for this item (0%, 5%, 8%, 18%, or custom)
+- `quantity`: Quantity purchased
+- `subtotal`: Item subtotal (mrp_price * quantity)
+- `item_gst`: GST amount for this item (only for GST bills)
+
+**Bill Format Requirements:**
+
+**GST Bill Format (Compulsory Fields on Bill):**
+1. Invoice number
+2. Restaurant Name
+3. Address
+4. GSTIN
+5. FSSAI License No
+6. Bill Number & Date
+7. Item-wise amount
+8. GST breakup (CGST + SGST)
+9. Total Amount
+
+**Non-GST Bill Format (Compulsory Fields on Bill):**
+1. Invoice number
+2. Restaurant Name
+3. Address
+4. GSTIN
+5. FSSAI License No
+6. Bill Number & Date
+7. Item-wise amount
+8. Total Amount (no GST breakup)
+
+**Invoice Numbering:**
+- Auto-generated and sequential
+- Calculated according to billing times
+- Date is mandatorily attached with billing number
+- Syncs with both GST and non-GST bills according to sequence
+- Invoice reset option not needed
 
 **Request Body (Multiple Bills):**
 ```json

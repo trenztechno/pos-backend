@@ -12,6 +12,7 @@ Django + PostgreSQL backend for the offline-first billing application.
 - **UUIDs:** All models use UUID (v4) primary keys
 - **No Sales API Latency:** Bills are saved locally first, then synced in background
 - **Billing Modes:** Supports both GST and Non-GST billing modes per bill (not per vendor)
+- **Image Storage:** Supports both local filesystem and AWS S3 storage (configurable via `USE_S3` in `.env`)
 
 ## Quick Start
 
@@ -34,6 +35,26 @@ This will automatically:
 - ✅ Set up everything needed for frontend/testing
 
 See [SETUP.md](SETUP.md) for detailed setup instructions and troubleshooting.
+
+## Populate Mobile Development Data
+
+**For mobile app developers - create comprehensive test data:**
+
+```bash
+source venv/bin/activate
+python populate_mobile_dev_data.py
+```
+
+This creates:
+- ✅ Approved vendor account (`mobiledev` / `mobile123`)
+- ✅ All required categories (Breakfast, Lunch, Dinner, Snacks, Beverage, Desserts)
+- ✅ 15+ items with complete GST fields (mrp_price, price_type, gst_percentage, veg_nonveg)
+- ✅ Sample bills (GST and Non-GST) for testing
+
+**Mobile Dev Account Credentials:**
+- Username: `mobiledev`
+- Password: `mobile123`
+- Token: Generated automatically (shown in script output)
 
 ## Health Check
 

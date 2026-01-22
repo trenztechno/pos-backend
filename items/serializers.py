@@ -26,7 +26,9 @@ class ItemSerializer(serializers.ModelSerializer):
         model = Item
         fields = [
             'id', 'vendor', 'categories', 'category_ids', 'categories_list',
-            'name', 'description', 'price', 'stock_quantity', 'sku', 'barcode',
+            'name', 'description', 'price', 'mrp_price', 'price_type', 'additional_discount',
+            'gst_percentage', 'veg_nonveg',
+            'stock_quantity', 'sku', 'barcode',
             'is_active', 'sort_order', 'vendor_name', 'image', 'image_url',
             'last_updated', 'created_at'
         ]
@@ -37,14 +39,22 @@ class ItemSerializer(serializers.ModelSerializer):
         return [{'id': str(cat.id), 'name': cat.name} for cat in obj.categories.all()]
     
     def get_image_url(self, obj):
-        """Return full URL to item image"""
+        """Return full URL to item image (works with both local and S3 storage)"""
         if obj.image:
-            request = self.context.get('request')
-            if request:
-                return request.build_absolute_uri(obj.image.url)
-            return obj.image.url
+            # For S3, obj.image.url already returns full URL
+            # For local, obj.image.url returns relative path
+            image_url = obj.image.url
+            if image_url.startswith('http://') or image_url.startswith('https://'):
+                # Already a full URL (S3)
+                return image_url
+            else:
+                # Relative path (local storage) - build absolute URL
+                request = self.context.get('request')
+                if request:
+                    return request.build_absolute_uri(image_url)
+                return image_url
         return None
-
+    
 class ItemListSerializer(serializers.ModelSerializer):
     """Simplified serializer for list views"""
     categories_list = serializers.SerializerMethodField()
@@ -52,17 +62,26 @@ class ItemListSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Item
-        fields = ['id', 'name', 'price', 'stock_quantity', 'is_active', 'categories_list', 'sort_order', 'image_url']
+        fields = ['id', 'name', 'price', 'mrp_price', 'price_type', 'gst_percentage', 'veg_nonveg', 
+                  'stock_quantity', 'is_active', 'categories_list', 'sort_order', 'image_url']
     
     def get_categories_list(self, obj):
         """Return list of category names"""
         return [cat.name for cat in obj.categories.all()]
     
     def get_image_url(self, obj):
-        """Return full URL to item image"""
+        """Return full URL to item image (works with both local and S3 storage)"""
         if obj.image:
-            request = self.context.get('request')
-            if request:
-                return request.build_absolute_uri(obj.image.url)
-            return obj.image.url
+            # For S3, obj.image.url already returns full URL
+            # For local, obj.image.url returns relative path
+            image_url = obj.image.url
+            if image_url.startswith('http://') or image_url.startswith('https://'):
+                # Already a full URL (S3)
+                return image_url
+            else:
+                # Relative path (local storage) - build absolute URL
+                request = self.context.get('request')
+                if request:
+                    return request.build_absolute_uri(image_url)
+                return image_url
         return None

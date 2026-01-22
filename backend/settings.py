@@ -129,7 +129,7 @@ USE_TZ = True
 STATIC_URL = 'static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
-# Media files (User uploaded content - Item images)
+# Media files (User uploaded content - Item images, Vendor logos)
 # Storage can be toggled between local filesystem and AWS S3
 USE_S3 = config('USE_S3', default=False, cast=bool)
 
@@ -137,7 +137,6 @@ if USE_S3:
     # AWS S3 Storage Configuration
     # Install: pip install django-storages boto3
     # Set USE_S3=True in .env file to enable
-    # Uncomment 'storages' in INSTALLED_APPS above
     
     try:
         import storages
@@ -149,24 +148,42 @@ if USE_S3:
             "Install it with: pip install django-storages boto3"
         )
     
+    # AWS Credentials
     AWS_ACCESS_KEY_ID = config('AWS_ACCESS_KEY_ID', default='')
     AWS_SECRET_ACCESS_KEY = config('AWS_SECRET_ACCESS_KEY', default='')
     AWS_STORAGE_BUCKET_NAME = config('AWS_STORAGE_BUCKET_NAME', default='')
     AWS_S3_REGION_NAME = config('AWS_S3_REGION_NAME', default='us-east-1')
-    AWS_S3_CUSTOM_DOMAIN = f'{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com' if AWS_STORAGE_BUCKET_NAME else None
+    
+    # Validate AWS credentials are provided
+    if not AWS_ACCESS_KEY_ID or not AWS_SECRET_ACCESS_KEY or not AWS_STORAGE_BUCKET_NAME:
+        raise ValueError(
+            "AWS S3 is enabled but credentials are missing. "
+            "Please set AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, and AWS_STORAGE_BUCKET_NAME in .env file"
+        )
+    
+    # S3 Configuration
+    AWS_S3_CUSTOM_DOMAIN = f'{AWS_STORAGE_BUCKET_NAME}.s3.{AWS_S3_REGION_NAME}.amazonaws.com'
     AWS_S3_OBJECT_PARAMETERS = {
         'CacheControl': 'max-age=86400',  # Cache for 1 day
     }
-    AWS_DEFAULT_ACL = 'public-read'  # Make images publicly accessible
+    # Note: If bucket has ACLs disabled (newer buckets), set AWS_DEFAULT_ACL to None
+    # Use bucket policy for public access instead of ACLs
+    AWS_DEFAULT_ACL = None  # Don't use ACLs (use bucket policy for public access)
+    AWS_S3_FILE_OVERWRITE = False  # Don't overwrite files with same name
+    AWS_QUERYSTRING_AUTH = False  # Don't add query string authentication
+    AWS_S3_VERIFY = True  # Verify SSL certificates
     
-    # Use S3 for media files
+    # Use S3 for media files (Item images, Vendor logos)
     DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
-    MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/' if AWS_S3_CUSTOM_DOMAIN else 'media/'
+    MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/'
     MEDIA_ROOT = None  # Not used with S3
+    
+    print("✓ AWS S3 storage enabled")
 else:
     # Local filesystem storage (default)
     MEDIA_URL = 'media/'
     MEDIA_ROOT = BASE_DIR / 'media'
+    print("✓ Local filesystem storage enabled")
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field

@@ -36,16 +36,27 @@ class VendorAdmin(admin.ModelAdmin):
     list_display = ['id', 'business_name', 'username', 'email', 'phone', 'approval_status', 'created_at']
     list_filter = ['is_approved', 'created_at']
     search_fields = ['business_name', 'user__username', 'user__email', 'phone']
-    readonly_fields = ['id', 'created_at', 'updated_at']
+    readonly_fields = ['id', 'created_at', 'updated_at', 'logo_preview']
+    
+    def logo_preview(self, obj):
+        """Display logo preview in admin"""
+        if obj.logo:
+            return format_html('<img src="{}" style="max-height: 100px; max-width: 100px;" />', obj.logo.url)
+        return "No logo uploaded"
+    logo_preview.short_description = 'Logo Preview'
     actions = ['approve_vendors', 'reject_vendors']
     
     fieldsets = (
         ('Vendor Information', {
             'fields': ('user', 'business_name', 'phone', 'address')
         }),
-        ('GST Information', {
-            'fields': ('gst_no',),
-            'description': 'GST number is used for password reset. Billing mode (GST/Non-GST) is set per bill, not per vendor.'
+        ('License & Registration', {
+            'fields': ('gst_no', 'fssai_license'),
+            'description': 'GST number (GSTIN) is used for password reset and bills. FSSAI License is required for restaurant bills.'
+        }),
+        ('Bill Customization', {
+            'fields': ('logo', 'footer_note'),
+            'description': 'Logo and footer note will appear on all bills. Logo is optional.'
         }),
         ('Approval Status', {
             'fields': ('is_approved',),

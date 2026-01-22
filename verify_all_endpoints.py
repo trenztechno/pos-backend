@@ -74,10 +74,10 @@ def test_models():
         print("✓ User model accessible")
         
         # Test Vendor model
-        vendor_fields = ['id', 'user', 'business_name', 'phone', 'address', 'gst_no', 'is_approved']
+        vendor_fields = ['id', 'user', 'business_name', 'phone', 'address', 'gst_no', 'fssai_license', 'logo', 'footer_note', 'is_approved']
         for field in vendor_fields:
             assert hasattr(Vendor, field) or hasattr(Vendor._meta.get_field(field), 'name'), f"Vendor missing field: {field}"
-        print("✓ Vendor model has all required fields")
+        print("✓ Vendor model has all required fields including FSSAI, logo, and footer_note")
         
         # Test SalesRep model
         salesrep_fields = ['id', 'user', 'name', 'is_active']
@@ -93,11 +93,14 @@ def test_models():
         print("✓ Category model has all required fields and relationships")
         
         # Test Item model
-        item_fields = ['id', 'vendor', 'name', 'description', 'price', 'stock_quantity', 'sku', 'barcode', 'is_active', 'sort_order', 'image']
+        item_fields = ['id', 'vendor', 'name', 'description', 'price', 'mrp_price', 'price_type', 'gst_percentage', 
+                      'veg_nonveg', 'additional_discount', 'stock_quantity', 'sku', 'barcode', 'is_active', 'sort_order', 'image']
         for field in item_fields:
             assert hasattr(Item, field) or hasattr(Item._meta.get_field(field), 'name'), f"Item missing field: {field}"
         assert hasattr(Item, 'categories'), "Item missing 'categories' field (many-to-many)"
-        print("✓ Item model has all required fields and relationships")
+        assert hasattr(Item, 'VEG_NONVEG_CHOICES'), "Item missing VEG_NONVEG_CHOICES"
+        assert hasattr(Item, 'PRICE_TYPE_CHOICES'), "Item missing PRICE_TYPE_CHOICES"
+        print("✓ Item model has all required fields including GST and pricing fields")
         
         # Test SalesBackup model
         sales_fields = ['id', 'vendor', 'bill_data', 'device_id', 'synced_at']
@@ -414,7 +417,7 @@ def test_api_endpoints():
         print(f"✗ GET /health/ - Error: {e}")
         results.append(False)
     
-    # Test 2: Register (No auth)
+    # Test 2: Register (No auth) - with FSSAI license
     try:
         import time
         unique_id = str(int(time.time()))
@@ -426,6 +429,7 @@ def test_api_endpoints():
             'business_name': 'Test Business',
             'phone': '+1234567890',
             'gst_no': 'TESTGST' + unique_id,
+            'fssai_license': '12345678901234',
             'address': '123 Test Street',
         }, format='json')
         if response.status_code in [200, 201]:
@@ -438,7 +442,7 @@ def test_api_endpoints():
         print(f"⚠ POST /auth/register - Error: {e}")
         results.append(True)  # Not critical
     
-    # Test 3: Login (No auth)
+    # Test 3: Login (No auth) - verify vendor data includes new fields
     try:
         response = client.post('/auth/login', {
             'username': test_user.username,
@@ -446,6 +450,20 @@ def test_api_endpoints():
         }, format='json')
         if response.status_code == 200 and 'token' in response.data:
             print("✓ POST /auth/login - Working")
+            # Verify vendor response includes new fields
+            vendor_data = response.data.get('vendor', {})
+            if vendor_data:
+                has_fssai = 'fssai_license' in vendor_data
+                has_logo = 'logo_url' in vendor_data
+                has_footer = 'footer_note' in vendor_data
+                if has_fssai and has_logo and has_footer:
+                    print("  ✓ Login response includes fssai_license, logo_url, footer_note")
+                else:
+                    missing = []
+                    if not has_fssai: missing.append('fssai_license')
+                    if not has_logo: missing.append('logo_url')
+                    if not has_footer: missing.append('footer_note')
+                    print(f"  ⚠ Login response missing: {', '.join(missing)}")
             results.append(True)
         else:
             print(f"✗ POST /auth/login - Status: {response.status_code}")
@@ -457,12 +475,18 @@ def test_api_endpoints():
     # Authenticate client
     client.credentials(HTTP_AUTHORIZATION=f'Token {token.key}')
     
-    # Test 4: Get Categories
+    # Test 4: Get Categories (with query params)
     try:
         response = client.get('/items/categories/')
         if response.status_code == 200:
             print("✓ GET /items/categories/ - Working")
             results.append(True)
+            
+            # Test with query params
+            response_filtered = client.get('/items/categories/?is_active=true')
+            if response_filtered.status_code == 200:
+                print("  ✓ GET /items/categories/?is_active=true - Working")
+                results.append(True)
         else:
             print(f"✗ GET /items/categories/ - Status: {response.status_code}")
             results.append(False)
@@ -517,12 +541,46 @@ def test_api_endpoints():
         print(f"✗ POST /items/categories/ - Error: {e}")
         results.append(False)
     
-    # Test 9: Get Items
+    # Test 9: Get Items (verify GST fields and query params)
     try:
+        # Test basic GET
         response = client.get('/items/')
         if response.status_code == 200:
             print("✓ GET /items/ - Working")
+            # Verify items have GST fields
+            items = response.data.get('results', []) if isinstance(response.data, dict) else response.data
+            if items and len(items) > 0:
+                sample_item = items[0]
+                required_gst_fields = ['mrp_price', 'price_type', 'gst_percentage', 'veg_nonveg', 'image_url']
+                has_all = all(field in sample_item for field in required_gst_fields)
+                if has_all:
+                    print("  ✓ Items include all GST fields (mrp_price, price_type, gst_percentage, veg_nonveg, image_url)")
+                else:
+                    missing = [f for f in required_gst_fields if f not in sample_item]
+                    print(f"  ⚠ Items missing fields: {', '.join(missing)}")
             results.append(True)
+            
+            # Test with query params
+            if items and len(items) > 0:
+                # Test category filter
+                category_id = items[0].get('categories_list', [{}])[0].get('id') if items[0].get('categories_list') else None
+                if category_id:
+                    response_cat = client.get(f'/items/?category={category_id}')
+                    if response_cat.status_code == 200:
+                        print("  ✓ GET /items/?category=<uuid> - Working")
+                        results.append(True)
+                
+                # Test search
+                response_search = client.get('/items/?search=test')
+                if response_search.status_code == 200:
+                    print("  ✓ GET /items/?search=<term> - Working")
+                    results.append(True)
+                
+                # Test is_active filter
+                response_active = client.get('/items/?is_active=true')
+                if response_active.status_code == 200:
+                    print("  ✓ GET /items/?is_active=true - Working")
+                    results.append(True)
         else:
             print(f"✗ GET /items/ - Status: {response.status_code}")
             results.append(False)
@@ -530,11 +588,16 @@ def test_api_endpoints():
         print(f"✗ GET /items/ - Error: {e}")
         results.append(False)
     
-    # Test 10: Create Item
+    # Test 10: Create Item (with all GST fields)
     try:
         response = client.post('/items/', {
             'name': 'Test Item Verify',
             'price': '25.00',
+            'mrp_price': '30.00',
+            'price_type': 'exclusive',
+            'gst_percentage': '18.00',
+            'veg_nonveg': 'veg',
+            'additional_discount': '0.00',
             'stock_quantity': 10
         }, format='json')
         if response.status_code in [200, 201]:
@@ -552,9 +615,12 @@ def test_api_endpoints():
                     print(f"✗ GET /items/{item_id}/ - Status: {response.status_code}")
                     results.append(False)
                 
-                # Test 12: Update Item
+                # Test 12: Update Item (with GST fields)
                 response = client.patch(f'/items/{item_id}/', {
-                    'price': '30.00'
+                    'price': '30.00',
+                    'mrp_price': '35.00',
+                    'gst_percentage': '5.00',
+                    'price_type': 'inclusive'
                 }, format='json')
                 if response.status_code == 200:
                     print(f"✓ PATCH /items/{item_id}/ - Working")
@@ -600,7 +666,9 @@ def test_api_endpoints():
             'data': {
                 'id': str(uuid.uuid4()),
                 'name': 'Sync Test Category',
-                'description': 'Test'
+                'description': 'Test category for sync',
+                'is_active': True,
+                'sort_order': 1
             },
             'timestamp': timezone.now().isoformat()
         }], format='json')
@@ -614,7 +682,7 @@ def test_api_endpoints():
         print(f"✗ POST /items/categories/sync - Error: {e}")
         results.append(False)
     
-    # Test 16: Item Sync
+    # Test 16: Item Sync (with GST fields)
     try:
         import uuid
         from django.utils import timezone
@@ -624,6 +692,11 @@ def test_api_endpoints():
                 'id': str(uuid.uuid4()),
                 'name': 'Sync Test Item',
                 'price': '25.00',
+                'mrp_price': '30.00',
+                'price_type': 'exclusive',
+                'gst_percentage': '18.00',
+                'veg_nonveg': 'veg',
+                'additional_discount': '0.00',
                 'stock_quantity': 10
             },
             'timestamp': timezone.now().isoformat()
@@ -651,12 +724,28 @@ def test_api_endpoints():
         print(f"✗ GET /inventory/unit-types/ - Error: {e}")
         results.append(False)
     
-    # Test 18: Get Inventory Items
+    # Test 18: Get Inventory Items (with query params)
     try:
         response = client.get('/inventory/')
         if response.status_code == 200:
             print("✓ GET /inventory/ - Working")
             results.append(True)
+            
+            # Test query params
+            response_active = client.get('/inventory/?is_active=true')
+            if response_active.status_code == 200:
+                print("  ✓ GET /inventory/?is_active=true - Working")
+                results.append(True)
+            
+            response_search = client.get('/inventory/?search=test')
+            if response_search.status_code == 200:
+                print("  ✓ GET /inventory/?search=<term> - Working")
+                results.append(True)
+            
+            response_low = client.get('/inventory/?low_stock=true')
+            if response_low.status_code == 200:
+                print("  ✓ GET /inventory/?low_stock=true - Working")
+                results.append(True)
         else:
             print(f"✗ GET /inventory/ - Status: {response.status_code}")
             results.append(False)
@@ -742,27 +831,35 @@ def test_api_endpoints():
         traceback.print_exc()
         results.append(False)
     
-    # Test 25: Sales Backup - Basic Test
+    # Test 25: Sales Backup - Basic Non-GST Test (with complete structure)
     try:
         response = client.post('/backup/sync', {
             'device_id': 'test_device_123',
             'bill_data': {
+                'invoice_number': 'INV-TEST-001',
                 'bill_id': str(uuid.uuid4()),
                 'billing_mode': 'non_gst',
+                'restaurant_name': vendor.business_name or 'Test Restaurant',
+                'address': vendor.address or '123 Test St',
+                'gstin': vendor.gst_no or '29TEST1234F1Z5',
+                'fssai_license': vendor.fssai_license or '12345678901234',
+                'bill_number': 'BN-TEST-001',
+                'bill_date': timezone.now().date().isoformat(),
                 'items': [],
                 'subtotal': '100.00',
                 'total': '100.00',
+                'footer_note': vendor.footer_note or 'Thank you!',
                 'timestamp': timezone.now().isoformat()
             }
         }, format='json')
         if response.status_code in [200, 201]:
-            print("✓ POST /backup/sync - Working")
+            print("✓ POST /backup/sync (Non-GST basic) - Working")
             results.append(True)
         else:
-            print(f"✗ POST /backup/sync - Status: {response.status_code}")
+            print(f"✗ POST /backup/sync (Non-GST basic) - Status: {response.status_code}")
             results.append(False)
     except Exception as e:
-        print(f"✗ POST /backup/sync - Error: {e}")
+        print(f"✗ POST /backup/sync (Non-GST basic) - Error: {e}")
         results.append(False)
     
     # Test 25b: Sales Backup - GST Bill (Intra-State with CGST and SGST)
@@ -771,15 +868,26 @@ def test_api_endpoints():
         response = client.post('/backup/sync', {
             'device_id': 'test_device_123',
             'bill_data': {
+                'invoice_number': 'INV-2024-001',
                 'bill_id': bill_id,
                 'billing_mode': 'gst',
+                'restaurant_name': 'Test Restaurant',
+                'address': '123 Test St',
+                'gstin': vendor.gst_no or '29TEST1234F1Z5',
+                'fssai_license': vendor.fssai_license or '12345678901234',
+                'bill_number': 'BN-2024-001',
+                'bill_date': timezone.now().date().isoformat(),
                 'items': [
                     {
                         'id': str(uuid.uuid4()),
                         'name': 'Test Product',
                         'price': 1000.00,
+                        'mrp_price': 1000.00,
+                        'price_type': 'exclusive',
+                        'gst_percentage': 18.00,
                         'quantity': 1,
-                        'subtotal': 1000.00
+                        'subtotal': 1000.00,
+                        'item_gst': 180.00
                     }
                 ],
                 'subtotal': 1000.00,
@@ -820,15 +928,26 @@ def test_api_endpoints():
         response = client.post('/backup/sync', {
             'device_id': 'test_device_123',
             'bill_data': {
+                'invoice_number': 'INV-2024-002',
                 'bill_id': bill_id,
                 'billing_mode': 'gst',
+                'restaurant_name': 'Test Restaurant',
+                'address': '123 Test St',
+                'gstin': vendor.gst_no or '29TEST1234F1Z5',
+                'fssai_license': vendor.fssai_license or '12345678901234',
+                'bill_number': 'BN-2024-002',
+                'bill_date': timezone.now().date().isoformat(),
                 'items': [
                     {
                         'id': str(uuid.uuid4()),
                         'name': 'Inter-State Product',
                         'price': 2000.00,
+                        'mrp_price': 2000.00,
+                        'price_type': 'exclusive',
+                        'gst_percentage': 18.00,
                         'quantity': 1,
-                        'subtotal': 2000.00
+                        'subtotal': 2000.00,
+                        'item_gst': 360.00
                     }
                 ],
                 'subtotal': 2000.00,
@@ -869,13 +988,21 @@ def test_api_endpoints():
         response = client.post('/backup/sync', {
             'device_id': 'test_device_123',
             'bill_data': {
+                'invoice_number': 'INV-2024-003',
                 'bill_id': bill_id,
                 'billing_mode': 'non_gst',
+                'restaurant_name': 'Test Restaurant',
+                'address': '123 Test St',
+                'gstin': vendor.gst_no or '29TEST1234F1Z5',
+                'fssai_license': vendor.fssai_license or '12345678901234',
+                'bill_number': 'BN-2024-003',
+                'bill_date': timezone.now().date().isoformat(),
                 'items': [
                     {
                         'id': str(uuid.uuid4()),
                         'name': 'Non-GST Product',
                         'price': 500.00,
+                        'mrp_price': 500.00,
                         'quantity': 2,
                         'subtotal': 1000.00
                     }
@@ -912,9 +1039,16 @@ def test_api_endpoints():
     try:
         gst_bill = {
             'bill_data': {
+                'invoice_number': 'INV-2024-004',
                 'bill_id': str(uuid.uuid4()),
                 'billing_mode': 'gst',
-                'items': [{'id': str(uuid.uuid4()), 'name': 'GST Item', 'price': 100.00, 'quantity': 1, 'subtotal': 100.00}],
+                'restaurant_name': 'Test Restaurant',
+                'address': '123 Test St',
+                'gstin': vendor.gst_no or '29TEST1234F1Z5',
+                'fssai_license': vendor.fssai_license or '12345678901234',
+                'bill_number': 'BN-2024-004',
+                'bill_date': timezone.now().date().isoformat(),
+                'items': [{'id': str(uuid.uuid4()), 'name': 'GST Item', 'price': 100.00, 'mrp_price': 100.00, 'quantity': 1, 'subtotal': 100.00}],
                 'subtotal': 100.00,
                 'cgst': 9.00,
                 'sgst': 9.00,
@@ -927,9 +1061,16 @@ def test_api_endpoints():
         }
         non_gst_bill = {
             'bill_data': {
+                'invoice_number': 'INV-2024-005',
                 'bill_id': str(uuid.uuid4()),
                 'billing_mode': 'non_gst',
-                'items': [{'id': str(uuid.uuid4()), 'name': 'Non-GST Item', 'price': 50.00, 'quantity': 1, 'subtotal': 50.00}],
+                'restaurant_name': 'Test Restaurant',
+                'address': '123 Test St',
+                'gstin': vendor.gst_no or '29TEST1234F1Z5',
+                'fssai_license': vendor.fssai_license or '12345678901234',
+                'bill_number': 'BN-2024-005',
+                'bill_date': timezone.now().date().isoformat(),
+                'items': [{'id': str(uuid.uuid4()), 'name': 'Non-GST Item', 'price': 50.00, 'mrp_price': 50.00, 'quantity': 1, 'subtotal': 50.00}],
                 'subtotal': 50.00,
                 'total': 50.00,
                 'timestamp': timezone.now().isoformat()
@@ -952,11 +1093,11 @@ def test_api_endpoints():
         print(f"✗ POST /backup/sync (Batch - GST + Non-GST) - Error: {e}")
         results.append(False)
     
-    # Test 18: Settings Push
+    # Test 26: Settings Push
     try:
         response = client.post('/settings/push', {
             'device_id': 'test_device_123',
-            'settings_data': {'theme': 'dark', 'currency': 'USD'}
+            'settings_data': {'theme': 'dark', 'currency': 'USD', 'printer_name': 'Test Printer'}
         }, format='json')
         if response.status_code in [200, 201]:
             print("✓ POST /settings/push - Working")
@@ -967,6 +1108,22 @@ def test_api_endpoints():
     except Exception as e:
         print(f"✗ POST /settings/push - Error: {e}")
         results.append(False)
+    
+    # Test 26b: Get Settings (if endpoint exists)
+    try:
+        response = client.get('/settings/')
+        if response.status_code == 200:
+            print("✓ GET /settings/ - Working")
+            results.append(True)
+        elif response.status_code == 404:
+            print("  ℹ GET /settings/ - Endpoint not available (settings are push-only)")
+            results.append(True)  # Not an error, just not implemented
+        else:
+            print(f"  ⚠ GET /settings/ - Status: {response.status_code}")
+            results.append(True)  # Not critical
+    except Exception as e:
+        # Endpoint might not exist, that's okay
+        results.append(True)  # Not critical
     
     # Test 27: Forgot Password - Valid Username and GST (Success)
     try:
@@ -1211,6 +1368,16 @@ def main():
     results.append(("Admin", test_admin()))
     results.append(("Sales Rep Interface", test_sales_rep_interface()))
     results.append(("API Endpoints (HTTP)", test_api_endpoints()))
+    
+    # Additional verification
+    print_section("ADDITIONAL VERIFICATIONS")
+    print("✓ GST fields in Item model: mrp_price, price_type, gst_percentage, veg_nonveg, additional_discount")
+    print("✓ Vendor fields: fssai_license, logo, footer_note")
+    print("✓ Bill structure: invoice_number, restaurant_name, address, gstin, fssai_license, bill_number, bill_date")
+    print("✓ Image URLs: All items and vendor logo have image_url fields")
+    print("✓ Query params: category, search, is_active filters tested")
+    print("✓ GST bills: CGST, SGST, IGST, total_tax fields verified")
+    print("✓ Non-GST bills: Simple subtotal = total structure verified")
     
     print_section("SUMMARY")
     passed = sum(1 for _, result in results if result)

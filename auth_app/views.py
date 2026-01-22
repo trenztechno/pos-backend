@@ -70,11 +70,25 @@ def login(request):
         # Add vendor-specific data if user is a vendor
         try:
             vendor = user.vendor_profile
-            response_data['vendor'] = {
+            vendor_data = {
                 'id': str(vendor.id),
                 'business_name': vendor.business_name,
                 'gst_no': vendor.gst_no,
+                'fssai_license': vendor.fssai_license,
             }
+            # Add logo URL if exists (works with both local and S3 storage)
+            if vendor.logo:
+                logo_url = vendor.logo.url
+                # For S3, logo.url already returns full URL
+                # For local, logo.url returns relative path
+                if logo_url.startswith('http://') or logo_url.startswith('https://'):
+                    vendor_data['logo_url'] = logo_url  # Already full URL (S3)
+                else:
+                    vendor_data['logo_url'] = request.build_absolute_uri(logo_url)  # Local storage
+            else:
+                vendor_data['logo_url'] = None
+            vendor_data['footer_note'] = vendor.footer_note
+            response_data['vendor'] = vendor_data
         except Vendor.DoesNotExist:
             pass  # Not a vendor, skip vendor data
         

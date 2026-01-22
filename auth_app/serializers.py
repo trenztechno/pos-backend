@@ -12,11 +12,12 @@ class RegisterSerializer(serializers.ModelSerializer):
     phone = serializers.CharField(required=True)
     gst_no = serializers.CharField(required=True, max_length=50)
     address = serializers.CharField(required=True)
+    fssai_license = serializers.CharField(required=False, max_length=50, allow_blank=True, help_text="FSSAI License Number (optional during registration)")
     
     class Meta:
         model = Vendor
         fields = ['username', 'email', 'password', 'password_confirm', 
-                  'business_name', 'phone', 'gst_no', 'address']
+                  'business_name', 'phone', 'gst_no', 'fssai_license', 'address']
     
     def validate(self, attrs):
         if attrs['password'] != attrs['password_confirm']:
@@ -46,6 +47,7 @@ class RegisterSerializer(serializers.ModelSerializer):
         business_name = validated_data.pop('business_name')
         phone = validated_data.pop('phone')
         gst_no = validated_data.pop('gst_no')  # Required for new registrations
+        fssai_license = validated_data.pop('fssai_license', None)  # Optional
         address = validated_data.pop('address')
         
         # Create user as inactive (requires admin approval)
@@ -61,7 +63,8 @@ class RegisterSerializer(serializers.ModelSerializer):
             user=user,
             business_name=business_name,
             phone=phone,
-            gst_no=gst_no,  # Can be None for existing vendors
+            gst_no=gst_no,
+            fssai_license=fssai_license,
             address=address,
             is_approved=False  # Pending approval
         )
