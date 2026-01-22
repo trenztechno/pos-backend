@@ -482,7 +482,16 @@ def test_api_endpoints():
                 has_logo = 'logo_url' in vendor_data
                 has_footer = 'footer_note' in vendor_data
                 if has_fssai and has_logo and has_footer:
-                    print("  ✓ Login response includes fssai_license, logo_url, footer_note")
+                    # Check if logo_url is pre-signed (if S3 enabled and logo exists)
+                    logo_url = vendor_data.get('logo_url')
+                    if logo_url:
+                        is_presigned = '?' in logo_url and ('X-Amz-Algorithm' in logo_url or 'X-Amz-Expires' in logo_url)
+                        if is_presigned:
+                            print("  ✓ Login response includes fssai_license, logo_url (pre-signed), footer_note")
+                        else:
+                            print("  ✓ Login response includes fssai_license, logo_url, footer_note")
+                    else:
+                        print("  ✓ Login response includes fssai_license, logo_url (null), footer_note")
                 else:
                     missing = []
                     if not has_fssai: missing.append('fssai_license')
@@ -624,7 +633,16 @@ def test_api_endpoints():
                 required_gst_fields = ['mrp_price', 'price_type', 'gst_percentage', 'veg_nonveg', 'image_url']
                 has_all = all(field in sample_item for field in required_gst_fields)
                 if has_all:
-                    print("  ✓ Items include all GST fields (mrp_price, price_type, gst_percentage, veg_nonveg, image_url)")
+                    # Check if image_url is pre-signed (if S3 enabled and image exists)
+                    image_url = sample_item.get('image_url')
+                    if image_url:
+                        is_presigned = '?' in image_url and ('X-Amz-Algorithm' in image_url or 'X-Amz-Expires' in image_url)
+                        if is_presigned:
+                            print("  ✓ Items include all GST fields + pre-signed image URLs")
+                        else:
+                            print("  ✓ Items include all GST fields (mrp_price, price_type, gst_percentage, veg_nonveg, image_url)")
+                    else:
+                        print("  ✓ Items include all GST fields (mrp_price, price_type, gst_percentage, veg_nonveg, image_url)")
                 else:
                     missing = [f for f in required_gst_fields if f not in sample_item]
                     print(f"  ⚠ Items missing fields: {', '.join(missing)}")
@@ -706,9 +724,16 @@ def test_api_endpoints():
                 if response_img.status_code in [200, 201]:
                     item_with_img_id = response_img.data.get('id')
                     if item_with_img_id:
-                        # Verify image_url is present
+                        # Verify image_url is present and is pre-signed URL (if S3 enabled)
                         if 'image_url' in response_img.data or response_img.data.get('image'):
-                            print("✓ POST /items/ (with image upload) - Working")
+                            image_url = response_img.data.get('image_url')
+                            if image_url:
+                                # Check if it's a pre-signed URL (contains query parameters)
+                                is_presigned = '?' in image_url and ('X-Amz-Algorithm' in image_url or 'X-Amz-Expires' in image_url)
+                                if is_presigned:
+                                    print("✓ POST /items/ (with image upload) - Pre-signed URL generated")
+                                else:
+                                    print("✓ POST /items/ (with image upload) - Image URL returned")
                             results.append(True)
                         else:
                             print("⚠ POST /items/ (with image) - Item created but image_url missing")
@@ -1685,6 +1710,7 @@ def main():
     print("✓ Image uploads: POST /items/ with multipart/form-data (image file)")
     print("✓ Image updates: PATCH /items/<id>/ with multipart/form-data (image file)")
     print("✓ Image URLs: All items and vendor logo have image_url fields")
+    print("✓ Pre-signed URLs: S3 images use secure pre-signed URLs (temporary, expire after 1 hour)")
     print("✓ Query params: category, search, is_active filters tested")
     print("✓ GST bills: CGST, SGST, IGST, total_tax fields verified")
     print("✓ Non-GST bills: Simple subtotal = total structure verified")

@@ -75,10 +75,15 @@ console.log('Token:', token);
   "vendor": {
     "id": "550e8400-e29b-41d4-a716-446655440000",
     "business_name": "ABC Store",
-    "gst_no": "29ABCDE1234F1Z5"
+    "gst_no": "29ABCDE1234F1Z5",
+    "fssai_license": "12345678901234",
+    "logo_url": "https://bucket.s3.region.amazonaws.com/vendors/.../logo.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Expires=3600&...",
+    "footer_note": "Thank you for visiting!"
   }
 }
 ```
+
+**Note:** `logo_url` is a pre-signed URL (temporary, expires in 1 hour). Download and cache it immediately if you need to display it.
 
 **Save this token securely!** Use it in all API calls.
 
@@ -168,9 +173,12 @@ async function initialSync() {
   await saveCategoriesToLocalDB(categories);
   await saveItemsToLocalDB(items);
   
-  // 5. Download item images (from image_url field)
+  // 5. Download item images (from image_url field - pre-signed URLs)
+  // IMPORTANT: Pre-signed URLs expire after 1 hour! Download immediately and cache locally.
   for (const item of items) {
     if (item.image_url) {
+      // image_url is a pre-signed URL (temporary, secure)
+      // Download and cache locally - don't store the URL, it expires!
       await downloadAndCacheImage(item.image_url, item.id);
     }
   }
@@ -451,11 +459,33 @@ const billData = {
 };
 ```
 
-### 7. Image Handling
+### 7. Image Handling (Pre-Signed URLs) 🔒
 - ✅ **Images stored on server** (local or S3)
-- ✅ **Use `image_url` field** from API response
+- ✅ **Pre-signed URLs returned** in `image_url` field (secure, temporary URLs)
+- ✅ **URLs expire after 1 hour** (configurable) - cache images locally immediately
 - ✅ **Download and cache** images locally during initial sync
 - ✅ **Works offline** after initial download
+- ✅ **Refresh URLs when expired** - request new URLs from API if cached image missing
+
+**Important:** Pre-signed URLs are temporary and expire. Always download and cache images locally immediately. Don't store pre-signed URLs long-term - they will expire!
+
+**Example:**
+```javascript
+// Get items with pre-signed URLs
+const items = await fetch('http://localhost:8000/items/', {
+  headers: { 'Authorization': `Token ${token}` }
+}).then(r => r.json());
+
+// Download and cache images immediately
+for (const item of items) {
+  if (item.image_url) {
+    // Pre-signed URL looks like:
+    // https://bucket.s3.region.amazonaws.com/items/.../image.jpg?X-Amz-Algorithm=...&X-Amz-Expires=3600&...
+    await downloadAndCacheImage(item.image_url, item.id);
+    // Store locally, don't rely on URL after 1 hour
+  }
+}
+```
 
 ### 8. Bi-Directional Sync for Bills ⭐ **NEW**
 - ✅ **Download bills on login**: When a new device logs in, download existing bills from server

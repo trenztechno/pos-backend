@@ -12,6 +12,8 @@
 
 Each bill can be either GST or Non-GST. The `billing_mode` field in the bill data determines how taxes are calculated. Vendors can create both types of bills.
 
+**Image URLs (Pre-Signed URLs):** All image URLs (`image_url` for items, `logo_url` for vendors) are returned as **pre-signed URLs** when using S3 storage. These are temporary, secure URLs that expire after 1 hour (configurable). This provides secure access without requiring public bucket access. See [PRESIGNED_URLS_GUIDE.md](PRESIGNED_URLS_GUIDE.md) for details.
+
 ---
 
 ## Table of Contents
@@ -242,14 +244,14 @@ Login to get an authentication token. Only approved vendors can login.
     "business_name": "ABC Restaurant",
     "gst_no": "29ABCDE1234F1Z5",
     "fssai_license": "12345678901234",
-    "logo_url": "http://localhost:8000/media/vendors/vendor-id/logo.png",
+    "logo_url": "https://bucket.s3.region.amazonaws.com/vendors/vendor-id/logo.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Expires=3600&...",
     "footer_note": "Thank you for visiting!"
   }
 }
 ```
 
 **Note:** The `vendor` object is only included for vendor accounts. It contains:
-- `logo_url`: URL to restaurant logo (null if not uploaded)
+- `logo_url`: Pre-signed URL to restaurant logo (temporary, expires in 1 hour) or null if not uploaded
 - `fssai_license`: FSSAI License Number (required for restaurant bills)
 - `footer_note`: Footer note to display on bills (optional)
 
@@ -931,7 +933,7 @@ Returns details of a specific item.
   "sort_order": 1,
   "vendor_name": "ABC Restaurant",
   "image": "items/660e8400-e29b-41d4-a716-446655440000/660e8400-e29b-41d4-a716-446655440000.jpg",
-  "image_url": "http://localhost:8000/media/items/660e8400-e29b-41d4-a716-446655440000/660e8400-e29b-41d4-a716-446655440000.jpg",
+  "image_url": "https://bucket.s3.region.amazonaws.com/items/660e8400-e29b-41d4-a716-446655440000/image.jpg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Expires=3600&...",
   "last_updated": "2024-01-01T10:00:00Z",
   "created_at": "2024-01-01T10:00:00Z"
 }
@@ -987,7 +989,7 @@ Updates an item. Supports partial updates. Can update categories and images.
   "sort_order": 1,
   "vendor_name": "ABC Store",
   "image": "items/660e8400-e29b-41d4-a716-446655440000/660e8400-e29b-41d4-a716-446655440000.jpg",
-  "image_url": "http://localhost:8000/media/items/660e8400-e29b-41d4-a716-446655440000/660e8400-e29b-41d4-a716-446655440000.jpg",
+  "image_url": "https://bucket.s3.region.amazonaws.com/items/660e8400-e29b-41d4-a716-446655440000/image.jpg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Expires=3600&...",
   "last_updated": "2024-01-01T11:00:00Z",
   "created_at": "2024-01-01T10:00:00Z"
 }
@@ -1518,7 +1520,7 @@ Batch sync items for offline-first mobile apps. Supports create, update, and del
     {
       "id": "660e8400-e29b-41d4-a716-446655440000",
       "name": "New Item",
-      "image_url": "http://localhost:8000/media/items/...",
+      "image_url": "https://bucket.s3.region.amazonaws.com/items/.../image.jpg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Expires=3600&...",
       ...
     },
     ...
@@ -1566,7 +1568,7 @@ Download bills from the server. This is used when a new device logs in with the 
       "address": "123 Main St",
       "gstin": "29ABCDE1234F1Z5",
       "fssai_license": "12345678901234",
-      "logo_url": "http://localhost:8000/media/vendors/.../logo.png",
+      "logo_url": "https://bucket.s3.region.amazonaws.com/vendors/.../logo.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Expires=3600&...",
       "footer_note": "Thank you!",
       "subtotal": "200.00",
       "total_amount": "236.00",
@@ -1642,7 +1644,7 @@ Batch upload sales/bill data. Accepts single bill or array of bills. Server acts
     "address": "123 Main St, City, State",
     "gstin": "29ABCDE1234F1Z5",
     "fssai_license": "12345678901234",
-    "logo_url": "http://localhost:8000/media/vendors/vendor-id/logo.png",
+    "logo_url": "https://bucket.s3.region.amazonaws.com/vendors/vendor-id/logo.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Expires=3600&...",
     "bill_number": "BN-2024-001",
     "bill_date": "2024-01-01",
     "items": [
@@ -1688,7 +1690,7 @@ Batch upload sales/bill data. Accepts single bill or array of bills. Server acts
     "address": "123 Main St, City, State",
     "gstin": "29ABCDE1234F1Z5",
     "fssai_license": "12345678901234",
-    "logo_url": "http://localhost:8000/media/vendors/vendor-id/logo.png",
+    "logo_url": "https://bucket.s3.region.amazonaws.com/vendors/vendor-id/logo.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Expires=3600&...",
     "bill_number": "BN-2024-002",
     "bill_date": "2024-01-01",
     "items": [
@@ -1835,7 +1837,7 @@ Batch upload sales/bill data. Accepts single bill or array of bills. Server acts
       "address": "123 Main St",
       "gstin": "29ABCDE1234F1Z5",
       "fssai_license": "12345678901234",
-      "logo_url": "http://localhost:8000/media/vendors/.../logo.png",
+      "logo_url": "https://bucket.s3.region.amazonaws.com/vendors/.../logo.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Expires=3600&...",
       "footer_note": "Thank you!",
       "subtotal": "200.00",
       "total_amount": "236.00",
