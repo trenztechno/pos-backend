@@ -151,17 +151,36 @@ Total: 11/11 tests passed
 
 ### 11. API Endpoints (HTTP Requests) ⭐
 - **GET /health/** - Health check
-- **POST /auth/register** - User registration
-- **POST /auth/login** - Login and get token
+- **POST /auth/register** - User registration (with FSSAI license)
+- **POST /auth/login** - Login and get token (returns vendor data with fssai_license, logo_url, footer_note)
+- **POST /auth/forgot-password** - Verify username and GST number
+- **POST /auth/reset-password** - Reset password (invalidates old token)
+- **POST /auth/logout** - Logout (deletes token)
 - **GET /items/categories/** - Get categories
 - **POST /items/categories/** - Create category
 - **GET /items/categories/<uuid>/** - Get category detail
 - **PATCH /items/categories/<uuid>/** - Update category
 - **DELETE /items/categories/<uuid>/** - Delete category
-- **GET /items/** - Get items
-- **POST /items/** - Create item
+- **POST /items/categories/sync** - Batch sync categories
+- **GET /items/** - Get items (with filters: category, search, is_active)
+- **POST /items/** - Create item (with GST fields: mrp_price, price_type, gst_percentage, veg_nonveg)
 - **GET /items/<uuid>/** - Get item detail
 - **PATCH /items/<uuid>/** - Update item
+- **PATCH /items/<uuid>/status/** - Update item status
+- **DELETE /items/<uuid>/** - Delete item
+- **POST /items/sync** - Batch sync items
+- **GET /inventory/unit-types/** - Get unit types
+- **GET /inventory/** - Get inventory items (with filters)
+- **POST /inventory/** - Create inventory item
+- **GET /inventory/<uuid>/** - Get inventory item detail
+- **PATCH /inventory/<uuid>/** - Update inventory item
+- **PATCH /inventory/<uuid>/stock/** - Update stock (set/add/subtract)
+- **DELETE /inventory/<uuid>/** - Delete inventory item
+- **GET /backup/sync** - Download bills from server (NEW - bi-directional sync)
+  - Query params: since, limit, billing_mode, start_date, end_date
+- **POST /backup/sync** - Upload bills (GST and Non-GST, single or batch)
+  - Tests: duplicate handling, minimal data, item linking
+- **POST /settings/push** - Push device settings
 - **PATCH /items/<uuid>/status/** - Update item status
 - **DELETE /items/<uuid>/** - Delete item
 - **POST /items/sync** - Batch sync items

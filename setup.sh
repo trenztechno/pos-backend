@@ -328,6 +328,19 @@ else
     print_warning "Test data creation had issues, but continuing..."
 fi
 
+# Step 11.5: Create mobile developer account with comprehensive test data
+echo ""
+echo -e "${BLUE}Step 11.5: Creating mobile developer account with test data...${NC}"
+python populate_mobile_dev_data.py 2>/dev/null || {
+    print_warning "Mobile dev data creation script not found or had issues"
+    print_info "You can create mobile dev data later by running: python populate_mobile_dev_data.py"
+}
+if [ $? -eq 0 ]; then
+    print_status "Mobile developer account and test data created successfully"
+else
+    print_warning "Mobile dev data creation had issues, but continuing..."
+fi
+
 # Step 12: Verify setup
 echo ""
 echo -e "${BLUE}Step 12: Verifying setup...${NC}"
@@ -354,9 +367,15 @@ echo -e "${BLUE}Test Vendor Accounts (For API Testing):${NC}"
 echo -e "  ${GREEN}✓ APPROVED VENDORS (Can login and use API):${NC}"
 echo -e "    • vendor1 / vendor123 (ABC Store)"
 echo -e "    • vendor2 / vendor123 (XYZ Restaurant)"
+echo -e "    • ${GREEN}mobiledev / mobile123${NC} (Mobile Dev Restaurant) ⭐ ${GREEN}For Mobile Developers${NC}"
 echo ""
 echo -e "  ${YELLOW}⏳ PENDING VENDOR (For testing approval flow):${NC}"
 echo -e "    • pendingvendor / pending123 (Pending Business)"
+echo ""
+echo -e "${BLUE}Mobile Developer Account:${NC}"
+echo -e "  ${GREEN}Username:${NC} mobiledev"
+echo -e "  ${GREEN}Password:${NC} mobile123"
+echo -e "  ${GREEN}Includes:${NC} 15+ items with images, 8 categories, sample bills (GST & Non-GST)"
 echo ""
 echo -e "${BLUE}Test Data Created:${NC}"
 echo -e "  • Categories: Global (Drinks, Snacks) + Vendor-specific"

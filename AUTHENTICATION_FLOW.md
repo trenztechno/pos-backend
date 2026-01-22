@@ -39,10 +39,18 @@ This document explains the authentication flow and ensures backward compatibilit
   "vendor": {
     "id": "...",
     "business_name": "ABC Store",
-    "gst_no": "29ABCDE1234F1Z5"
+    "gst_no": "29ABCDE1234F1Z5",
+    "fssai_license": "12345678901234",
+    "logo_url": "http://localhost:8000/media/vendors/.../logo.png",
+    "footer_note": "Thank you for visiting!"
   }
 }
 ```
+
+**Note:** The login response includes:
+- `fssai_license`: FSSAI License Number (for bill printing)
+- `logo_url`: URL to vendor logo (for bill printing)
+- `footer_note`: Custom footer note (for bill printing)
 
 **Note:** Billing mode (GST/Non-GST) is set per bill, not per vendor. Each bill can be either GST or Non-GST.
 
@@ -61,6 +69,7 @@ This document explains the authentication flow and ensures backward compatibilit
 - `phone` (required)
 - `gst_no` (required) ⭐ **New vendors must have GST**
 - `address` (required)
+- `fssai_license` (optional) - FSSAI License Number for bill printing
 
 **Note:** Billing mode (GST/Non-GST) is set per bill when creating bills, not during registration.
 

@@ -1815,12 +1815,17 @@ Batch upload sales/bill data. Accepts single bill or array of bills. Server acts
 }
 ```
 
-**Note:** Bills are now stored in a structured, relational format (Bill and BillItem models) instead of JSON blobs. This makes the system fully extendable for future business logic like:
-- Analytics and reporting (e.g., "Show top 5 selling items")
-- Inventory deduction (automatically reduce stock when bill is created)
-- Tax reporting (e.g., "Calculate total CGST payable for March")
-- Customer loyalty programs
-- Advanced filtering and querying
+**Important Notes:**
+- Bills are stored in a **structured, relational format** (Bill and BillItem models) instead of JSON blobs
+- This makes the system **fully extendable** for future business logic:
+  - Analytics and reporting (e.g., "Show top 5 selling items")
+  - Inventory deduction (automatically reduce stock when bill is created)
+  - Tax reporting (e.g., "Calculate total CGST payable for March")
+  - Customer loyalty programs
+  - Advanced filtering and querying
+- **Duplicate Handling**: If a bill with the same `invoice_number` already exists for the vendor, the server will skip it (no error)
+- **Passive Receiver**: Server accepts bills even with missing optional fields or invalid data structure
+- **Item Linking**: If `item_id` is provided in bill items and matches an existing Item, the bill item will be linked to the master Item record
 
 ---
 

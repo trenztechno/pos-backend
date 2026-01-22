@@ -367,10 +367,15 @@ async function createBill(billData) {
 - `DELETE /items/<uuid>` - Delete item
 - `POST /items/sync` - Batch sync items (offline sync) ⭐ **IMPORTANT**
 
-### Sales Backup
-- `GET /backup/sync` - Download bills from server (for new devices logging in)
-  - Query params: `since`, `limit`, `billing_mode`, `start_date`, `end_date`
-- `POST /backup/sync` - Upload bills (background sync)
+### Sales Backup (Bi-Directional Sync)
+- `GET /backup/sync` - **Download bills from server** (for new devices logging in)
+  - Query params: `since` (ISO timestamp), `limit` (default 1000), `billing_mode` (gst/non_gst), `start_date` (YYYY-MM-DD), `end_date` (YYYY-MM-DD)
+  - Returns structured Bill objects with nested BillItem objects
+  - Use this when a new device logs in to load existing sales history
+- `POST /backup/sync` - **Upload bills** (background sync)
+  - Accepts single bill object or array of bills
+  - Bills stored in structured format (Bill + BillItem models)
+  - Duplicate bills (same invoice_number) are automatically skipped
 
 ### Settings
 - `POST /settings/push` - Backup device settings
@@ -452,7 +457,47 @@ const billData = {
 - ✅ **Download and cache** images locally during initial sync
 - ✅ **Works offline** after initial download
 
-### 7. UUIDs
+### 8. Bi-Directional Sync for Bills ⭐ **NEW**
+- ✅ **Download bills on login**: When a new device logs in, download existing bills from server
+- ✅ **Use GET /backup/sync**: Call this after login to load sales history
+- ✅ **Filter options**: Use query params to filter by date, billing_mode, etc.
+- ✅ **Structured format**: Bills returned in structured format (Bill + BillItem objects)
+- ✅ **Duplicate handling**: Server automatically skips duplicate bills (same invoice_number)
+
+**Example: Download bills on app startup**
+```javascript
+async function downloadBillsFromServer(token) {
+  try {
+    const response = await fetch('http://localhost:8000/backup/sync', {
+      headers: {
+        'Authorization': `Token ${token}`
+      }
+    });
+    
+    const data = await response.json();
+    const bills = data.bills || [];
+    
+    // Save bills to local SQLite
+    for (const bill of bills) {
+      await db.insert('bills', {
+        id: bill.id,
+        bill_data: JSON.stringify(bill),
+        is_synced: true // Already synced from server
+      });
+    }
+    
+    console.log(`Downloaded ${bills.length} bills from server`);
+  } catch (error) {
+    console.error('Error downloading bills:', error);
+  }
+}
+
+// Call after login
+const loginData = await login(username, password);
+await downloadBillsFromServer(loginData.token);
+```
+
+### 9. UUIDs
 - ✅ **All IDs are UUIDs** (not integers)
 - ✅ **Generate UUIDs on client** (v4)
 - ✅ **Use same UUID** when syncing to server

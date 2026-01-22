@@ -50,6 +50,21 @@ These vendors are **already approved** and can login immediately to test the API
   - Items: Pasta, Pizza, Ice Cream
   - Items have categories assigned
 
+### Mobile Dev - Mobile Dev Restaurant ⭐ **For Mobile Developers**
+- **Username:** `mobiledev`
+- **Password:** `mobile123`
+- **Business Name:** Mobile Dev Restaurant
+- **GST Number:** `29MOBILE1234D1E5`
+- **FSSAI License:** `12345678901234`
+- **Status:** ✅ Approved & Active
+- **Test Data:**
+  - **15+ Items** with complete GST fields (mrp_price, price_type, gst_percentage, veg_nonveg)
+  - **8 Categories** (Breakfast, Lunch, Dinner, Snacks, Beverage, Desserts + 2 global)
+  - **All items have images** (stored on S3)
+  - **Sample bills** (GST and Non-GST) for testing
+  - **Vendor logo** available
+- **Created by:** `setup.sh` automatically (via `populate_mobile_dev_data.py`)
+
 ---
 
 ## ⏳ Pending Vendor (For Testing Approval Flow)
@@ -203,18 +218,31 @@ curl -X POST http://localhost:8000/auth/reset-password \
 
 ## 🔄 Recreating Test Data
 
-If you need to recreate test data:
-
+### Basic Test Data
 ```bash
 source venv/bin/activate
 python create_test_data.py
 ```
 
-This will:
-- Create/update test vendors
-- Create/update test categories
-- Create/update test items
-- Ensure all tokens are created
+This creates:
+- Test vendors (vendor1, vendor2, pendingvendor)
+- Basic categories and items
+- All tokens
+
+### Mobile Developer Data (Comprehensive)
+```bash
+source venv/bin/activate
+python populate_mobile_dev_data.py
+```
+
+This creates:
+- Mobile dev account (`mobiledev` / `mobile123`)
+- 15+ items with images (downloaded from internet, stored on S3)
+- 8 categories (6 vendor-specific + 2 global)
+- Sample bills (GST and Non-GST)
+- Vendor logo
+
+**Note:** `setup.sh` automatically runs both scripts, so mobile dev account is created by default.
 
 ---
 
