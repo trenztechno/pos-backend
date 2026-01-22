@@ -52,12 +52,22 @@ print_info() {
 # Step 1: Check Python
 echo -e "${BLUE}Step 1: Checking Python...${NC}"
 if ! command -v python3 &> /dev/null; then
-    print_error "Python 3 is not installed. Please install Python 3.10+ first."
+    print_error "Python 3 is not installed."
     exit 1
 fi
 
-PYTHON_VERSION=$(python3 --version | cut -d' ' -f2 | cut -d'.' -f1,2)
-print_status "Python $PYTHON_VERSION found"
+PYTHON_OK=$(python3 - << 'EOF'
+import sys
+print(int(sys.version_info >= (3,10)))
+EOF
+)
+
+if [ "$PYTHON_OK" -ne 1 ]; then
+    print_error "Python 3.10+ required. Found: $(python3 --version)"
+    exit 1
+fi
+
+print_status "Python OK: $(python3 --version)"
 
 # Step 2: Check PostgreSQL
 echo ""
@@ -367,15 +377,9 @@ echo -e "${BLUE}Test Vendor Accounts (For API Testing):${NC}"
 echo -e "  ${GREEN}✓ APPROVED VENDORS (Can login and use API):${NC}"
 echo -e "    • vendor1 / vendor123 (ABC Store)"
 echo -e "    • vendor2 / vendor123 (XYZ Restaurant)"
-echo -e "    • ${GREEN}mobiledev / mobile123${NC} (Mobile Dev Restaurant) ⭐ ${GREEN}For Mobile Developers${NC}"
 echo ""
 echo -e "  ${YELLOW}⏳ PENDING VENDOR (For testing approval flow):${NC}"
 echo -e "    • pendingvendor / pending123 (Pending Business)"
-echo ""
-echo -e "${BLUE}Mobile Developer Account:${NC}"
-echo -e "  ${GREEN}Username:${NC} mobiledev"
-echo -e "  ${GREEN}Password:${NC} mobile123"
-echo -e "  ${GREEN}Includes:${NC} 15+ items with images, 8 categories, sample bills (GST & Non-GST)"
 echo ""
 echo -e "${BLUE}Test Data Created:${NC}"
 echo -e "  • Categories: Global (Drinks, Snacks) + Vendor-specific"
