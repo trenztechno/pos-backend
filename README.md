@@ -1,15 +1,30 @@
 # Offline-First Billing App - Backend Server
 
-Django + PostgreSQL backend for the offline-first billing application.
+Django + PostgreSQL backend for the offline-first billing application. This system provides a RESTful API for mobile POS applications with support for GST/Non-GST billing, bi-directional sync, and structured bill storage.
 
 ---
 
-## 📚 Documentation Guide
+## Table of Contents
 
-**This README is your starting point.** It points to all other documentation.
+- [Documentation Guide](#documentation-guide)
+- [Quick Start](#quick-start)
+- [System Architecture](#system-architecture)
+- [Data Models](#data-models)
+- [Default Accounts](#default-accounts)
+- [Key API Endpoints](#key-api-endpoints)
+- [Testing](#testing)
+- [Project Structure](#project-structure)
+- [Key Features](#key-features)
+- [Running the Server](#running-the-server)
+
+---
+
+## Documentation Guide
+
+This README serves as the main entry point. For detailed documentation, refer to the following:
 
 ### For Mobile App Developers
-1. **[MOBILE_APP_GUIDE.md](MOBILE_APP_GUIDE.md)** ⭐ **START HERE** - Complete integration guide with code examples
+1. **[MOBILE_APP_GUIDE.md](MOBILE_APP_GUIDE.md)** - Complete integration guide with code examples
 2. **[API_DOCUMENTATION.md](API_DOCUMENTATION.md)** - Full API reference with all endpoints
 3. **[TEST_ACCOUNTS.md](TEST_ACCOUNTS.md)** - All test credentials and accounts
 
@@ -22,23 +37,23 @@ Django + PostgreSQL backend for the offline-first billing application.
 
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
-**Run the automated setup script:**
+Run the automated setup script:
 
 ```bash
 ./setup.sh
 ```
 
 This automatically:
-- ✅ Sets up virtual environment
-- ✅ Installs all dependencies
-- ✅ Creates database and runs migrations
-- ✅ Creates admin user (`admin` / `admin123`)
-- ✅ Creates sales rep user (`salesrep1` / `salesrep123`)
-- ✅ Creates test vendors (approved and pending)
-- ✅ **Creates mobile developer account** (`mobiledev` / `mobile123`) with comprehensive test data
-- ✅ Creates test categories and items
+- Sets up virtual environment
+- Installs all dependencies
+- Creates database and runs migrations
+- Creates admin user (`admin` / `admin123`)
+- Creates sales rep user (`salesrep1` / `salesrep123`)
+- Creates test vendors (approved and pending)
+- Creates mobile developer account (`mobiledev` / `mobile123`) with comprehensive test data
+- Creates test categories and items
 
 **Mobile Developer Account (Created by setup.sh):**
 - Username: `mobiledev`
@@ -49,21 +64,246 @@ See [SETUP.md](SETUP.md) for detailed setup instructions.
 
 ---
 
-## 🏗️ Architecture
+## System Architecture
 
-- **Offline Authority:** Mobile device is source of truth for Sales, Server is source of truth for Inventory
-- **UUIDs:** All models use UUID (v4) primary keys
-- **No Sales API Latency:** Bills are saved locally first, then synced in background
-- **Billing Modes:** Supports both GST and Non-GST billing modes per bill (not per vendor)
-- **Structured Bill Storage:** Bills stored in relational format (Bill + BillItem models) for extendability
-- **Bi-Directional Sync:** Download bills (GET /backup/sync) and upload bills (POST /backup/sync)
-- **Image Storage:** Supports both local filesystem and AWS S3 storage (configurable via `USE_S3` in `.env`)
+### High-Level Architecture
+
+```mermaid
+graph TB
+    subgraph "Mobile Application"
+        MA[Mobile POS App]
+        LS[(Local SQLite)]
+        MA -->|Save Locally First| LS
+        LS -->|Background Sync| MA
+    end
+    
+    subgraph "Backend Server"
+        API[Django REST API]
+        AUTH[Token Authentication]
+        MIDDLEWARE[API Middleware]
+        API --> AUTH
+        API --> MIDDLEWARE
+    end
+    
+    subgraph "Database Layer"
+        PG[(PostgreSQL)]
+        S3[AWS S3 / Local Storage]
+    end
+    
+    subgraph "Admin Interfaces"
+        ADMIN[Django Admin]
+        SALESREP[Sales Rep Interface]
+    end
+    
+    MA -->|HTTPS/REST| API
+    API -->|Read/Write| PG
+    API -->|Image Storage| S3
+    ADMIN -->|Manage| PG
+    SALESREP -->|Approve Vendors| PG
+    
+    style MA fill:#e1f5ff
+    style API fill:#fff4e1
+    style PG fill:#e8f5e9
+    style S3 fill:#f3e5f5
+```
+
+### Data Flow Architecture
+
+```mermaid
+sequenceDiagram
+    participant Mobile as Mobile App
+    participant LocalDB as Local SQLite
+    participant API as Backend API
+    participant ServerDB as PostgreSQL
+    participant S3 as Image Storage
+    
+    Note over Mobile,LocalDB: Offline-First: Save Locally First
+    Mobile->>LocalDB: Save Bill Locally
+    Mobile->>Mobile: Print Bill Immediately
+    
+    Note over Mobile,API: Online: Background Sync
+    Mobile->>API: POST /backup/sync (Upload Bills)
+    API->>ServerDB: Store Bill + BillItems
+    API-->>Mobile: Confirmation
+    
+    Note over Mobile,API: New Device: Download Existing Data
+    Mobile->>API: GET /backup/sync (Download Bills)
+    API->>ServerDB: Query Bills
+    ServerDB-->>API: Return Bills
+    API-->>Mobile: Return Bill Data
+    Mobile->>LocalDB: Save Downloaded Bills
+    
+    Note over Mobile,S3: Image Handling
+    Mobile->>API: GET /items/ (Get Items)
+    API->>ServerDB: Query Items
+    ServerDB-->>API: Return Items with image_url
+    API-->>Mobile: Return Items
+    Mobile->>S3: Download Images (Cache Locally)
+```
+
+### Model Relationships
+
+```mermaid
+erDiagram
+    User ||--o| Vendor : "has"
+    User ||--o| SalesRep : "has"
+    
+    Vendor ||--o{ Category : "creates"
+    Vendor ||--o{ Item : "owns"
+    Vendor ||--o{ Bill : "generates"
+    Vendor ||--o{ InventoryItem : "manages"
+    Vendor ||--o{ AppSettings : "configures"
+    
+    Category ||--o{ Item : "categorizes"
+    Item ||--o{ BillItem : "referenced_in"
+    
+    Bill ||--o{ BillItem : "contains"
+    Bill }o--|| Vendor : "belongs_to"
+    
+    BillItem }o--o| Item : "links_to"
+    
+    InventoryItem }o--|| Vendor : "belongs_to"
+    
+    User {
+        uuid id PK
+        string username
+        string email
+        boolean is_active
+    }
+    
+    Vendor {
+        uuid id PK
+        uuid user_id FK
+        string business_name
+        string gst_no
+        string fssai_license
+        boolean is_approved
+    }
+    
+    Item {
+        uuid id PK
+        uuid vendor_id FK
+        string name
+        decimal mrp_price
+        string price_type
+        decimal gst_percentage
+        string veg_nonveg
+    }
+    
+    Category {
+        uuid id PK
+        uuid vendor_id FK
+        string name
+        boolean is_active
+    }
+    
+    Bill {
+        uuid id PK
+        uuid vendor_id FK
+        string invoice_number
+        string billing_mode
+        decimal total_amount
+        decimal cgst_amount
+        decimal sgst_amount
+        decimal igst_amount
+    }
+    
+    BillItem {
+        uuid id PK
+        uuid bill_id FK
+        uuid item_id FK
+        string item_name
+        decimal quantity
+        decimal subtotal
+        decimal gst_percentage
+    }
+    
+    InventoryItem {
+        uuid id PK
+        uuid vendor_id FK
+        string name
+        decimal stock_quantity
+        string unit_type
+    }
+```
+
+### Sync Flow Architecture
+
+```mermaid
+graph LR
+    subgraph "Mobile Device (Source of Truth for Sales)"
+        MD[Mobile App]
+        LDB[(Local SQLite)]
+        MD -->|1. Save| LDB
+        LDB -->|2. Queue| MD
+    end
+    
+    subgraph "Backend Server (Passive Receiver)"
+        API[API Endpoint]
+        SDB[(PostgreSQL)]
+        API -->|3. Store| SDB
+        SDB -->|4. Query| API
+    end
+    
+    MD -->|Upload: POST /backup/sync| API
+    API -->|Download: GET /backup/sync| MD
+    
+    style MD fill:#e1f5ff
+    style LDB fill:#e1f5ff
+    style API fill:#fff4e1
+    style SDB fill:#e8f5e9
+```
 
 ---
 
-## 📋 Default Accounts
+## Data Models
 
-**Created by `setup.sh`:**
+### Core Models
+
+**Vendor** - Represents business entities using the POS system
+- One-to-one relationship with Django User
+- Contains business information (name, GST, FSSAI, logo, footer note)
+- Approval status managed by Sales Rep or Admin
+
+**Item** - Products/services sold by vendors
+- Many-to-one with Vendor
+- Many-to-many with Category
+- Includes GST fields (mrp_price, price_type, gst_percentage, veg_nonveg)
+- Images stored in S3 or local filesystem
+
+**Category** - Organizes items (Breakfast, Lunch, Dinner, etc.)
+- Can be vendor-specific or global (vendor=None)
+- Many-to-many with Item
+
+**Bill** - Sales transaction header
+- One-to-many with Vendor
+- One-to-many with BillItem
+- Stores billing mode (GST/Non-GST), tax breakdown, payment info
+- Unique constraint: (vendor, invoice_number)
+
+**BillItem** - Individual line items in a bill
+- Many-to-one with Bill
+- Optional link to master Item (for historical accuracy)
+- Stores snapshot of item details at time of sale
+
+**InventoryItem** - Raw materials inventory
+- Many-to-one with Vendor
+- Tracks stock quantities with 16 unit types
+- Supports low stock alerts
+
+### Key Design Principles
+
+1. **Offline-First**: Mobile device is source of truth for sales data
+2. **UUID Primary Keys**: All models use UUIDs for better offline sync
+3. **Structured Storage**: Bills stored in relational format (Bill + BillItem) for extendability
+4. **Bi-Directional Sync**: Download existing bills for new devices
+5. **Passive Receiver**: Server accepts bill data without validation
+
+---
+
+## Default Accounts
+
+Created by `setup.sh`:
 
 ### Admin & Sales Rep
 - **Admin:** `admin` / `admin123` (Django Admin: `http://localhost:8000/admin/`)
@@ -72,14 +312,14 @@ See [SETUP.md](SETUP.md) for detailed setup instructions.
 ### Approved Vendors (Ready to Use)
 - **Vendor 1:** `vendor1` / `vendor123` (ABC Store)
 - **Vendor 2:** `vendor2` / `vendor123` (XYZ Restaurant)
-- **Mobile Dev:** `mobiledev` / `mobile123` ⭐ **For Mobile Developers** (Mobile Dev Restaurant)
+- **Mobile Dev:** `mobiledev` / `mobile123` (Mobile Dev Restaurant - For Mobile Developers)
 
 ### Pending Vendor (For Testing)
 - **Pending Vendor:** `pendingvendor` / `pending123` (Pending Business)
 
 ---
 
-## 🔑 Key API Endpoints
+## Key API Endpoints
 
 ### Authentication
 - `POST /auth/login` - Login and get token
@@ -94,20 +334,24 @@ See [SETUP.md](SETUP.md) for detailed setup instructions.
 
 ### Sales Backup (Bi-Directional Sync)
 - `GET /backup/sync` - Download bills from server (for new devices)
+  - Query params: `since`, `limit`, `billing_mode`, `start_date`, `end_date`
 - `POST /backup/sync` - Upload bills to server (background sync)
+  - Accepts single bill or array of bills
+  - Duplicate bills automatically skipped
 
 ### Inventory
 - `GET /inventory/` - Get all inventory items
 - `POST /inventory/` - Create inventory item
 - `PATCH /inventory/<uuid>/stock/` - Update stock (set/add/subtract)
 
-**See [API_DOCUMENTATION.md](API_DOCUMENTATION.md) for complete API reference.**
+See [API_DOCUMENTATION.md](API_DOCUMENTATION.md) for complete API reference.
 
 ---
 
-## 🧪 Testing
+## Testing
 
-**Run comprehensive tests:**
+Run comprehensive tests:
+
 ```bash
 source venv/bin/activate
 python verify_all_endpoints.py
@@ -120,11 +364,11 @@ This tests:
 - All API endpoints (51+ tests)
 - Error handling and edge cases
 
-**See [BACKEND_TESTING.md](BACKEND_TESTING.md) for testing guide.**
+See [BACKEND_TESTING.md](BACKEND_TESTING.md) for testing guide.
 
 ---
 
-## 📦 Project Structure
+## Project Structure
 
 ```
 pos/
@@ -141,7 +385,7 @@ pos/
 
 ---
 
-## ✨ Key Features
+## Key Features
 
 ### Core Features
 - **Token Authentication:** All endpoints protected with token-based authentication
@@ -165,7 +409,23 @@ pos/
 
 ---
 
-## 📖 Documentation Files
+## Running the Server
+
+```bash
+source venv/bin/activate
+python manage.py runserver
+```
+
+The API will be available at `http://localhost:8000/`
+
+**Health Check:**
+```bash
+curl http://localhost:8000/health/
+```
+
+---
+
+## Documentation Files
 
 ### Essential Documentation
 - **README.md** (this file) - Main guide and documentation index
@@ -184,23 +444,7 @@ pos/
 
 ---
 
-## 🚀 Running the Server
-
-```bash
-source venv/bin/activate
-python manage.py runserver
-```
-
-The API will be available at `http://localhost:8000/`
-
-**Health Check:**
-```bash
-curl http://localhost:8000/health/
-```
-
----
-
-## 📞 Need Help?
+## Need Help?
 
 - **Mobile App Integration:** See [MOBILE_APP_GUIDE.md](MOBILE_APP_GUIDE.md)
 - **API Questions:** See [API_DOCUMENTATION.md](API_DOCUMENTATION.md)
