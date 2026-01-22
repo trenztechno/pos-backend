@@ -993,7 +993,38 @@ Updates an item. Supports partial updates. Can update categories and images.
 }
 ```
 
-**Note:** To update an image, use `multipart/form-data` and include the `image` field in the request.
+**Image Update (multipart/form-data):**
+
+To update an item's image, use `multipart/form-data`:
+
+```bash
+curl -X PATCH http://localhost:8000/items/{item_id}/ \
+  -H "Authorization: Token YOUR_TOKEN" \
+  -F "name=Updated Item Name" \
+  -F "image=@/path/to/new_image.jpg"
+```
+
+**JavaScript/React Native Example:**
+```javascript
+const formData = new FormData();
+formData.append('name', 'Updated Item Name');
+formData.append('price', '30.00');
+
+// Update image
+formData.append('image', {
+  uri: imageUri,
+  type: 'image/jpeg',
+  name: 'item.jpg'
+});
+
+const response = await fetch(`http://localhost:8000/items/${itemId}/`, {
+  method: 'PATCH',
+  headers: {
+    'Authorization': `Token ${token}`
+  },
+  body: formData
+});
+```
 
 ---
 
@@ -1617,14 +1648,20 @@ Batch upload sales/bill data. Accepts single bill or array of bills. Server acts
     "items": [
       {
         "id": "item-uuid-1",
+        "item_id": "master-item-uuid-1",
         "name": "Product A",
+        "description": "Product description",
         "price": 100.00,
         "mrp_price": 100.00,
         "price_type": "exclusive",
         "gst_percentage": 18.00,
         "quantity": 2,
         "subtotal": 200.00,
-        "item_gst": 36.00
+        "item_gst": 36.00,
+        "veg_nonveg": "veg",
+        "additional_discount": 0.00,
+        "discount_amount": 0.00,
+        "unit": "pcs"
       }
     ],
     "subtotal": 200.00,
@@ -1657,11 +1694,15 @@ Batch upload sales/bill data. Accepts single bill or array of bills. Server acts
     "items": [
       {
         "id": "item-uuid-1",
+        "item_id": "master-item-uuid-1",
         "name": "Product B",
+        "description": "Product description",
         "price": 150.00,
         "mrp_price": 150.00,
+        "price_type": "exclusive",
         "quantity": 1,
-        "subtotal": 150.00
+        "subtotal": 150.00,
+        "veg_nonveg": "veg"
       }
     ],
     "subtotal": 150.00,
@@ -1705,16 +1746,32 @@ Batch upload sales/bill data. Accepts single bill or array of bills. Server acts
 - `total` should equal `subtotal`
 - Product GST should NOT be added to totaling bill
 
-**Item Structure in Bills:**
-- `id`: Item UUID
-- `name`: Item name
-- `price`: Base price
-- `mrp_price`: MRP price (exclusive or inclusive based on price_type)
-- `price_type`: `"exclusive"` or `"inclusive"` (GST calculation mode)
+**Item Structure in Bills (items array):**
+
+**Required Fields:**
+- `id`: Item UUID (unique identifier for this bill item)
+- `name`: Item name (required)
+- `price`: Base price (required)
+- `mrp_price`: MRP price (required - exclusive or inclusive based on price_type)
+- `quantity`: Quantity purchased (required)
+- `subtotal`: Item subtotal (required - mrp_price * quantity)
+
+**Optional Fields:**
+- `item_id`: Master Item UUID (optional - links to master Item record if provided and exists)
+- `price_type`: `"exclusive"` or `"inclusive"` (default: "exclusive")
+  - **Exclusive**: GST not included in MRP (GST added separately)
+  - **Inclusive**: GST included in MRP (GST already in price)
 - `gst_percentage`: GST percentage for this item (0%, 5%, 8%, 18%, or custom)
-- `quantity`: Quantity purchased
-- `subtotal`: Item subtotal (mrp_price * quantity)
 - `item_gst`: GST amount for this item (only for GST bills)
+- `veg_nonveg`: `"veg"` or `"nonveg"` (optional)
+- `description`: Item description (optional)
+- `additional_discount`: Additional discount amount (optional, default: 0)
+- `discount_amount`: Discount amount applied (optional, default: 0)
+- `unit`: Unit of measurement (optional, e.g., "kg", "L", "pcs")
+- `batch_number`: Batch number (optional)
+- `expiry_date`: Expiry date in YYYY-MM-DD format (optional)
+
+**Note:** If `item_id` is provided and matches an existing Item in the system, the bill item will be linked to the master Item record for historical accuracy and analytics.
 
 **Bill Format Requirements:**
 
