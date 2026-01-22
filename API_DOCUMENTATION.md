@@ -28,6 +28,12 @@ Each bill can be either GST or Non-GST. The `billing_mode` field in the bill dat
 3. [Vendor Registration & Approval](#vendor-registration--approval)
 4. [Categories](#categories)
 5. [Items](#items)
+   - [Get All Items](#get-all-items)
+   - [Create Item](#create-item)
+   - [Upload Item Image](#upload-item-image)
+   - [Update Item Image](#update-item-image)
+   - [Get Item Details](#get-item-details)
+   - [Update Item](#update-item)
 6. [Inventory Management](#inventory-management)
 7. [Offline Sync (Categories & Items)](#offline-sync-categories--items)
 8. [Sales Backup](#sales-backup)
@@ -882,14 +888,161 @@ Creates a new item. Items can be assigned to multiple categories.
 }
 ```
 
-**Note:** Items can include images. Use `multipart/form-data` when uploading images:
+---
+
+### Upload Item Image
+
+**POST** `/items/` (with image upload)
+
+**Content-Type:** `multipart/form-data` (required when uploading images)
+
+Items can include images. When uploading an image, use `multipart/form-data` instead of `application/json`.
+
+**Important:**
+- Image upload is **optional** - items work fine without images
+- Supported formats: JPG, JPEG, PNG, WebP
+- After upload, the response includes a **pre-signed URL** in `image_url` field
+- Pre-signed URLs expire after 1 hour - download and cache images immediately
+
+**Request Example (cURL):**
 ```bash
 curl -X POST http://localhost:8000/items/ \
   -H "Authorization: Token YOUR_TOKEN" \
   -F "name=Coca Cola" \
-  -F "price=25.00" \
+  -F "description=Cold drink" \
+  -F "mrp_price=25.00" \
+  -F "price_type=exclusive" \
+  -F "gst_percentage=18.00" \
+  -F "veg_nonveg=veg" \
+  -F "stock_quantity=100" \
+  -F "category_ids=[\"550e8400-e29b-41d4-a716-446655440000\"]" \
   -F "image=@/path/to/image.jpg"
 ```
+
+**Request Example (JavaScript/Fetch):**
+```javascript
+const formData = new FormData();
+formData.append('name', 'Coca Cola');
+formData.append('description', 'Cold drink');
+formData.append('mrp_price', '25.00');
+formData.append('price_type', 'exclusive');
+formData.append('gst_percentage', '18.00');
+formData.append('veg_nonveg', 'veg');
+formData.append('stock_quantity', '100');
+formData.append('category_ids', JSON.stringify(['550e8400-e29b-41d4-a716-446655440000']));
+formData.append('image', imageFile); // File object from file input
+
+const response = await fetch('http://localhost:8000/items/', {
+  method: 'POST',
+  headers: {
+    'Authorization': `Token ${token}`
+    // Don't set Content-Type - browser will set it with boundary
+  },
+  body: formData
+});
+
+const item = await response.json();
+console.log('Item created:', item);
+console.log('Image URL (pre-signed):', item.image_url);
+```
+
+**Request Example (React Native):**
+```javascript
+import FormData from 'form-data';
+import { Platform } from 'react-native';
+
+const formData = new FormData();
+formData.append('name', 'Coca Cola');
+formData.append('mrp_price', '25.00');
+formData.append('price_type', 'exclusive');
+formData.append('gst_percentage', '18.00');
+formData.append('image', {
+  uri: Platform.OS === 'ios' ? imageUri.replace('file://', '') : imageUri,
+  type: 'image/jpeg',
+  name: 'item_image.jpg',
+});
+
+const response = await fetch('http://localhost:8000/items/', {
+  method: 'POST',
+  headers: {
+    'Authorization': `Token ${token}`,
+    'Content-Type': 'multipart/form-data',
+  },
+  body: formData,
+});
+
+const item = await response.json();
+// item.image_url contains pre-signed URL - download and cache immediately!
+```
+
+**Success Response (201) with Image:**
+```json
+{
+  "id": "660e8400-e29b-41d4-a716-446655440000",
+  "name": "Coca Cola",
+  "description": "Cold drink",
+  "mrp_price": "25.00",
+  "price_type": "exclusive",
+  "gst_percentage": "18.00",
+  "veg_nonveg": "veg",
+  "stock_quantity": 100,
+  "image": "items/660e8400-e29b-41d4-a716-446655440000/image.jpg",
+  "image_url": "https://bucket.s3.region.amazonaws.com/items/660e8400-e29b-41d4-a716-446655440000/image.jpg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Expires=3600&X-Amz-Credential=...&X-Amz-Signature=...",
+  "created_at": "2024-01-01T10:00:00Z"
+}
+```
+
+**Note:** 
+- `image_url` is a **pre-signed URL** (temporary, expires in 1 hour)
+- Download and cache the image immediately - don't store the URL long-term
+- The image is automatically uploaded to S3 (if `USE_S3=True`) or local storage
+
+---
+
+### Update Item Image
+
+**PATCH** `/items/<uuid:id>/` (with image upload)
+
+You can update an item's image by sending a PATCH request with `multipart/form-data`.
+
+**Request Example (cURL):**
+```bash
+curl -X PATCH http://localhost:8000/items/660e8400-e29b-41d4-a716-446655440000/ \
+  -H "Authorization: Token YOUR_TOKEN" \
+  -F "name=Updated Name" \
+  -F "image=@/path/to/new_image.jpg"
+```
+
+**Request Example (JavaScript):**
+```javascript
+const formData = new FormData();
+formData.append('name', 'Updated Item Name');
+formData.append('image', newImageFile);
+
+const response = await fetch(`http://localhost:8000/items/${itemId}/`, {
+  method: 'PATCH',
+  headers: {
+    'Authorization': `Token ${token}`
+  },
+  body: formData
+});
+
+const updatedItem = await response.json();
+// updatedItem.image_url contains new pre-signed URL
+```
+
+**Success Response (200):**
+```json
+{
+  "id": "660e8400-e29b-41d4-a716-446655440000",
+  "name": "Updated Item Name",
+  "image": "items/660e8400-e29b-41d4-a716-446655440000/image.jpg",
+  "image_url": "https://bucket.s3.region.amazonaws.com/items/660e8400-e29b-41d4-a716-446655440000/image.jpg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Expires=3600&...",
+  ...
+}
+```
+
+---
 
 **Error Response (400):**
 ```json
@@ -956,17 +1109,24 @@ Returns details of a specific item.
 
 Updates an item. Supports partial updates. Can update categories and images.
 
-**Request Body (partial update):**
+**Note:** To update an item's image, use `multipart/form-data` (see [Update Item Image](#update-item-image) section above). For other fields, you can use `application/json`.
+
+**Request Body (JSON - for non-image updates):**
 ```json
 {
   "price": "30.00",
+  "mrp_price": "35.00",
   "stock_quantity": 150,
+  "gst_percentage": "5.00",
   "category_ids": [
     "550e8400-e29b-41d4-a716-446655440000",
     "550e8400-e29b-41d4-a716-446655440002"
   ]
 }
 ```
+
+**Request Body (multipart/form-data - for image updates):**
+See [Update Item Image](#update-item-image) section above for complete examples.
 
 **Success Response (200):**
 ```json
