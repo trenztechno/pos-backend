@@ -12,7 +12,12 @@
 
 Each bill can be either GST or Non-GST. The `billing_mode` field in the bill data determines how taxes are calculated. Vendors can create both types of bills.
 
-**Image URLs (Pre-Signed URLs):** All image URLs (`image_url` for items, `logo_url` for vendors) are returned as **pre-signed URLs** when using S3 storage. These are temporary, secure URLs that expire after 1 hour (configurable). This provides secure access without requiring public bucket access. See [PRESIGNED_URLS_GUIDE.md](PRESIGNED_URLS_GUIDE.md) for details.
+**Image URLs (Pre-Signed URLs):** 
+- **For Upload:** You send image files directly to the server (multipart/form-data) - no pre-signed URL needed
+- **For Download/View:** All image URLs (`image_url` for items, `logo_url` for vendors) are returned as **pre-signed URLs** when using S3 storage
+- Pre-signed URLs are temporary, secure URLs that expire after 1 hour (configurable)
+- This provides secure access without requiring public bucket access
+- See [PRESIGNED_URLS_GUIDE.md](PRESIGNED_URLS_GUIDE.md) for details
 
 ---
 
@@ -898,10 +903,16 @@ Creates a new item. Items can be assigned to multiple categories.
 
 Items can include images. When uploading an image, use `multipart/form-data` instead of `application/json`.
 
+**How it works:**
+1. **You send the image file** to the server (multipart/form-data)
+2. **Server uploads the image** to S3 (or local storage)
+3. **Server returns a pre-signed URL** in the `image_url` field (for downloading/viewing the image)
+
 **Important:**
 - Image upload is **optional** - items work fine without images
 - Supported formats: JPG, JPEG, PNG, WebP
-- After upload, the response includes a **pre-signed URL** in `image_url` field
+- **You upload the image file directly** - no pre-signed URL needed for upload
+- **After upload**, the response includes a **pre-signed URL** in `image_url` field (for downloading/viewing)
 - Pre-signed URLs expire after 1 hour - download and cache images immediately
 
 **Request Example (cURL):**
@@ -1004,6 +1015,11 @@ const item = await response.json();
 **PATCH** `/items/<uuid:id>/` (with image upload)
 
 You can update an item's image by sending a PATCH request with `multipart/form-data`.
+
+**How it works:**
+1. **You send the new image file** to the server (multipart/form-data)
+2. **Server uploads the new image** to S3 (or local storage)
+3. **Server returns a new pre-signed URL** in `image_url` field (for downloading/viewing)
 
 **Request Example (cURL):**
 ```bash
