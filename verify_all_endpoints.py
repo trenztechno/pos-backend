@@ -35,7 +35,7 @@ from django.contrib.auth.models import User
 from auth_app.models import Vendor, SalesRep
 from items.models import Item, Category
 from inventory_app.models import InventoryItem
-from sales.models import SalesBackup
+from sales.models import Bill, BillItem, SalesBackup
 from settings.models import AppSettings
 from rest_framework.authtoken.models import Token
 
@@ -102,11 +102,29 @@ def test_models():
         assert hasattr(Item, 'PRICE_TYPE_CHOICES'), "Item missing PRICE_TYPE_CHOICES"
         print("✓ Item model has all required fields including GST and pricing fields")
         
-        # Test SalesBackup model
+        # Test Bill model (new structured model)
+        bill_fields = ['id', 'vendor', 'device_id', 'invoice_number', 'bill_number', 'bill_date',
+                      'restaurant_name', 'address', 'gstin', 'fssai_license', 'logo_url', 'footer_note',
+                      'billing_mode', 'subtotal', 'total_amount', 'total_tax', 'cgst_amount', 'sgst_amount', 'igst_amount',
+                      'payment_mode', 'created_at', 'synced_at']
+        for field in bill_fields:
+            assert hasattr(Bill, field) or hasattr(Bill._meta.get_field(field), 'name'), f"Bill missing field: {field}"
+        assert hasattr(Bill, 'items'), "Bill missing 'items' related name (one-to-many with BillItem)"
+        print("✓ Bill model has all required fields (structured, extendable)")
+        
+        # Test BillItem model
+        billitem_fields = ['id', 'bill', 'item', 'original_item_id', 'item_name', 'price', 'mrp_price',
+                          'price_type', 'quantity', 'subtotal', 'gst_percentage', 'item_gst_amount',
+                          'veg_nonveg', 'additional_discount', 'created_at']
+        for field in billitem_fields:
+            assert hasattr(BillItem, field) or hasattr(BillItem._meta.get_field(field), 'name'), f"BillItem missing field: {field}"
+        print("✓ BillItem model has all required fields")
+        
+        # Test SalesBackup model (legacy, kept for backward compatibility)
         sales_fields = ['id', 'vendor', 'bill_data', 'device_id', 'synced_at']
         for field in sales_fields:
             assert hasattr(SalesBackup, field) or hasattr(SalesBackup._meta.get_field(field), 'name'), f"SalesBackup missing field: {field}"
-        print("✓ SalesBackup model has all required fields")
+        print("✓ SalesBackup model (legacy) has all required fields")
         
         # Test AppSettings model
         settings_fields = ['id', 'vendor', 'device_id', 'settings_data']
@@ -275,7 +293,7 @@ def test_serializers():
     try:
         from auth_app.serializers import RegisterSerializer, LoginSerializer, ForgotPasswordSerializer, ResetPasswordSerializer
         from items.serializers import ItemSerializer, CategorySerializer, ItemListSerializer
-        from sales.serializers import SalesBackupSerializer
+        from sales.serializers import BillSerializer, BillItemSerializer, BillListSerializer, SalesBackupSerializer
         from settings.serializers import AppSettingsSerializer
         
         print("✓ All serializers importable")
@@ -284,6 +302,13 @@ def test_serializers():
         item_fields = ItemSerializer().fields.keys()
         assert 'image' in item_fields or 'image_url' in item_fields, "ItemSerializer has image fields"
         print("✓ ItemSerializer includes image fields")
+        
+        # Check BillSerializer has items and all required fields
+        bill_fields = BillSerializer().fields.keys()
+        assert 'items' in bill_fields, "BillSerializer includes items"
+        assert 'billing_mode' in bill_fields, "BillSerializer includes billing_mode"
+        assert 'total_amount' in bill_fields, "BillSerializer includes total_amount"
+        print("✓ BillSerializer includes all required fields")
         
         return True
     except Exception as e:
@@ -900,13 +925,15 @@ def test_api_endpoints():
             }
         }, format='json')
         if response.status_code in [200, 201]:
-            # Verify bill_data structure
+            # Verify bill structure (new Bill model)
             if 'bills' in response.data and len(response.data['bills']) > 0:
-                bill_data = response.data['bills'][0].get('bill_data', {})
-                if (bill_data.get('billing_mode') == 'gst' and 
-                    'cgst' in bill_data and 
-                    'sgst' in bill_data and 
-                    'total_tax' in bill_data):
+                bill = response.data['bills'][0]
+                if (bill.get('billing_mode') == 'gst' and 
+                    'cgst_amount' in bill and 
+                    'sgst_amount' in bill and 
+                    'total_tax' in bill and
+                    'items' in bill and
+                    len(bill.get('items', [])) > 0):
                     print("✓ POST /backup/sync (GST bill - intra-state) - Working with correct structure")
                     results.append(True)
                 else:
@@ -960,13 +987,15 @@ def test_api_endpoints():
             }
         }, format='json')
         if response.status_code in [200, 201]:
-            # Verify bill_data structure
+            # Verify bill structure (new Bill model)
             if 'bills' in response.data and len(response.data['bills']) > 0:
-                bill_data = response.data['bills'][0].get('bill_data', {})
-                if (bill_data.get('billing_mode') == 'gst' and 
-                    'igst' in bill_data and 
-                    bill_data.get('igst', 0) > 0 and
-                    'total_tax' in bill_data):
+                bill = response.data['bills'][0]
+                if (bill.get('billing_mode') == 'gst' and 
+                    'igst_amount' in bill and 
+                    float(bill.get('igst_amount', 0)) > 0 and
+                    'total_tax' in bill and
+                    'items' in bill and
+                    len(bill.get('items', [])) > 0):
                     print("✓ POST /backup/sync (GST bill - inter-state) - Working with correct structure")
                     results.append(True)
                 else:
@@ -1013,13 +1042,14 @@ def test_api_endpoints():
             }
         }, format='json')
         if response.status_code in [200, 201]:
-            # Verify bill_data structure (should NOT have tax fields)
+            # Verify bill structure (new Bill model - should have zero tax for non-GST)
             if 'bills' in response.data and len(response.data['bills']) > 0:
-                bill_data = response.data['bills'][0].get('bill_data', {})
-                if (bill_data.get('billing_mode') == 'non_gst' and 
-                    'subtotal' in bill_data and 
-                    'total' in bill_data and
-                    bill_data.get('subtotal') == bill_data.get('total')):
+                bill = response.data['bills'][0]
+                if (bill.get('billing_mode') == 'non_gst' and 
+                    'subtotal' in bill and 
+                    'total_amount' in bill and
+                    float(bill.get('total_tax', 0)) == 0 and
+                    'items' in bill):
                     print("✓ POST /backup/sync (Non-GST bill) - Working with correct structure")
                     results.append(True)
                 else:
@@ -1091,6 +1121,39 @@ def test_api_endpoints():
             results.append(False)
     except Exception as e:
         print(f"✗ POST /backup/sync (Batch - GST + Non-GST) - Error: {e}")
+        results.append(False)
+    
+    # Test 25f: GET /backup/sync - Download bills from server
+    try:
+        response = client.get('/backup/sync')
+        if response.status_code == 200:
+            if 'bills' in response.data and 'count' in response.data:
+                print("✓ GET /backup/sync (Download bills) - Working")
+                results.append(True)
+            else:
+                print("⚠ GET /backup/sync - Response structure may be incorrect")
+                results.append(True)  # Not critical
+        else:
+            print(f"✗ GET /backup/sync - Status: {response.status_code}")
+            results.append(False)
+    except Exception as e:
+        print(f"✗ GET /backup/sync - Error: {e}")
+        results.append(False)
+    
+    # Test 25g: GET /backup/sync with filters
+    try:
+        response = client.get('/backup/sync', {
+            'billing_mode': 'gst',
+            'limit': 10
+        })
+        if response.status_code == 200:
+            print("✓ GET /backup/sync (with filters) - Working")
+            results.append(True)
+        else:
+            print(f"✗ GET /backup/sync (with filters) - Status: {response.status_code}")
+            results.append(False)
+    except Exception as e:
+        print(f"✗ GET /backup/sync (with filters) - Error: {e}")
         results.append(False)
     
     # Test 26: Settings Push

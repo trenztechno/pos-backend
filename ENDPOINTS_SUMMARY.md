@@ -50,6 +50,8 @@
 - **DELETE** `/inventory/<uuid:id>/` - Delete inventory item (Auth required)
 
 ### Sales Backup
+- **GET** `/backup/sync` - Download bills from server (Auth required)
+  - Query params: `since`, `limit`, `billing_mode`, `start_date`, `end_date`
 - **POST** `/backup/sync` - Batch upload sales/bill data (Auth required)
 
 ### Settings
@@ -70,9 +72,9 @@
 
 ## 📊 Endpoint Statistics
 
-- **Total Endpoints:** 29
+- **Total Endpoints:** 30
 - **No Auth Required:** 6 (health, unit-types, register, login, forgot-password, reset-password)
-- **Token Auth Required:** 22
+- **Token Auth Required:** 23
 - **Session Auth Required:** 5 (sales rep interface)
 - **Admin Auth Required:** 1 (admin panel)
 

@@ -22,7 +22,7 @@ from django.utils import timezone
 from django.core.files.uploadedfile import InMemoryUploadedFile
 from auth_app.models import Vendor
 from items.models import Category, Item
-from sales.models import SalesBackup
+from sales.models import Bill, BillItem, SalesBackup
 from rest_framework.authtoken.models import Token
 
 def download_vendor_logo():
@@ -583,7 +583,7 @@ def create_comprehensive_items(vendor, categories):
     return created_count
 
 def create_sample_bills(vendor):
-    """Create sample sales backup bills (GST and Non-GST)"""
+    """Create sample bills using new Bill and BillItem models (GST and Non-GST)"""
     print("\n🧾 Creating sample bills...")
     
     # Get some items for bills
@@ -593,82 +593,114 @@ def create_sample_bills(vendor):
         return
     
     # Sample GST Bill (Intra-State)
-    gst_bill_data = {
-        'invoice_number': 'INV-2024-001',
-        'bill_id': str(uuid.uuid4()),
-        'billing_mode': 'gst',
-        'restaurant_name': vendor.business_name,
-        'address': vendor.address,
-        'gstin': vendor.gst_no,
-        'fssai_license': vendor.fssai_license,
-        'bill_number': 'BN-2024-001',
-        'bill_date': timezone.now().date().isoformat(),
-        'items': [
-            {
-                'id': str(item.id),
-                'name': item.name,
-                'price': float(item.price),
-                'mrp_price': float(item.mrp_price),
-                'price_type': item.price_type,
-                'gst_percentage': float(item.gst_percentage),
-                'quantity': 2,
-                'subtotal': float(item.mrp_price * 2),
-                'item_gst': float((item.mrp_price * 2 * item.gst_percentage) / 100) if item.price_type == 'exclusive' else 0,
-            }
-            for item in items[:3]
-        ],
-        'subtotal': sum(float(item.mrp_price * 2) for item in items[:3]),
-        'cgst': sum(float((item.mrp_price * 2 * item.gst_percentage) / 200) for item in items[:3] if item.price_type == 'exclusive'),
-        'sgst': sum(float((item.mrp_price * 2 * item.gst_percentage) / 200) for item in items[:3] if item.price_type == 'exclusive'),
-        'igst': 0.00,
-        'total_tax': sum(float((item.mrp_price * 2 * item.gst_percentage) / 100) for item in items[:3] if item.price_type == 'exclusive'),
-        'total': sum(float(item.mrp_price * 2) for item in items[:3]) + sum(float((item.mrp_price * 2 * item.gst_percentage) / 100) for item in items[:3] if item.price_type == 'exclusive'),
-        'footer_note': vendor.footer_note,
-        'timestamp': timezone.now().isoformat(),
-    }
-    gst_bill_data['total'] = gst_bill_data['subtotal'] + gst_bill_data['total_tax']
+    bill_date = timezone.now().date()
+    created_at = timezone.now()
     
-    gst_bill = SalesBackup.objects.create(
+    # Calculate GST bill totals
+    gst_items = items[:3]
+    subtotal = sum(float(item.mrp_price * 2) for item in gst_items)
+    total_tax = sum(float((item.mrp_price * 2 * item.gst_percentage) / 100) for item in gst_items if item.price_type == 'exclusive')
+    cgst = total_tax / 2  # Split equally for intra-state
+    sgst = total_tax / 2
+    total = subtotal + total_tax
+    
+    gst_bill = Bill.objects.create(
         vendor=vendor,
-        bill_data=gst_bill_data,
         device_id='mobile-dev-device-001',
+        invoice_number='INV-2024-001',
+        bill_number='BN-2024-001',
+        bill_date=bill_date,
+        restaurant_name=vendor.business_name,
+        address=vendor.address,
+        gstin=vendor.gst_no,
+        fssai_license=vendor.fssai_license,
+        footer_note=vendor.footer_note,
+        billing_mode='gst',
+        subtotal=Decimal(str(subtotal)),
+        total_amount=Decimal(str(total)),
+        total_tax=Decimal(str(total_tax)),
+        cgst_amount=Decimal(str(cgst)),
+        sgst_amount=Decimal(str(sgst)),
+        igst_amount=Decimal('0.00'),
+        payment_mode='cash',
+        created_at=created_at
     )
-    print(f"  ✓ Created GST Bill: {gst_bill_data['invoice_number']} (₹{gst_bill_data['total']:.2f})")
+    
+    # Create bill items
+    for item in gst_items:
+        quantity = Decimal('2.00')
+        item_subtotal = item.mrp_price * quantity
+        item_gst = (item_subtotal * item.gst_percentage / 100) if item.price_type == 'exclusive' else Decimal('0.00')
+        
+        BillItem.objects.create(
+            bill=gst_bill,
+            item=item,
+            original_item_id=item.id,
+            item_name=item.name,
+            item_description=item.description,
+            price=item.price or item.mrp_price,
+            mrp_price=item.mrp_price,
+            price_type=item.price_type,
+            quantity=quantity,
+            subtotal=item_subtotal,
+            gst_percentage=item.gst_percentage,
+            item_gst_amount=item_gst,
+            veg_nonveg=item.veg_nonveg,
+            additional_discount=item.additional_discount,
+        )
+    
+    print(f"  ✓ Created GST Bill: {gst_bill.invoice_number} (₹{gst_bill.total_amount:.2f})")
     
     # Sample Non-GST Bill
-    non_gst_bill_data = {
-        'invoice_number': 'INV-2024-002',
-        'bill_id': str(uuid.uuid4()),
-        'billing_mode': 'non_gst',
-        'restaurant_name': vendor.business_name,
-        'address': vendor.address,
-        'gstin': vendor.gst_no,
-        'fssai_license': vendor.fssai_license,
-        'bill_number': 'BN-2024-002',
-        'bill_date': timezone.now().date().isoformat(),
-        'items': [
-            {
-                'id': str(item.id),
-                'name': item.name,
-                'price': float(item.price),
-                'mrp_price': float(item.mrp_price),
-                'quantity': 1,
-                'subtotal': float(item.mrp_price),
-            }
-            for item in items[3:5]
-        ],
-        'subtotal': sum(float(item.mrp_price) for item in items[3:5]),
-        'total': sum(float(item.mrp_price) for item in items[3:5]),
-        'footer_note': vendor.footer_note,
-        'timestamp': timezone.now().isoformat(),
-    }
+    non_gst_items = items[3:5]
+    non_gst_subtotal = sum(float(item.mrp_price) for item in non_gst_items)
+    non_gst_total = non_gst_subtotal
     
-    non_gst_bill = SalesBackup.objects.create(
+    non_gst_bill = Bill.objects.create(
         vendor=vendor,
-        bill_data=non_gst_bill_data,
         device_id='mobile-dev-device-001',
+        invoice_number='INV-2024-002',
+        bill_number='BN-2024-002',
+        bill_date=bill_date,
+        restaurant_name=vendor.business_name,
+        address=vendor.address,
+        gstin=vendor.gst_no,
+        fssai_license=vendor.fssai_license,
+        footer_note=vendor.footer_note,
+        billing_mode='non_gst',
+        subtotal=Decimal(str(non_gst_subtotal)),
+        total_amount=Decimal(str(non_gst_total)),
+        total_tax=Decimal('0.00'),
+        cgst_amount=Decimal('0.00'),
+        sgst_amount=Decimal('0.00'),
+        igst_amount=Decimal('0.00'),
+        payment_mode='cash',
+        created_at=created_at
     )
-    print(f"  ✓ Created Non-GST Bill: {non_gst_bill_data['invoice_number']} (₹{non_gst_bill_data['total']:.2f})")
+    
+    # Create bill items for non-GST bill
+    for item in non_gst_items:
+        quantity = Decimal('1.00')
+        item_subtotal = item.mrp_price * quantity
+        
+        BillItem.objects.create(
+            bill=non_gst_bill,
+            item=item,
+            original_item_id=item.id,
+            item_name=item.name,
+            item_description=item.description,
+            price=item.price or item.mrp_price,
+            mrp_price=item.mrp_price,
+            price_type=item.price_type,
+            quantity=quantity,
+            subtotal=item_subtotal,
+            gst_percentage=Decimal('0.00'),  # No GST for non-GST bills
+            item_gst_amount=Decimal('0.00'),
+            veg_nonveg=item.veg_nonveg,
+            additional_discount=item.additional_discount,
+        )
+    
+    print(f"  ✓ Created Non-GST Bill: {non_gst_bill.invoice_number} (₹{non_gst_bill.total_amount:.2f})")
     
     print(f"\n  ✅ Created 2 sample bills (1 GST, 1 Non-GST)")
 

@@ -1503,13 +1503,100 @@ Batch sync items for offline-first mobile apps. Supports create, update, and del
 
 ## Sales Backup
 
-### Sync Sales Data
+### Download Sales Data (GET)
+
+**GET** `/backup/sync`
+
+**Requires authentication + vendor approval**
+
+Download bills from the server. This is used when a new device logs in with the same tenant to load existing sales history.
+
+**Query Parameters:**
+- `since` (optional): ISO timestamp - Only get bills synced after this time (e.g., `2024-01-01T10:00:00Z`)
+- `limit` (optional, default=1000): Maximum number of bills to return
+- `billing_mode` (optional): Filter by billing mode (`gst` or `non_gst`)
+- `start_date` (optional): Filter by bill date - YYYY-MM-DD format (e.g., `2024-01-01`)
+- `end_date` (optional): Filter by bill date - YYYY-MM-DD format (e.g., `2024-01-31`)
+
+**Success Response (200):**
+```json
+{
+  "count": 2,
+  "vendor_id": "vendor-uuid",
+  "vendor_name": "ABC Restaurant",
+  "bills": [
+    {
+      "id": "bill-uuid-1",
+      "invoice_number": "INV-2024-001",
+      "bill_number": "BN-2024-001",
+      "bill_date": "2024-01-01",
+      "billing_mode": "gst",
+      "restaurant_name": "ABC Restaurant",
+      "address": "123 Main St",
+      "gstin": "29ABCDE1234F1Z5",
+      "fssai_license": "12345678901234",
+      "logo_url": "http://localhost:8000/media/vendors/.../logo.png",
+      "footer_note": "Thank you!",
+      "subtotal": "200.00",
+      "total_amount": "236.00",
+      "total_tax": "36.00",
+      "cgst_amount": "18.00",
+      "sgst_amount": "18.00",
+      "igst_amount": "0.00",
+      "payment_mode": "cash",
+      "items": [
+        {
+          "id": "billitem-uuid-1",
+          "item": "item-uuid-1",
+          "item_id": "item-uuid-1",
+          "item_name": "Product A",
+          "price": "100.00",
+          "mrp_price": "100.00",
+          "price_type": "exclusive",
+          "quantity": "2.00",
+          "subtotal": "200.00",
+          "gst_percentage": "18.00",
+          "item_gst_amount": "36.00",
+          "veg_nonveg": "veg"
+        }
+      ],
+      "item_count": 1,
+      "total_quantity": 2.0,
+      "created_at": "2024-01-01T10:00:00Z",
+      "synced_at": "2024-01-01T10:00:00Z"
+    }
+  ]
+}
+```
+
+**Example Requests:**
+```bash
+# Get all bills
+curl -X GET http://localhost:8000/backup/sync \
+  -H "Authorization: Token <token>"
+
+# Get GST bills only
+curl -X GET "http://localhost:8000/backup/sync?billing_mode=gst" \
+  -H "Authorization: Token <token>"
+
+# Get bills since a specific date
+curl -X GET "http://localhost:8000/backup/sync?since=2024-01-01T00:00:00Z&limit=100" \
+  -H "Authorization: Token <token>"
+
+# Get bills for a date range
+curl -X GET "http://localhost:8000/backup/sync?start_date=2024-01-01&end_date=2024-01-31" \
+  -H "Authorization: Token <token>"
+```
+
+---
+
+### Upload Sales Data (POST)
 
 **POST** `/backup/sync`
 
 **Requires authentication + vendor approval**
 
-Batch upload sales/bill data. Accepts single bill or array of bills. Server acts as passive receiver - no validation.
+Batch upload sales/bill data. Accepts single bill or array of bills. Server acts as passive receiver - no validation. Bills are stored in a structured, extendable format (Bill and BillItem models) for future business logic.
 
 **Request Body (Single Bill):**
 
@@ -1681,15 +1768,59 @@ Batch upload sales/bill data. Accepts single bill or array of bills. Server acts
     {
       "id": "770e8400-e29b-41d4-a716-446655440000",
       "vendor": "550e8400-e29b-41d4-a716-446655440010",
-      "bill_data": {...},
+      "vendor_name": "ABC Restaurant",
       "device_id": "device-001",
+      "invoice_number": "INV-2024-001",
+      "bill_number": "BN-2024-001",
+      "bill_date": "2024-01-01",
+      "billing_mode": "gst",
+      "restaurant_name": "ABC Restaurant",
+      "address": "123 Main St",
+      "gstin": "29ABCDE1234F1Z5",
+      "fssai_license": "12345678901234",
+      "logo_url": "http://localhost:8000/media/vendors/.../logo.png",
+      "footer_note": "Thank you!",
+      "subtotal": "200.00",
+      "total_amount": "236.00",
+      "total_tax": "36.00",
+      "cgst_amount": "18.00",
+      "sgst_amount": "18.00",
+      "igst_amount": "0.00",
+      "payment_mode": "cash",
+      "items": [
+        {
+          "id": "billitem-uuid-1",
+          "item": "item-uuid-1",
+          "item_id": "item-uuid-1",
+          "item_name": "Product A",
+          "price": "100.00",
+          "mrp_price": "100.00",
+          "price_type": "exclusive",
+          "quantity": "2.00",
+          "subtotal": "200.00",
+          "gst_percentage": "18.00",
+          "item_gst_amount": "36.00",
+          "veg_nonveg": "veg"
+        }
+      ],
+      "item_count": 1,
+      "total_quantity": 2.0,
+      "created_at": "2024-01-01T10:00:00Z",
       "synced_at": "2024-01-01T10:00:00Z",
-      "created_at": "2024-01-01T10:00:00Z"
+      "updated_at": "2024-01-01T10:00:00Z"
     },
     ...
-  ]
+  ],
+  "errors": []  // Only present if some bills failed to sync
 }
 ```
+
+**Note:** Bills are now stored in a structured, relational format (Bill and BillItem models) instead of JSON blobs. This makes the system fully extendable for future business logic like:
+- Analytics and reporting (e.g., "Show top 5 selling items")
+- Inventory deduction (automatically reduce stock when bill is created)
+- Tax reporting (e.g., "Calculate total CGST payable for March")
+- Customer loyalty programs
+- Advanced filtering and querying
 
 ---
 

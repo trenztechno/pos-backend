@@ -368,6 +368,8 @@ async function createBill(billData) {
 - `POST /items/sync` - Batch sync items (offline sync) ⭐ **IMPORTANT**
 
 ### Sales Backup
+- `GET /backup/sync` - Download bills from server (for new devices logging in)
+  - Query params: `since`, `limit`, `billing_mode`, `start_date`, `end_date`
 - `POST /backup/sync` - Upload bills (background sync)
 
 ### Settings
