@@ -167,11 +167,16 @@ if USE_S3:
         'CacheControl': 'max-age=86400',  # Cache for 1 day
     }
     # Note: If bucket has ACLs disabled (newer buckets), set AWS_DEFAULT_ACL to None
-    # Use bucket policy for public access instead of ACLs
-    AWS_DEFAULT_ACL = None  # Don't use ACLs (use bucket policy for public access)
+    # Use bucket policy for public access instead of ACLs, OR use pre-signed URLs (more secure)
+    AWS_DEFAULT_ACL = None  # Don't use ACLs (use bucket policy for public access OR pre-signed URLs)
     AWS_S3_FILE_OVERWRITE = False  # Don't overwrite files with same name
-    AWS_QUERYSTRING_AUTH = False  # Don't add query string authentication
+    AWS_QUERYSTRING_AUTH = False  # Don't add query string authentication (for public URLs)
     AWS_S3_VERIFY = True  # Verify SSL certificates
+    
+    # Pre-signed URL Configuration (More Secure - Recommended)
+    # Use pre-signed URLs instead of public bucket access
+    USE_S3_PRESIGNED_URLS = config('USE_S3_PRESIGNED_URLS', default=True, cast=bool)
+    S3_PRESIGNED_URL_EXPIRATION = config('S3_PRESIGNED_URL_EXPIRATION', default=3600, cast=int)  # Default: 1 hour (3600 seconds)
     
     # Use S3 for media files (Item images, Vendor logos)
     DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'

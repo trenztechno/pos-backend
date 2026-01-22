@@ -5,8 +5,10 @@ from rest_framework.response import Response
 from rest_framework.authtoken.models import Token
 from django.contrib.auth import authenticate
 from django.contrib.auth.models import User
+from django.conf import settings
 from .serializers import LoginSerializer, RegisterSerializer, ForgotPasswordSerializer, ResetPasswordSerializer
 from .models import Vendor
+from backend.s3_utils import generate_presigned_url
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
@@ -77,14 +79,27 @@ def login(request):
                 'fssai_license': vendor.fssai_license,
             }
             # Add logo URL if exists (works with both local and S3 storage)
+            # Uses pre-signed URLs for S3 when enabled (more secure, no public bucket needed)
             if vendor.logo:
-                logo_url = vendor.logo.url
-                # For S3, logo.url already returns full URL
-                # For local, logo.url returns relative path
-                if logo_url.startswith('http://') or logo_url.startswith('https://'):
-                    vendor_data['logo_url'] = logo_url  # Already full URL (S3)
+                # Check if using S3 with pre-signed URLs
+                if settings.USE_S3 and getattr(settings, 'USE_S3_PRESIGNED_URLS', True):
+                    presigned_url = generate_presigned_url(vendor.logo)
+                    if presigned_url:
+                        vendor_data['logo_url'] = presigned_url
+                    else:
+                        # Fallback to regular URL
+                        logo_url = vendor.logo.url
+                        if logo_url.startswith('http://') or logo_url.startswith('https://'):
+                            vendor_data['logo_url'] = logo_url
+                        else:
+                            vendor_data['logo_url'] = request.build_absolute_uri(logo_url)
                 else:
-                    vendor_data['logo_url'] = request.build_absolute_uri(logo_url)  # Local storage
+                    # S3 without pre-signed URLs, or local storage
+                    logo_url = vendor.logo.url
+                    if logo_url.startswith('http://') or logo_url.startswith('https://'):
+                        vendor_data['logo_url'] = logo_url  # Already full URL (S3)
+                    else:
+                        vendor_data['logo_url'] = request.build_absolute_uri(logo_url)  # Local storage
             else:
                 vendor_data['logo_url'] = None
             vendor_data['footer_note'] = vendor.footer_note

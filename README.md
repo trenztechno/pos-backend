@@ -32,6 +32,7 @@ This README serves as the main entry point. For detailed documentation, refer to
 1. **[SETUP.md](SETUP.md)** - Detailed setup instructions
 2. **[BACKEND_TESTING.md](BACKEND_TESTING.md)** - How to test everything
 3. **[STORAGE_CONFIGURATION.md](STORAGE_CONFIGURATION.md)** - Image storage setup (Local/S3)
+4. **[PRESIGNED_URLS_GUIDE.md](PRESIGNED_URLS_GUIDE.md)** - Pre-signed URLs for secure S3 access (recommended)
 4. **[AUTHENTICATION_FLOW.md](AUTHENTICATION_FLOW.md)** - Auth flow details
 5. **[ENDPOINTS_SUMMARY.md](ENDPOINTS_SUMMARY.md)** - Quick endpoint reference
 
@@ -421,6 +422,7 @@ pos/
 - **Structured Bill Storage:** Bills stored in relational format (Bill + BillItem models) for extendability
 - **Bi-Directional Sync:** Download bills from server (GET /backup/sync) for new devices
 - **Item Images:** Support for item images with local/S3 storage toggle
+- **Pre-Signed URLs:** Secure, temporary URLs for S3 images (no public bucket needed, enabled by default)
 - **Health Check:** `/health/` endpoint for monitoring and load balancers
 - **Comprehensive Logging:** API, error, and audit logging with rotation
 - **Sales Rep Interface:** Mobile-friendly web UI for vendor approval

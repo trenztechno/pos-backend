@@ -1,6 +1,8 @@
 from rest_framework import serializers
+from django.conf import settings
 from .models import Item, Category
 from auth_app.models import Vendor
+from backend.s3_utils import generate_presigned_url
 
 class CategorySerializer(serializers.ModelSerializer):
     item_count = serializers.IntegerField(source='items.count', read_only=True)
@@ -39,13 +41,19 @@ class ItemSerializer(serializers.ModelSerializer):
         return [{'id': str(cat.id), 'name': cat.name} for cat in obj.categories.all()]
     
     def get_image_url(self, obj):
-        """Return full URL to item image (works with both local and S3 storage)"""
+        """Return full URL to item image (works with both local and S3 storage)
+        Uses pre-signed URLs for S3 when enabled (more secure, no public bucket needed)"""
         if obj.image:
-            # For S3, obj.image.url already returns full URL
-            # For local, obj.image.url returns relative path
+            # Check if using S3 with pre-signed URLs
+            if settings.USE_S3 and getattr(settings, 'USE_S3_PRESIGNED_URLS', True):
+                presigned_url = generate_presigned_url(obj.image)
+                if presigned_url:
+                    return presigned_url
+            
+            # For S3 without pre-signed URLs, or local storage
             image_url = obj.image.url
             if image_url.startswith('http://') or image_url.startswith('https://'):
-                # Already a full URL (S3)
+                # Already a full URL (S3 public URL)
                 return image_url
             else:
                 # Relative path (local storage) - build absolute URL
@@ -70,13 +78,19 @@ class ItemListSerializer(serializers.ModelSerializer):
         return [cat.name for cat in obj.categories.all()]
     
     def get_image_url(self, obj):
-        """Return full URL to item image (works with both local and S3 storage)"""
+        """Return full URL to item image (works with both local and S3 storage)
+        Uses pre-signed URLs for S3 when enabled (more secure, no public bucket needed)"""
         if obj.image:
-            # For S3, obj.image.url already returns full URL
-            # For local, obj.image.url returns relative path
+            # Check if using S3 with pre-signed URLs
+            if settings.USE_S3 and getattr(settings, 'USE_S3_PRESIGNED_URLS', True):
+                presigned_url = generate_presigned_url(obj.image)
+                if presigned_url:
+                    return presigned_url
+            
+            # For S3 without pre-signed URLs, or local storage
             image_url = obj.image.url
             if image_url.startswith('http://') or image_url.startswith('https://'):
-                # Already a full URL (S3)
+                # Already a full URL (S3 public URL)
                 return image_url
             else:
                 # Relative path (local storage) - build absolute URL
