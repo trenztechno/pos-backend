@@ -579,8 +579,10 @@ def create_comprehensive_items(vendor, categories):
             image_status = "📷" if item.image else "📷❌"
             print(f"  ✓ Updated: {item_data['name']} {image_status}")
     
-    print(f"\n  ✅ Created/Updated {len(items_data)} items")
-    return created_count
+    total_items = len(items_data)
+    print(f"\n  ✅ Created/Updated {total_items} items")
+    # Return total items processed (not just newly created)
+    return total_items
 
 def create_sample_bills(vendor):
     """Create sample bills using new Bill and BillItem models (GST and Non-GST)"""
@@ -592,9 +594,39 @@ def create_sample_bills(vendor):
         print("  ⚠️ No items found. Skipping bill creation.")
         return
     
-    # Sample GST Bill (Intra-State)
+    # Check for existing bills and generate unique invoice numbers
     bill_date = timezone.now().date()
     created_at = timezone.now()
+    year = bill_date.year
+    
+    # Find the highest invoice number for this vendor in this year
+    existing_bills = Bill.objects.filter(
+        vendor=vendor,
+        invoice_number__startswith=f'INV-{year}-'
+    ).order_by('-invoice_number')
+    
+    if existing_bills.exists():
+        # Extract the highest number
+        last_bill = existing_bills.first()
+        try:
+            last_num = int(last_bill.invoice_number.split('-')[-1])
+            next_num = last_num + 1
+        except:
+            next_num = 1
+    else:
+        next_num = 1
+    
+    # Generate invoice numbers
+    gst_invoice_number = f'INV-{year}-{next_num:03d}'
+    non_gst_invoice_number = f'INV-{year}-{next_num + 1:03d}'
+    
+    # Check if these invoice numbers already exist (shouldn't, but be safe)
+    if Bill.objects.filter(vendor=vendor, invoice_number=gst_invoice_number).exists():
+        print(f"  ⚠️ Bill {gst_invoice_number} already exists. Skipping GST bill creation.")
+        return
+    if Bill.objects.filter(vendor=vendor, invoice_number=non_gst_invoice_number).exists():
+        print(f"  ⚠️ Bill {non_gst_invoice_number} already exists. Skipping Non-GST bill creation.")
+        return
     
     # Calculate GST bill totals
     gst_items = items[:3]
@@ -607,8 +639,8 @@ def create_sample_bills(vendor):
     gst_bill = Bill.objects.create(
         vendor=vendor,
         device_id='mobile-dev-device-001',
-        invoice_number='INV-2024-001',
-        bill_number='BN-2024-001',
+        invoice_number=gst_invoice_number,
+        bill_number=f'BN-{year}-{next_num:03d}',
         bill_date=bill_date,
         restaurant_name=vendor.business_name,
         address=vendor.address,
@@ -659,8 +691,8 @@ def create_sample_bills(vendor):
     non_gst_bill = Bill.objects.create(
         vendor=vendor,
         device_id='mobile-dev-device-001',
-        invoice_number='INV-2024-002',
-        bill_number='BN-2024-002',
+        invoice_number=non_gst_invoice_number,
+        bill_number=f'BN-{year}-{next_num + 1:03d}',
         bill_date=bill_date,
         restaurant_name=vendor.business_name,
         address=vendor.address,
