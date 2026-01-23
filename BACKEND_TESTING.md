@@ -228,13 +228,16 @@ All functionality verified successfully!
 - **GET /dashboard/stats?start_date=YYYY-MM-DD&end_date=YYYY-MM-DD** - Dashboard stats with date range
 - **GET /dashboard/sales** - Sales analytics
 - **GET /dashboard/sales?billing_mode=gst** - Sales analytics filtered by GST bills
+- **GET /dashboard/sales?billing_mode=non_gst** - Sales analytics filtered by Non-GST bills
 - **GET /dashboard/items?sort=most_sold** - Most sold items
 - **GET /dashboard/items?sort=least_sold** - Least sold items
 - **GET /dashboard/payments** - Payment mode analytics
 - **GET /dashboard/tax** - Tax collection analytics
 - **GET /dashboard/profit** - Net profit calculation
+- **GET /dashboard/dues** - Pending payments and dues
+- **GET /dashboard/dues?start_date=YYYY-MM-DD&end_date=YYYY-MM-DD** - Pending payments with date range
 
-**Total: 65+ test scenarios covering all endpoints, all billing modes, all payment modes, all GST percentages, image uploads, edge cases, and error handling**
+**Total: 66+ test scenarios covering all endpoints, all billing modes, all payment modes, all GST percentages, image uploads, edge cases, and error handling**
 
 #### Complete Test Coverage
 
