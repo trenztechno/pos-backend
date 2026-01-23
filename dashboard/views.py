@@ -558,8 +558,12 @@ def dashboard_dues(request):
     )
     
     # Calculate pending payments (credit bills or bills where amount_paid < total_amount)
-    credit_bills = bills.filter(
-        Q(payment_mode='credit') | Q(amount_paid__lt=F('total_amount'))
+    # Handle None values properly - use Coalesce to treat None as 0
+    from django.db.models.functions import Coalesce
+    credit_bills = bills.annotate(
+        amount_paid_value=Coalesce('amount_paid', Decimal('0'), output_field=DecimalField())
+    ).filter(
+        Q(payment_mode='credit') | Q(amount_paid_value__lt=F('total_amount'))
     )
     
     # Calculate total outstanding
@@ -567,32 +571,39 @@ def dashboard_dues(request):
     pending_bills = []
     
     for bill in credit_bills:
-        amount_paid = bill.amount_paid or Decimal('0')
+        amount_paid = bill.amount_paid if bill.amount_paid is not None else Decimal('0')
         outstanding = bill.total_amount - amount_paid
-        total_outstanding += outstanding
         
-        pending_bills.append({
-            'bill_id': str(bill.id),
-            'invoice_number': bill.invoice_number,
-            'bill_date': bill.bill_date.isoformat(),
-            'customer_name': bill.customer_name or 'N/A',
-            'customer_phone': bill.customer_phone or 'N/A',
-            'total_amount': str(bill.total_amount),
-            'amount_paid': str(amount_paid),
-            'outstanding_amount': str(outstanding),
-            'payment_mode': bill.payment_mode,
-            'days_pending': (timezone.now().date() - bill.bill_date).days
-        })
+        # Only include bills with outstanding amount > 0
+        if outstanding > 0:
+            total_outstanding += outstanding
+            
+            pending_bills.append({
+                'bill_id': str(bill.id),
+                'invoice_number': bill.invoice_number,
+                'bill_date': bill.bill_date.isoformat(),
+                'customer_name': bill.customer_name or 'N/A',
+                'customer_phone': bill.customer_phone or 'N/A',
+                'total_amount': str(bill.total_amount),
+                'amount_paid': str(amount_paid),
+                'outstanding_amount': str(outstanding),
+                'payment_mode': bill.payment_mode,
+                'days_pending': (timezone.now().date() - bill.bill_date).days
+            })
     
     # Sort by outstanding amount (highest first)
     pending_bills.sort(key=lambda x: Decimal(x['outstanding_amount']), reverse=True)
     
     # Count by payment mode
     credit_count = bills.filter(payment_mode='credit').count()
-    partial_payment_count = bills.filter(
+    # Count partial payments (non-credit bills where amount_paid < total_amount)
+    partial_payment_bills = bills.annotate(
+        amount_paid_value=Coalesce('amount_paid', Decimal('0'), output_field=DecimalField())
+    ).filter(
         ~Q(payment_mode='credit'),
-        amount_paid__lt=F('total_amount')
-    ).count()
+        amount_paid_value__lt=F('total_amount')
+    )
+    partial_payment_count = partial_payment_bills.count()
     
     return Response({
         'vendor_id': str(vendor.id),

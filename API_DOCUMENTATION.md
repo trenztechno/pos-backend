@@ -3752,6 +3752,436 @@ curl -X GET "http://localhost:8000/dashboard/profit/?start_date=2024-01-01&end_d
 
 ---
 
+### Pending Payments & Dues
+
+**GET** `/dashboard/dues`
+
+**Requires authentication**
+
+Get pending payments and outstanding dues (credit bills and partial payments).
+
+**Query Parameters:**
+- `start_date` (optional): YYYY-MM-DD format (default: today)
+- `end_date` (optional): YYYY-MM-DD format (default: today)
+
+**Success Response (200):**
+```json
+{
+  "vendor_id": "550e8400-e29b-41d4-a716-446655440000",
+  "date_range": {
+    "start_date": "2024-01-01",
+    "end_date": "2024-01-31"
+  },
+  "summary": {
+    "total_pending_bills": 5,
+    "total_outstanding_amount": "2500.00",
+    "credit_bills_count": 3,
+    "partial_payment_bills_count": 2
+  },
+  "pending_bills": [
+    {
+      "bill_id": "770e8400-e29b-41d4-a716-446655440000",
+      "invoice_number": "INV-2024-006",
+      "bill_date": "2024-01-15",
+      "customer_name": "John Doe",
+      "customer_phone": "+91-9876543210",
+      "total_amount": "590.00",
+      "amount_paid": "0.00",
+      "outstanding_amount": "590.00",
+      "payment_mode": "credit",
+      "days_pending": 8
+    },
+    {
+      "bill_id": "770e8400-e29b-41d4-a716-446655440001",
+      "invoice_number": "INV-2024-010",
+      "bill_date": "2024-01-20",
+      "customer_name": "Jane Smith",
+      "customer_phone": "+91-9876543211",
+      "total_amount": "1000.00",
+      "amount_paid": "500.00",
+      "outstanding_amount": "500.00",
+      "payment_mode": "cash",
+      "days_pending": 3
+    },
+    {
+      "bill_id": "770e8400-e29b-41d4-a716-446655440002",
+      "invoice_number": "INV-2024-012",
+      "bill_date": "2024-01-18",
+      "customer_name": "Bob Johnson",
+      "customer_phone": "+91-9876543212",
+      "total_amount": "1200.00",
+      "amount_paid": "0.00",
+      "outstanding_amount": "1200.00",
+      "payment_mode": "credit",
+      "days_pending": 5
+    }
+  ]
+}
+```
+
+**Example 1: Get Pending Payments for Today (cURL):**
+```bash
+curl -X GET "http://localhost:8000/dashboard/dues" \
+  -H "Authorization: Token YOUR_TOKEN_HERE"
+```
+
+**Example 2: Get Pending Payments for Date Range (cURL):**
+```bash
+curl -X GET "http://localhost:8000/dashboard/dues?start_date=2024-01-01&end_date=2024-01-31" \
+  -H "Authorization: Token YOUR_TOKEN_HERE"
+```
+
+**Example 3: JavaScript/Fetch:**
+```javascript
+// Get pending payments for today
+async function getPendingPayments(token) {
+  const response = await fetch('http://localhost:8000/dashboard/dues', {
+    method: 'GET',
+    headers: {
+      'Authorization': `Token ${token}`,
+      'Content-Type': 'application/json'
+    }
+  });
+  
+  if (response.ok) {
+    const data = await response.json();
+    console.log(`Total Pending Bills: ${data.summary.total_pending_bills}`);
+    console.log(`Total Outstanding: ₹${data.summary.total_outstanding_amount}`);
+    
+    // Display pending bills
+    data.pending_bills.forEach(bill => {
+      console.log(`${bill.invoice_number}: ₹${bill.outstanding_amount} (${bill.days_pending} days pending)`);
+    });
+    
+    return data;
+  } else {
+    const error = await response.json();
+    console.error('Error:', error);
+    throw new Error(error.error || 'Failed to fetch pending payments');
+  }
+}
+
+// Get pending payments for date range
+async function getPendingPaymentsByDateRange(token, startDate, endDate) {
+  const url = `http://localhost:8000/dashboard/dues?start_date=${startDate}&end_date=${endDate}`;
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Token ${token}`,
+      'Content-Type': 'application/json'
+    }
+  });
+  
+  if (response.ok) {
+    return await response.json();
+  } else {
+    const error = await response.json();
+    throw new Error(error.error || 'Failed to fetch pending payments');
+  }
+}
+
+// Usage
+const token = 'your-token-here';
+getPendingPayments(token)
+  .then(data => {
+    console.log('Pending payments loaded:', data);
+  })
+  .catch(error => {
+    console.error('Error loading pending payments:', error);
+  });
+```
+
+**Example 4: React Native:**
+```javascript
+import React, { useState, useEffect } from 'react';
+import { View, Text, FlatList, StyleSheet, ActivityIndicator } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+function PendingPaymentsScreen() {
+  const [pendingBills, setPendingBills] = useState([]);
+  const [summary, setSummary] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    loadPendingPayments();
+  }, []);
+
+  const loadPendingPayments = async (startDate = null, endDate = null) => {
+    try {
+      setLoading(true);
+      const token = await AsyncStorage.getItem('auth_token');
+      
+      let url = 'http://your-server.com/dashboard/dues';
+      if (startDate && endDate) {
+        url += `?start_date=${startDate}&end_date=${endDate}`;
+      }
+      
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Token ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setPendingBills(data.pending_bills);
+        setSummary(data.summary);
+        setError(null);
+      } else {
+        const errorData = await response.json();
+        setError(errorData.error || 'Failed to load pending payments');
+      }
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const renderBillItem = ({ item }) => (
+    <View style={styles.billCard}>
+      <View style={styles.billHeader}>
+        <Text style={styles.invoiceNumber}>{item.invoice_number}</Text>
+        <Text style={styles.outstandingAmount}>₹{item.outstanding_amount}</Text>
+      </View>
+      <Text style={styles.customerName}>{item.customer_name}</Text>
+      <Text style={styles.customerPhone}>{item.customer_phone}</Text>
+      <View style={styles.billFooter}>
+        <Text style={styles.billDate}>{item.bill_date}</Text>
+        <Text style={styles.daysPending}>{item.days_pending} days pending</Text>
+      </View>
+      <View style={styles.paymentInfo}>
+        <Text style={styles.totalAmount}>Total: ₹{item.total_amount}</Text>
+        <Text style={styles.amountPaid}>Paid: ₹{item.amount_paid}</Text>
+      </View>
+    </View>
+  );
+
+  if (loading) {
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator size="large" color="#007AFF" />
+        <Text>Loading pending payments...</Text>
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={styles.center}>
+        <Text style={styles.errorText}>Error: {error}</Text>
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.container}>
+      {summary && (
+        <View style={styles.summaryCard}>
+          <Text style={styles.summaryTitle}>Summary</Text>
+          <Text style={styles.summaryText}>
+            Total Pending Bills: {summary.total_pending_bills}
+          </Text>
+          <Text style={styles.summaryText}>
+            Total Outstanding: ₹{summary.total_outstanding_amount}
+          </Text>
+          <Text style={styles.summaryText}>
+            Credit Bills: {summary.credit_bills_count}
+          </Text>
+          <Text style={styles.summaryText}>
+            Partial Payments: {summary.partial_payment_bills_count}
+          </Text>
+        </View>
+      )}
+      
+      <FlatList
+        data={pendingBills}
+        renderItem={renderBillItem}
+        keyExtractor={(item) => item.bill_id}
+        ListEmptyComponent={
+          <View style={styles.center}>
+            <Text style={styles.emptyText}>No pending payments</Text>
+          </View>
+        }
+      />
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#f5f5f5',
+    padding: 16
+  },
+  center: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center'
+  },
+  summaryCard: {
+    backgroundColor: '#fff',
+    padding: 16,
+    borderRadius: 8,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3
+  },
+  summaryTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 8
+  },
+  summaryText: {
+    fontSize: 14,
+    marginVertical: 4
+  },
+  billCard: {
+    backgroundColor: '#fff',
+    padding: 16,
+    borderRadius: 8,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3
+  },
+  billHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8
+  },
+  invoiceNumber: {
+    fontSize: 16,
+    fontWeight: 'bold'
+  },
+  outstandingAmount: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#FF3B30'
+  },
+  customerName: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 4
+  },
+  customerPhone: {
+    fontSize: 12,
+    color: '#666',
+    marginBottom: 8
+  },
+  billFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 8
+  },
+  billDate: {
+    fontSize: 12,
+    color: '#666'
+  },
+  daysPending: {
+    fontSize: 12,
+    color: '#FF9500',
+    fontWeight: '600'
+  },
+  paymentInfo: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#eee'
+  },
+  totalAmount: {
+    fontSize: 12,
+    color: '#666'
+  },
+  amountPaid: {
+    fontSize: 12,
+    color: '#666'
+  },
+  errorText: {
+    color: '#FF3B30',
+    fontSize: 16
+  },
+  emptyText: {
+    fontSize: 16,
+    color: '#666',
+    marginTop: 32
+  }
+});
+
+export default PendingPaymentsScreen;
+```
+
+**Example 5: Python (requests):**
+```python
+import requests
+
+def get_pending_payments(token, start_date=None, end_date=None):
+    """
+    Get pending payments and dues
+    
+    Args:
+        token: Authentication token
+        start_date: Optional start date (YYYY-MM-DD)
+        end_date: Optional end date (YYYY-MM-DD)
+    
+    Returns:
+        dict: Response data with pending bills
+    """
+    url = 'http://localhost:8000/dashboard/dues'
+    headers = {
+        'Authorization': f'Token {token}',
+        'Content-Type': 'application/json'
+    }
+    
+    params = {}
+    if start_date:
+        params['start_date'] = start_date
+    if end_date:
+        params['end_date'] = end_date
+    
+    response = requests.get(url, headers=headers, params=params)
+    response.raise_for_status()
+    
+    return response.json()
+
+# Usage
+token = 'your-token-here'
+data = get_pending_payments(token)
+
+print(f"Total Pending Bills: {data['summary']['total_pending_bills']}")
+print(f"Total Outstanding: ₹{data['summary']['total_outstanding_amount']}")
+
+for bill in data['pending_bills']:
+    print(f"\nInvoice: {bill['invoice_number']}")
+    print(f"Customer: {bill['customer_name']}")
+    print(f"Outstanding: ₹{bill['outstanding_amount']}")
+    print(f"Days Pending: {bill['days_pending']}")
+
+# Get for date range
+data = get_pending_payments(token, start_date='2024-01-01', end_date='2024-01-31')
+```
+
+**Note:** 
+- Pending bills include:
+  - Bills with `payment_mode='credit'` (full credit, `amount_paid` typically 0)
+  - Bills where `amount_paid < total_amount` (partial payment)
+- Outstanding amount = `total_amount - amount_paid`
+- Bills are sorted by outstanding amount (highest first)
+- `days_pending` = number of days since bill date
+- If `amount_paid` is `None`, it's treated as `0.00`
+
+---
+
 ## Settings
 
 ### Push Settings
