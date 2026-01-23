@@ -181,3 +181,25 @@ class ResetPasswordSerializer(serializers.Serializer):
         
         return attrs
 
+class VendorProfileSerializer(serializers.ModelSerializer):
+    """Serializer for vendor profile (GET/PATCH)"""
+    username = serializers.CharField(source='user.username', read_only=True)
+    email = serializers.EmailField(source='user.email', read_only=True)
+    
+    class Meta:
+        model = Vendor
+        fields = [
+            'id', 'username', 'email',
+            'business_name', 'phone', 'address',
+            'gst_no', 'fssai_license',
+            'logo', 'footer_note',
+            'is_approved', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'is_approved', 'created_at', 'updated_at', 'gst_no']  # GST cannot be changed
+    
+    def validate_gst_no(self, value):
+        """GST number cannot be changed via API (read-only)"""
+        if self.instance and value != self.instance.gst_no:
+            raise serializers.ValidationError('GST number cannot be changed. Please contact admin.')
+        return value
+

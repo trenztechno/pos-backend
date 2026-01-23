@@ -288,8 +288,22 @@ def verify_mobile_dev_data():
             print_pass(f"Sample Bills: {bills.count()} found")
             print_pass(f"  - GST Bills: {gst_bills.count()}")
             print_pass(f"  - Non-GST Bills: {non_gst_bills.count()}")
+            
+            # Check bill items
+            total_bill_items = BillItem.objects.filter(bill__vendor=mobiledev_vendor).count()
+            if total_bill_items > 0:
+                print_pass(f"  - Bill Items: {total_bill_items} items in bills")
         else:
             print_warn("No sample bills found (optional)")
+        
+        # Check bills for other vendors too
+        all_bills = Bill.objects.all()
+        if all_bills.exists():
+            print_pass(f"Total Bills in System: {all_bills.count()}")
+            for vendor in Vendor.objects.filter(is_approved=True)[:3]:
+                vendor_bills = Bill.objects.filter(vendor=vendor)
+                if vendor_bills.exists():
+                    print_pass(f"  - {vendor.business_name}: {vendor_bills.count()} bills")
         
     except Vendor.DoesNotExist:
         print_fail("Mobile Dev vendor not found")
@@ -368,9 +382,95 @@ def verify_api_access():
     
     return all_passed
 
+def verify_dashboard_data():
+    """Verify dashboard endpoints work with test data"""
+    print_section("5. Verifying Dashboard Data")
+    
+    all_passed = True
+    client = APIClient()
+    
+    # Test with vendor1
+    try:
+        vendor1 = Vendor.objects.get(user__username='vendor1')
+        user = vendor1.user
+        token, _ = Token.objects.get_or_create(user=user)
+        client.credentials(HTTP_AUTHORIZATION=f'Token {token.key}')
+        
+        # Test dashboard stats
+        response = client.get('/dashboard/stats')
+        if response.status_code == 200:
+            data = response.data
+            if 'statistics' in data:
+                stats = data['statistics']
+                print_pass(f"Dashboard Stats: Working")
+                print_pass(f"  - Total Bills: {stats.get('total_bills', 0)}")
+                print_pass(f"  - Total Revenue: ₹{stats.get('total_revenue', '0.00')}")
+                print_pass(f"  - Payment Split: {len(stats.get('payment_split', {}))} modes")
+            else:
+                print_warn("Dashboard stats response missing statistics field")
+        else:
+            print_fail(f"Dashboard stats failed: {response.status_code}")
+            all_passed = False
+        
+        # Test dashboard sales
+        response = client.get('/dashboard/sales')
+        if response.status_code == 200:
+            print_pass("Dashboard Sales: Working")
+        else:
+            print_fail(f"Dashboard sales failed: {response.status_code}")
+            all_passed = False
+        
+        # Test dashboard items
+        response = client.get('/dashboard/items?sort=most_sold')
+        if response.status_code == 200:
+            data = response.data
+            items = data.get('items', [])
+            print_pass(f"Dashboard Items: Working ({len(items)} items returned)")
+        else:
+            print_fail(f"Dashboard items failed: {response.status_code}")
+            all_passed = False
+        
+        # Test dashboard payments
+        response = client.get('/dashboard/payments')
+        if response.status_code == 200:
+            data = response.data
+            payment_split = data.get('payment_split', [])
+            print_pass(f"Dashboard Payments: Working ({len(payment_split)} payment modes)")
+        else:
+            print_fail(f"Dashboard payments failed: {response.status_code}")
+            all_passed = False
+        
+        # Test dashboard tax
+        response = client.get('/dashboard/tax')
+        if response.status_code == 200:
+            data = response.data
+            summary = data.get('summary', {})
+            print_pass(f"Dashboard Tax: Working")
+            print_pass(f"  - Total Tax: ₹{summary.get('total_tax_collected', '0.00')}")
+        else:
+            print_fail(f"Dashboard tax failed: {response.status_code}")
+            all_passed = False
+        
+        # Test dashboard profit
+        response = client.get('/dashboard/profit')
+        if response.status_code == 200:
+            data = response.data
+            profit = data.get('profit_calculation', {})
+            print_pass(f"Dashboard Profit: Working")
+            print_pass(f"  - Net Profit: ₹{profit.get('net_profit', '0.00')}")
+        else:
+            print_fail(f"Dashboard profit failed: {response.status_code}")
+            all_passed = False
+            
+    except Exception as e:
+        print_fail(f"Dashboard verification error: {e}")
+        all_passed = False
+    
+    return all_passed
+
 def verify_image_urls():
     """Verify image URLs are accessible"""
-    print_section("5. Verifying Image URLs")
+    print_section("6. Verifying Image URLs")
     
     all_passed = True
     
@@ -419,6 +519,7 @@ def main():
     results.append(("Test Data", verify_test_data()))
     results.append(("Mobile Dev Data", verify_mobile_dev_data()))
     results.append(("API Access", verify_api_access()))
+    results.append(("Dashboard Data", verify_dashboard_data()))
     results.append(("Image URLs", verify_image_urls()))
     
     # Summary

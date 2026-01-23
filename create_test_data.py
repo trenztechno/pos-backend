@@ -13,8 +13,11 @@ django.setup()
 from django.contrib.auth.models import User
 from auth_app.models import Vendor, SalesRep
 from items.models import Category, Item
+from sales.models import Bill, BillItem
 from rest_framework.authtoken.models import Token
+from django.utils import timezone
 from decimal import Decimal
+from datetime import date, timedelta
 
 def create_test_vendors():
     """Create test vendors (approved and pending)"""
@@ -326,6 +329,239 @@ def create_test_items(vendor1, vendor2, vendor1_cats, vendor2_cats):
         else:
             print(f"  ✓ Item exists: {item_data['name']}")
 
+def create_test_bills(vendor1, vendor2):
+    """Create sample bills for testing dashboard and analytics"""
+    print("\n🧾 Creating test bills...")
+    
+    # Get items for bills
+    vendor1_items = Item.objects.filter(vendor=vendor1, is_active=True)[:5]
+    vendor2_items = Item.objects.filter(vendor=vendor2, is_active=True)[:3]
+    
+    if not vendor1_items.exists() and not vendor2_items.exists():
+        print("  ⚠️ No items found. Skipping bill creation.")
+        return
+    
+    today = date.today()
+    created_at = timezone.now()
+    year = today.year
+    
+    # Create bills for vendor1
+    if vendor1_items.exists():
+        # GST Bill for vendor1
+        gst_items = vendor1_items[:3]
+        subtotal = sum(float(item.mrp_price or item.price or 0) * 2 for item in gst_items)
+        total_tax = sum(float((item.mrp_price or item.price or 0) * 2 * (item.gst_percentage or 0) / 100) for item in gst_items)
+        cgst = total_tax / 2
+        sgst = total_tax / 2
+        total = subtotal + total_tax
+        
+        # Find next invoice number
+        existing = Bill.objects.filter(vendor=vendor1, invoice_number__startswith=f'INV-{year}-').order_by('-invoice_number').first()
+        if existing:
+            try:
+                last_num = int(existing.invoice_number.split('-')[-1])
+                next_num = last_num + 1
+            except:
+                next_num = 1
+        else:
+            next_num = 1
+        
+        gst_bill, created = Bill.objects.get_or_create(
+            vendor=vendor1,
+            invoice_number=f'INV-{year}-{next_num:03d}',
+            defaults={
+                'device_id': 'test-device-001',
+                'bill_number': f'BN-{year}-{next_num:03d}',
+                'bill_date': today,
+                'restaurant_name': vendor1.business_name,
+                'address': vendor1.address,
+                'gstin': vendor1.gst_no,
+                'fssai_license': vendor1.fssai_license or '',
+                'footer_note': vendor1.footer_note or '',
+                'billing_mode': 'gst',
+                'subtotal': Decimal(str(subtotal)),
+                'total_amount': Decimal(str(total)),
+                'total_tax': Decimal(str(total_tax)),
+                'cgst_amount': Decimal(str(cgst)),
+                'sgst_amount': Decimal(str(sgst)),
+                'igst_amount': Decimal('0.00'),
+                'payment_mode': 'cash',
+                'created_at': created_at,
+            }
+        )
+        
+        if created:
+            for item in gst_items:
+                quantity = Decimal('2.00')
+                item_subtotal = (item.mrp_price or item.price or Decimal('0')) * quantity
+                item_gst = (item_subtotal * (item.gst_percentage or Decimal('0')) / 100)
+                
+                BillItem.objects.create(
+                    bill=gst_bill,
+                    item=item,
+                    original_item_id=item.id,
+                    item_name=item.name,
+                    item_description=item.description or '',
+                    price=item.price or item.mrp_price or Decimal('0'),
+                    mrp_price=item.mrp_price or item.price or Decimal('0'),
+                    price_type=getattr(item, 'price_type', 'exclusive'),
+                    quantity=quantity,
+                    subtotal=item_subtotal,
+                    gst_percentage=item.gst_percentage or Decimal('0'),
+                    item_gst_amount=item_gst,
+                    veg_nonveg=getattr(item, 'veg_nonveg', 'veg'),
+                    additional_discount=getattr(item, 'additional_discount', Decimal('0')),
+                )
+            print(f"  ✓ Created GST Bill for {vendor1.business_name}: {gst_bill.invoice_number} (₹{gst_bill.total_amount:.2f})")
+        
+        # Non-GST Bill for vendor1
+        non_gst_items = vendor1_items[3:5] if len(vendor1_items) > 3 else []
+        if non_gst_items:
+            non_gst_subtotal = sum(float(item.mrp_price or item.price or 0) for item in non_gst_items)
+            non_gst_total = non_gst_subtotal
+            
+            non_gst_bill, created = Bill.objects.get_or_create(
+                vendor=vendor1,
+                invoice_number=f'INV-{year}-{next_num + 1:03d}',
+                defaults={
+                    'device_id': 'test-device-001',
+                    'bill_number': f'BN-{year}-{next_num + 1:03d}',
+                    'bill_date': today,
+                    'restaurant_name': vendor1.business_name,
+                    'address': vendor1.address,
+                    'gstin': vendor1.gst_no,
+                    'fssai_license': vendor1.fssai_license or '',
+                    'footer_note': vendor1.footer_note or '',
+                    'billing_mode': 'non_gst',
+                    'subtotal': Decimal(str(non_gst_subtotal)),
+                    'total_amount': Decimal(str(non_gst_total)),
+                    'total_tax': Decimal('0.00'),
+                    'cgst_amount': Decimal('0.00'),
+                    'sgst_amount': Decimal('0.00'),
+                    'igst_amount': Decimal('0.00'),
+                    'payment_mode': 'upi',
+                    'created_at': created_at,
+                }
+            )
+            
+            if created:
+                for item in non_gst_items:
+                    quantity = Decimal('1.00')
+                    item_subtotal = (item.mrp_price or item.price or Decimal('0')) * quantity
+                    
+                    BillItem.objects.create(
+                        bill=non_gst_bill,
+                        item=item,
+                        original_item_id=item.id,
+                        item_name=item.name,
+                        item_description=item.description or '',
+                        price=item.price or item.mrp_price or Decimal('0'),
+                        mrp_price=item.mrp_price or item.price or Decimal('0'),
+                        price_type=getattr(item, 'price_type', 'exclusive'),
+                        quantity=quantity,
+                        subtotal=item_subtotal,
+                        gst_percentage=Decimal('0.00'),
+                        item_gst_amount=Decimal('0.00'),
+                        veg_nonveg=getattr(item, 'veg_nonveg', 'veg'),
+                        additional_discount=getattr(item, 'additional_discount', Decimal('0')),
+                    )
+                print(f"  ✓ Created Non-GST Bill for {vendor1.business_name}: {non_gst_bill.invoice_number} (₹{non_gst_bill.total_amount:.2f})")
+        
+        # Create bills for different dates (for dashboard testing)
+        yesterday = today - timedelta(days=1)
+        week_ago = today - timedelta(days=7)
+        
+        # Yesterday's bill
+        if vendor1_items.exists():
+            item = vendor1_items[0]
+            yesterday_bill, created = Bill.objects.get_or_create(
+                vendor=vendor1,
+                invoice_number=f'INV-{year}-{next_num + 2:03d}',
+                defaults={
+                    'device_id': 'test-device-001',
+                    'bill_number': f'BN-{year}-{next_num + 2:03d}',
+                    'bill_date': yesterday,
+                    'restaurant_name': vendor1.business_name,
+                    'address': vendor1.address,
+                    'gstin': vendor1.gst_no,
+                    'billing_mode': 'gst',
+                    'subtotal': Decimal('100.00'),
+                    'total_amount': Decimal('118.00'),
+                    'total_tax': Decimal('18.00'),
+                    'cgst_amount': Decimal('9.00'),
+                    'sgst_amount': Decimal('9.00'),
+                    'payment_mode': 'card',
+                    'created_at': timezone.now() - timedelta(days=1),
+                }
+            )
+            if created:
+                BillItem.objects.create(
+                    bill=yesterday_bill,
+                    item=item,
+                    item_name=item.name,
+                    price=item.price or Decimal('50.00'),
+                    mrp_price=item.mrp_price or item.price or Decimal('50.00'),
+                    quantity=Decimal('2.00'),
+                    subtotal=Decimal('100.00'),
+                    gst_percentage=Decimal('18.00'),
+                    item_gst_amount=Decimal('18.00'),
+                )
+                print(f"  ✓ Created Yesterday's Bill: {yesterday_bill.invoice_number}")
+    
+    # Create bills for vendor2
+    if vendor2_items.exists():
+        item = vendor2_items[0]
+        subtotal = float(item.mrp_price or item.price or 0) * 2
+        total_tax = subtotal * 0.18
+        total = subtotal + total_tax
+        
+        existing = Bill.objects.filter(vendor=vendor2, invoice_number__startswith=f'INV-{year}-').order_by('-invoice_number').first()
+        if existing:
+            try:
+                last_num = int(existing.invoice_number.split('-')[-1])
+                next_num = last_num + 1
+            except:
+                next_num = 1
+        else:
+            next_num = 1
+        
+        vendor2_bill, created = Bill.objects.get_or_create(
+            vendor=vendor2,
+            invoice_number=f'INV-{year}-{next_num:03d}',
+            defaults={
+                'device_id': 'test-device-002',
+                'bill_number': f'BN-{year}-{next_num:03d}',
+                'bill_date': today,
+                'restaurant_name': vendor2.business_name,
+                'address': vendor2.address,
+                'gstin': vendor2.gst_no,
+                'billing_mode': 'gst',
+                'subtotal': Decimal(str(subtotal)),
+                'total_amount': Decimal(str(total)),
+                'total_tax': Decimal(str(total_tax)),
+                'cgst_amount': Decimal(str(total_tax / 2)),
+                'sgst_amount': Decimal(str(total_tax / 2)),
+                'payment_mode': 'upi',
+                'created_at': created_at,
+            }
+        )
+        
+        if created:
+            BillItem.objects.create(
+                bill=vendor2_bill,
+                item=item,
+                item_name=item.name,
+                price=item.price or Decimal('0'),
+                mrp_price=item.mrp_price or item.price or Decimal('0'),
+                quantity=Decimal('2.00'),
+                subtotal=Decimal(str(subtotal)),
+                gst_percentage=Decimal('18.00'),
+                item_gst_amount=Decimal(str(total_tax)),
+            )
+            print(f"  ✓ Created Bill for {vendor2.business_name}: {vendor2_bill.invoice_number} (₹{vendor2_bill.total_amount:.2f})")
+    
+    print(f"\n  ✅ Created test bills for dashboard testing")
+
 def main():
     """Create all test data"""
     print("\n" + "="*70)
@@ -342,6 +578,9 @@ def main():
         # Create test items
         create_test_items(vendor1, vendor2, vendor1_cats, vendor2_cats)
         
+        # Create test bills
+        create_test_bills(vendor1, vendor2)
+        
         print("\n" + "="*70)
         print("  ✅ TEST DATA CREATION COMPLETE")
         print("="*70)
@@ -357,6 +596,7 @@ def main():
         print("\n📦 Test Data Created:")
         print("   • Categories: Global (Drinks, Snacks) + Vendor-specific")
         print("   • Items: Multiple items with categories assigned")
+        print("   • Bills: Sample bills (GST and Non-GST) for dashboard testing")
         print("   • All vendors have tokens for API testing")
         print("\n" + "="*70 + "\n")
         

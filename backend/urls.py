@@ -29,6 +29,7 @@ urlpatterns = [
     path('backup/', include('sales.urls')),
     path('settings/', include('settings.urls')),
     path('sales-rep/', include('sales_rep.urls')),
+    path('dashboard/', include('dashboard.urls')),
 ]
 
 # Serve media files in development (only for local storage)

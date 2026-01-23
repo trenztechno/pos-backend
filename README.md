@@ -25,16 +25,51 @@ This README serves as the main entry point. For detailed documentation, refer to
 
 ### For Mobile App Developers
 1. **[MOBILE_APP_GUIDE.md](MOBILE_APP_GUIDE.md)** - Complete integration guide with code examples
+   - **Bill Creation Examples:** All billing modes (GST intra-state, inter-state, Non-GST), all payment modes (cash, UPI, card, credit, other), with/without discounts
+   - **Item Creation Examples:** All GST percentages (0%, 5%, 8%, 18%, custom), exclusive/inclusive pricing, with/without images
+   - **Offline-First Implementation:** Complete code examples for offline sync
 2. **[API_DOCUMENTATION.md](API_DOCUMENTATION.md)** - Full API reference with all endpoints
+   - **16 Complete Bill Examples:** Every possible combination of billing mode, payment mode, discounts, linked/additional items
+   - **12 Complete Item Examples:** All GST percentages, price types, with/without images, veg/non-veg
+   - **Dashboard Examples:** All date range filters, billing mode filters
 3. **[TEST_ACCOUNTS.md](TEST_ACCOUNTS.md)** - All test credentials and accounts
 
 ### For Backend Developers
 1. **[SETUP.md](SETUP.md)** - Detailed setup instructions
 2. **[BACKEND_TESTING.md](BACKEND_TESTING.md)** - How to test everything
+   - Test cases for all billing modes
+   - Test cases for all payment modes
+   - Test cases for all GST percentages
 3. **[STORAGE_CONFIGURATION.md](STORAGE_CONFIGURATION.md)** - Image storage setup (Local/S3)
 4. **[PRESIGNED_URLS_GUIDE.md](PRESIGNED_URLS_GUIDE.md)** - Pre-signed URLs for secure S3 access (recommended)
-4. **[AUTHENTICATION_FLOW.md](AUTHENTICATION_FLOW.md)** - Auth flow details
-5. **[ENDPOINTS_SUMMARY.md](ENDPOINTS_SUMMARY.md)** - Quick endpoint reference
+5. **[AUTHENTICATION_FLOW.md](AUTHENTICATION_FLOW.md)** - Auth flow details
+6. **[ENDPOINTS_SUMMARY.md](ENDPOINTS_SUMMARY.md)** - Quick endpoint reference
+
+### Quick Reference: Where to Find What
+
+**Billing & Payment Examples:**
+- **GST Bills (Intra-State):** [API_DOCUMENTATION.md](API_DOCUMENTATION.md#example-1-gst-bill---intra-state---cash-payment---no-discounts) - Examples 1-5
+- **GST Bills (Inter-State):** [API_DOCUMENTATION.md](API_DOCUMENTATION.md#example-6-gst-bill---inter-state---cash-payment---no-discounts) - Examples 6-7
+- **Non-GST Bills:** [API_DOCUMENTATION.md](API_DOCUMENTATION.md#example-9-non-gst-bill---cash-payment---no-discounts) - Examples 9-10
+- **Bills with Discounts:** [API_DOCUMENTATION.md](API_DOCUMENTATION.md#example-8-gst-bill---intra-state---cash-payment---with-discounts) - Example 8, 16
+- **All Payment Modes:** [API_DOCUMENTATION.md](API_DOCUMENTATION.md#payment-mode-summary) - Cash, UPI, Card, Credit, Other
+- **Code Examples:** [MOBILE_APP_GUIDE.md](MOBILE_APP_GUIDE.md#example-1-gst-bill---intra-state---cash-payment) - Complete JavaScript/React Native examples
+
+**Item Creation Examples:**
+- **All GST Percentages:** [API_DOCUMENTATION.md](API_DOCUMENTATION.md#example-1-item-with-0-gst---exclusive-pricing---without-image---veg) - Examples 1-5
+- **Price Types (Exclusive/Inclusive):** [API_DOCUMENTATION.md](API_DOCUMENTATION.md#example-6-item-with-18-gst---inclusive-pricing---without-image---veg) - Example 6
+- **With/Without Images:** [API_DOCUMENTATION.md](API_DOCUMENTATION.md#example-7-item-with-18-gst---exclusive-pricing---with-image---veg) - Example 7
+- **Veg/Non-Veg:** [API_DOCUMENTATION.md](API_DOCUMENTATION.md#example-8-item-with-18-gst---exclusive-pricing---without-image---non-veg) - Example 8
+- **Multiple Categories:** [API_DOCUMENTATION.md](API_DOCUMENTATION.md#example-10-item-with-multiple-categories) - Example 10
+
+**Dashboard & Analytics:**
+- **All Dashboard Endpoints:** [API_DOCUMENTATION.md](API_DOCUMENTATION.md#dashboard--analytics) - Complete examples with all filters
+- **Date Range Filters:** [API_DOCUMENTATION.md](API_DOCUMENTATION.md#dashboard-stats) - start_date, end_date examples
+- **Billing Mode Filters:** [API_DOCUMENTATION.md](API_DOCUMENTATION.md#sales-analytics) - GST/Non-GST filtering
+
+**Business Details & Profile:**
+- **Vendor Profile:** [API_DOCUMENTATION.md](API_DOCUMENTATION.md#vendor-profile) - GET/PATCH examples
+- **Logo Upload:** [API_DOCUMENTATION.md](API_DOCUMENTATION.md#update-vendor-profile) - multipart/form-data examples
 
 ---
 

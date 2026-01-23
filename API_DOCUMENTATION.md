@@ -42,8 +42,15 @@ Each bill can be either GST or Non-GST. The `billing_mode` field in the bill dat
 6. [Inventory Management](#inventory-management)
 7. [Offline Sync (Categories & Items)](#offline-sync-categories--items)
 8. [Sales Backup](#sales-backup)
-9. [Settings](#settings)
-10. [Error Responses](#error-responses)
+9. [Dashboard & Analytics](#dashboard--analytics)
+   - [Dashboard Stats](#dashboard-stats)
+   - [Sales Analytics](#sales-analytics)
+   - [Item Analytics](#item-analytics)
+   - [Payment Analytics](#payment-analytics)
+   - [Tax Analytics](#tax-analytics)
+   - [Profit Analytics](#profit-analytics)
+10. [Settings](#settings)
+11. [Error Responses](#error-responses)
 
 ---
 
@@ -322,6 +329,152 @@ Authorization: Token <your_token>
 ```bash
 curl -X POST http://localhost:8000/auth/logout \
   -H "Authorization: Token YOUR_TOKEN_HERE"
+```
+
+---
+
+### Get Vendor Profile
+
+**GET** `/auth/profile`
+
+**Requires authentication**
+
+Get vendor profile information including business details and logo.
+
+**Headers:**
+```
+Authorization: Token <your_token>
+```
+
+**Success Response (200):**
+```json
+{
+  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "username": "vendor1",
+  "email": "vendor@example.com",
+  "business_name": "ABC Restaurant",
+  "phone": "+1234567890",
+  "address": "123 Main St, City",
+  "gst_no": "29ABCDE1234F1Z5",
+  "fssai_license": "12345678901234",
+  "logo_url": "https://bucket.s3.region.amazonaws.com/vendors/.../logo.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Expires=3600&...",
+  "footer_note": "Thank you for visiting!",
+  "is_approved": true,
+  "created_at": "2024-01-01T10:00:00Z",
+  "updated_at": "2024-01-01T10:00:00Z"
+}
+```
+
+**Field Descriptions:**
+- `logo_url`: Pre-signed URL to restaurant logo (temporary, expires in 1 hour) or null if not uploaded
+- `gst_no`: Read-only, cannot be changed via API
+
+**Example (cURL):**
+```bash
+curl -X GET http://localhost:8000/auth/profile \
+  -H "Authorization: Token YOUR_TOKEN_HERE"
+```
+
+---
+
+### Update Vendor Profile
+
+**PATCH** `/auth/profile`
+
+**Requires authentication**
+
+Update vendor profile information including business details and logo upload.
+
+**Headers:**
+```
+Authorization: Token <your_token>
+Content-Type: multipart/form-data  (when uploading logo)
+Content-Type: application/json     (when updating text fields only)
+```
+
+**Request Body (JSON - update business details only):**
+```json
+{
+  "business_name": "Updated Restaurant Name",
+  "phone": "+1234567890",
+  "address": "Updated Address, City",
+  "fssai_license": "12345678901234",
+  "footer_note": "Thank you for visiting!"
+}
+```
+
+**Request Body (multipart/form-data - with logo upload):**
+```
+business_name: Updated Restaurant Name
+phone: +1234567890
+address: Updated Address, City
+fssai_license: 12345678901234
+footer_note: Thank you for visiting!
+logo: <file>  (JPG, PNG, WebP)
+```
+
+**Field Descriptions:**
+- All fields are optional (partial update supported)
+- `logo`: Image file (JPG, PNG, WebP) - optional
+- `gst_no`: Cannot be changed (read-only)
+
+**Success Response (200):**
+```json
+{
+  "message": "Profile updated successfully",
+  "vendor": {
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "username": "vendor1",
+    "email": "vendor@example.com",
+    "business_name": "Updated Restaurant Name",
+    "phone": "+1234567890",
+    "address": "Updated Address, City",
+    "fssai_license": "12345678901234",
+    "logo_url": "https://bucket.s3.region.amazonaws.com/vendors/.../logo.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Expires=3600&...",
+    "footer_note": "Thank you for visiting!",
+    "is_approved": true,
+    "created_at": "2024-01-01T10:00:00Z",
+    "updated_at": "2024-01-01T10:05:00Z"
+  }
+}
+```
+
+**Example (cURL - update business details):**
+```bash
+curl -X PATCH http://localhost:8000/auth/profile \
+  -H "Authorization: Token YOUR_TOKEN_HERE" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "business_name": "Updated Restaurant Name",
+    "phone": "+1234567890",
+    "address": "Updated Address"
+  }'
+```
+
+**Example (cURL - upload logo):**
+```bash
+curl -X PATCH http://localhost:8000/auth/profile \
+  -H "Authorization: Token YOUR_TOKEN_HERE" \
+  -F "business_name=Updated Restaurant Name" \
+  -F "logo=@/path/to/logo.jpg"
+```
+
+**Example (JavaScript/Fetch - upload logo):**
+```javascript
+const formData = new FormData();
+formData.append('business_name', 'Updated Restaurant Name');
+formData.append('logo', logoFile); // File object from file input
+
+const response = await fetch('http://localhost:8000/auth/profile', {
+  method: 'PATCH',
+  headers: {
+    'Authorization': `Token ${token}`
+  },
+  body: formData
+});
+
+const data = await response.json();
+console.log(data.vendor.logo_url); // Pre-signed URL for logo
 ```
 
 ---
@@ -892,6 +1045,356 @@ Creates a new item. Items can be assigned to multiple categories.
   "created_at": "2024-01-01T10:00:00Z"
 }
 ```
+
+---
+
+## Complete Item Creation Examples - All Cases
+
+### Example 1: Item with 0% GST - Exclusive Pricing - Without Image - Veg
+
+**Scenario:** Basic item with no GST, exclusive pricing, no image, vegetarian.
+
+```json
+{
+  "name": "Rice",
+  "description": "Plain rice",
+  "price": "50.00",
+  "mrp_price": "50.00",
+  "price_type": "exclusive",
+  "gst_percentage": "0.00",
+  "veg_nonveg": "veg",
+  "additional_discount": "0.00",
+  "stock_quantity": 100,
+  "category_ids": ["550e8400-e29b-41d4-a716-446655440000"]
+}
+```
+
+**cURL Example:**
+```bash
+curl -X POST http://localhost:8000/items/ \
+  -H "Authorization: Token YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Rice",
+    "price": "50.00",
+    "mrp_price": "50.00",
+    "price_type": "exclusive",
+    "gst_percentage": "0.00",
+    "veg_nonveg": "veg",
+    "category_ids": ["550e8400-e29b-41d4-a716-446655440000"]
+  }'
+```
+
+---
+
+### Example 2: Item with 5% GST - Exclusive Pricing - Without Image - Veg
+
+**Scenario:** Item with 5% GST, exclusive pricing.
+
+```json
+{
+  "name": "Tea",
+  "description": "Hot tea",
+  "price": "20.00",
+  "mrp_price": "20.00",
+  "price_type": "exclusive",
+  "gst_percentage": "5.00",
+  "veg_nonveg": "veg",
+  "additional_discount": "0.00",
+  "stock_quantity": 200,
+  "category_ids": ["550e8400-e29b-41d4-a716-446655440001"]
+}
+```
+
+**cURL Example:**
+```bash
+curl -X POST http://localhost:8000/items/ \
+  -H "Authorization: Token YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Tea",
+    "price": "20.00",
+    "mrp_price": "20.00",
+    "price_type": "exclusive",
+    "gst_percentage": "5.00",
+    "veg_nonveg": "veg",
+    "category_ids": ["550e8400-e29b-41d4-a716-446655440001"]
+  }'
+```
+
+---
+
+### Example 3: Item with 8% GST - Exclusive Pricing - Without Image - Veg
+
+**Scenario:** Item with 8% GST, exclusive pricing.
+
+```json
+{
+  "name": "Snacks",
+  "description": "Mixed snacks",
+  "price": "100.00",
+  "mrp_price": "100.00",
+  "price_type": "exclusive",
+  "gst_percentage": "8.00",
+  "veg_nonveg": "veg",
+  "additional_discount": "0.00",
+  "stock_quantity": 50,
+  "category_ids": ["550e8400-e29b-41d4-a716-446655440002"]
+}
+```
+
+---
+
+### Example 4: Item with 18% GST - Exclusive Pricing - Without Image - Veg
+
+**Scenario:** Item with 18% GST, exclusive pricing.
+
+```json
+{
+  "name": "Pizza Margherita",
+  "description": "Classic pizza",
+  "price": "200.00",
+  "mrp_price": "200.00",
+  "price_type": "exclusive",
+  "gst_percentage": "18.00",
+  "veg_nonveg": "veg",
+  "additional_discount": "0.00",
+  "stock_quantity": 30,
+  "category_ids": ["550e8400-e29b-41d4-a716-446655440003"]
+}
+```
+
+---
+
+### Example 5: Item with Custom GST (12%) - Exclusive Pricing - Without Image - Veg
+
+**Scenario:** Item with custom GST percentage (12%), exclusive pricing.
+
+```json
+{
+  "name": "Special Dish",
+  "description": "Custom GST item",
+  "price": "150.00",
+  "mrp_price": "150.00",
+  "price_type": "exclusive",
+  "gst_percentage": "12.00",
+  "veg_nonveg": "veg",
+  "additional_discount": "0.00",
+  "stock_quantity": 25,
+  "category_ids": ["550e8400-e29b-41d4-a716-446655440004"]
+}
+```
+
+**Note:** Custom GST percentages (any value between 0-100) are supported.
+
+---
+
+### Example 6: Item with 18% GST - Inclusive Pricing - Without Image - Veg
+
+**Scenario:** Item with inclusive pricing (GST already included in MRP).
+
+```json
+{
+  "name": "Pizza (Inclusive)",
+  "description": "Pizza with GST included",
+  "price": "200.00",
+  "mrp_price": "236.00",
+  "price_type": "inclusive",
+  "gst_percentage": "18.00",
+  "veg_nonveg": "veg",
+  "additional_discount": "0.00",
+  "stock_quantity": 30,
+  "category_ids": ["550e8400-e29b-41d4-a716-446655440003"]
+}
+```
+
+**Note:** For inclusive pricing, MRP already includes GST. When calculating bill, GST is extracted from MRP.
+
+---
+
+### Example 7: Item with 18% GST - Exclusive Pricing - With Image - Veg
+
+**Scenario:** Item with image upload, exclusive pricing.
+
+**cURL Example (with image):**
+```bash
+curl -X POST http://localhost:8000/items/ \
+  -H "Authorization: Token YOUR_TOKEN" \
+  -F "name=Pizza Margherita" \
+  -F "description=Classic pizza" \
+  -F "price=200.00" \
+  -F "mrp_price=200.00" \
+  -F "price_type=exclusive" \
+  -F "gst_percentage=18.00" \
+  -F "veg_nonveg=veg" \
+  -F "stock_quantity=30" \
+  -F "category_ids=[\"550e8400-e29b-41d4-a716-446655440003\"]" \
+  -F "image=@/path/to/pizza.jpg"
+```
+
+**JavaScript Example (with image):**
+```javascript
+const formData = new FormData();
+formData.append('name', 'Pizza Margherita');
+formData.append('price', '200.00');
+formData.append('mrp_price', '200.00');
+formData.append('price_type', 'exclusive');
+formData.append('gst_percentage', '18.00');
+formData.append('veg_nonveg', 'veg');
+formData.append('stock_quantity', '30');
+formData.append('category_ids', JSON.stringify(['550e8400-e29b-41d4-a716-446655440003']));
+formData.append('image', imageFile); // File object
+
+const response = await fetch('http://localhost:8000/items/', {
+  method: 'POST',
+  headers: {
+    'Authorization': `Token ${token}`
+  },
+  body: formData
+});
+
+const item = await response.json();
+// item.image_url contains pre-signed URL - download and cache immediately!
+```
+
+---
+
+### Example 8: Item with 18% GST - Exclusive Pricing - Without Image - Non-Veg
+
+**Scenario:** Non-vegetarian item, exclusive pricing.
+
+```json
+{
+  "name": "Chicken Biryani",
+  "description": "Spicy chicken biryani",
+  "price": "250.00",
+  "mrp_price": "250.00",
+  "price_type": "exclusive",
+  "gst_percentage": "18.00",
+  "veg_nonveg": "nonveg",
+  "additional_discount": "0.00",
+  "stock_quantity": 20,
+  "category_ids": ["550e8400-e29b-41d4-a716-446655440005"]
+}
+```
+
+---
+
+### Example 9: Item with Additional Discount - Exclusive Pricing
+
+**Scenario:** Item with additional discount applied.
+
+```json
+{
+  "name": "Pizza (Discounted)",
+  "description": "Pizza with discount",
+  "price": "200.00",
+  "mrp_price": "200.00",
+  "price_type": "exclusive",
+  "gst_percentage": "18.00",
+  "veg_nonveg": "veg",
+  "additional_discount": "20.00",
+  "stock_quantity": 30,
+  "category_ids": ["550e8400-e29b-41d4-a716-446655440003"]
+}
+```
+
+**Note:** `additional_discount` is the discount amount (not percentage). Final price = MRP - additional_discount.
+
+---
+
+### Example 10: Item with Multiple Categories
+
+**Scenario:** Item belongs to multiple categories (breakfast, lunch, dinner).
+
+```json
+{
+  "name": "Combo Meal",
+  "description": "Full combo meal",
+  "price": "300.00",
+  "mrp_price": "300.00",
+  "price_type": "exclusive",
+  "gst_percentage": "18.00",
+  "veg_nonveg": "veg",
+  "additional_discount": "0.00",
+  "stock_quantity": 15,
+  "category_ids": [
+    "550e8400-e29b-41d4-a716-446655440001",
+    "550e8400-e29b-41d4-a716-446655440002",
+    "550e8400-e29b-41d4-a716-446655440003"
+  ]
+}
+```
+
+**Note:** Items can belong to multiple categories. Use array of category UUIDs.
+
+---
+
+### Example 11: Item with 0% GST - Inclusive Pricing - With Image - Non-Veg
+
+**Scenario:** Non-veg item with 0% GST, inclusive pricing, with image.
+
+**cURL Example:**
+```bash
+curl -X POST http://localhost:8000/items/ \
+  -H "Authorization: Token YOUR_TOKEN" \
+  -F "name=Plain Rice" \
+  -F "price=50.00" \
+  -F "mrp_price=50.00" \
+  -F "price_type=inclusive" \
+  -F "gst_percentage=0.00" \
+  -F "veg_nonveg=nonveg" \
+  -F "stock_quantity=100" \
+  -F "category_ids=[\"550e8400-e29b-41d4-a716-446655440000\"]" \
+  -F "image=@/path/to/rice.jpg"
+```
+
+---
+
+### Example 12: Item without GST Percentage (Optional Field)
+
+**Scenario:** Item created without GST percentage (GST can be set later).
+
+```json
+{
+  "name": "Water Bottle",
+  "description": "Mineral water",
+  "price": "20.00",
+  "mrp_price": "20.00",
+  "price_type": "exclusive",
+  "veg_nonveg": "veg",
+  "stock_quantity": 500,
+  "category_ids": ["550e8400-e29b-41d4-a716-446655440000"]
+}
+```
+
+**Note:** `gst_percentage` is optional during item creation. It can be set to 0% by default or updated later.
+
+---
+
+### GST Percentage Summary
+
+**Supported GST Percentages:**
+- `0.00` - 0% GST (exempt items like rice, wheat)
+- `5.00` - 5% GST (items like tea, coffee)
+- `8.00` - 8% GST (items like snacks)
+- `18.00` - 18% GST (most restaurant items)
+- **Custom values** - Any decimal value between 0-100 (e.g., 12.00, 28.00)
+
+**Price Type Summary:**
+- `"exclusive"` - GST not included in MRP (GST added separately during billing)
+- `"inclusive"` - GST included in MRP (GST already in price, extracted during billing)
+
+**Veg/Non-Veg Options:**
+- `"veg"` - Vegetarian item
+- `"nonveg"` - Non-vegetarian item
+- `null` or omitted - Not specified
+
+**Image Upload:**
+- **Optional** - Items work fine without images
+- **Supported formats:** JPG, JPEG, PNG, WebP
+- **Use `multipart/form-data`** when uploading images
+- **Response includes `image_url`** with pre-signed URL (expires in 1 hour)
 
 ---
 
@@ -1892,6 +2395,850 @@ Batch upload sales/bill data. Accepts single bill or array of bills. Server acts
 }
 ```
 
+---
+
+## Complete Bill Creation Examples - All Cases
+
+### Example 1: GST Bill - Intra-State - Cash Payment - No Discounts
+
+**Scenario:** Customer pays with cash, all items are intra-state (CGST + SGST), no discounts applied.
+
+```json
+{
+  "bill_data": {
+    "invoice_number": "INV-2024-003",
+    "bill_id": "bill-125",
+    "billing_mode": "gst",
+    "restaurant_name": "ABC Restaurant",
+    "address": "123 Main St, City, State",
+    "gstin": "29ABCDE1234F1Z5",
+    "fssai_license": "12345678901234",
+    "bill_number": "BN-2024-003",
+    "bill_date": "2024-01-01",
+    "items": [
+      {
+        "id": "item-uuid-1",
+        "item_id": "master-item-uuid-1",
+        "name": "Pizza Margherita",
+        "price": 200.00,
+        "mrp_price": 200.00,
+        "price_type": "exclusive",
+        "gst_percentage": 18.00,
+        "quantity": 2,
+        "subtotal": 400.00,
+        "item_gst": 72.00,
+        "veg_nonveg": "veg"
+      },
+      {
+        "id": "item-uuid-2",
+        "item_id": "master-item-uuid-2",
+        "name": "Coca Cola",
+        "price": 50.00,
+        "mrp_price": 50.00,
+        "price_type": "exclusive",
+        "gst_percentage": 18.00,
+        "quantity": 1,
+        "subtotal": 50.00,
+        "item_gst": 9.00,
+        "veg_nonveg": "veg"
+      }
+    ],
+    "subtotal": 450.00,
+    "cgst": 40.50,
+    "sgst": 40.50,
+    "igst": 0.00,
+    "total_tax": 81.00,
+    "total": 531.00,
+    "payment_mode": "cash",
+    "amount_paid": 531.00,
+    "change_amount": 0.00,
+    "discount_amount": 0.00,
+    "timestamp": "2024-01-01T10:00:00Z"
+  },
+  "device_id": "device-001"
+}
+```
+
+**cURL Example:**
+```bash
+curl -X POST http://localhost:8000/backup/sync \
+  -H "Authorization: Token YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "bill_data": {
+      "invoice_number": "INV-2024-003",
+      "billing_mode": "gst",
+      "restaurant_name": "ABC Restaurant",
+      "address": "123 Main St",
+      "gstin": "29ABCDE1234F1Z5",
+      "fssai_license": "12345678901234",
+      "bill_date": "2024-01-01",
+      "items": [
+        {
+          "id": "item-uuid-1",
+          "name": "Pizza Margherita",
+          "price": 200.00,
+          "mrp_price": 200.00,
+          "price_type": "exclusive",
+          "gst_percentage": 18.00,
+          "quantity": 2,
+          "subtotal": 400.00,
+          "item_gst": 72.00,
+          "veg_nonveg": "veg"
+        }
+      ],
+      "subtotal": 400.00,
+      "cgst": 36.00,
+      "sgst": 36.00,
+      "igst": 0.00,
+      "total_tax": 72.00,
+      "total": 472.00,
+      "payment_mode": "cash",
+      "amount_paid": 472.00
+    },
+    "device_id": "device-001"
+  }'
+```
+
+---
+
+### Example 2: GST Bill - Intra-State - UPI Payment - No Discounts
+
+**Scenario:** Customer pays with UPI, intra-state transaction.
+
+```json
+{
+  "bill_data": {
+    "invoice_number": "INV-2024-004",
+    "billing_mode": "gst",
+    "restaurant_name": "ABC Restaurant",
+    "address": "123 Main St, City, State",
+    "gstin": "29ABCDE1234F1Z5",
+    "fssai_license": "12345678901234",
+    "bill_date": "2024-01-01",
+    "items": [
+      {
+        "id": "item-uuid-1",
+        "name": "Burger",
+        "price": 150.00,
+        "mrp_price": 150.00,
+        "price_type": "exclusive",
+        "gst_percentage": 18.00,
+        "quantity": 1,
+        "subtotal": 150.00,
+        "item_gst": 27.00,
+        "veg_nonveg": "veg"
+      }
+    ],
+    "subtotal": 150.00,
+    "cgst": 13.50,
+    "sgst": 13.50,
+    "igst": 0.00,
+    "total_tax": 27.00,
+    "total": 177.00,
+    "payment_mode": "upi",
+    "payment_reference": "UPI123456789",
+    "amount_paid": 177.00,
+    "timestamp": "2024-01-01T10:00:00Z"
+  },
+  "device_id": "device-001"
+}
+```
+
+---
+
+### Example 3: GST Bill - Intra-State - Card Payment - No Discounts
+
+**Scenario:** Customer pays with card, intra-state transaction.
+
+```json
+{
+  "bill_data": {
+    "invoice_number": "INV-2024-005",
+    "billing_mode": "gst",
+    "restaurant_name": "ABC Restaurant",
+    "address": "123 Main St, City, State",
+    "gstin": "29ABCDE1234F1Z5",
+    "fssai_license": "12345678901234",
+    "bill_date": "2024-01-01",
+    "items": [
+      {
+        "id": "item-uuid-1",
+        "name": "Pasta",
+        "price": 180.00,
+        "mrp_price": 180.00,
+        "price_type": "exclusive",
+        "gst_percentage": 18.00,
+        "quantity": 1,
+        "subtotal": 180.00,
+        "item_gst": 32.40,
+        "veg_nonveg": "veg"
+      }
+    ],
+    "subtotal": 180.00,
+    "cgst": 16.20,
+    "sgst": 16.20,
+    "igst": 0.00,
+    "total_tax": 32.40,
+    "total": 212.40,
+    "payment_mode": "card",
+    "payment_reference": "CARD987654321",
+    "amount_paid": 212.40,
+    "timestamp": "2024-01-01T10:00:00Z"
+  },
+  "device_id": "device-001"
+}
+```
+
+---
+
+### Example 4: GST Bill - Intra-State - Credit Payment - No Discounts
+
+**Scenario:** Customer pays on credit (pending payment), intra-state transaction.
+
+```json
+{
+  "bill_data": {
+    "invoice_number": "INV-2024-006",
+    "billing_mode": "gst",
+    "restaurant_name": "ABC Restaurant",
+    "address": "123 Main St, City, State",
+    "gstin": "29ABCDE1234F1Z5",
+    "fssai_license": "12345678901234",
+    "bill_date": "2024-01-01",
+    "items": [
+      {
+        "id": "item-uuid-1",
+        "name": "Dinner Combo",
+        "price": 500.00,
+        "mrp_price": 500.00,
+        "price_type": "exclusive",
+        "gst_percentage": 18.00,
+        "quantity": 1,
+        "subtotal": 500.00,
+        "item_gst": 90.00,
+        "veg_nonveg": "veg"
+      }
+    ],
+    "subtotal": 500.00,
+    "cgst": 45.00,
+    "sgst": 45.00,
+    "igst": 0.00,
+    "total_tax": 90.00,
+    "total": 590.00,
+    "payment_mode": "credit",
+    "amount_paid": 0.00,
+    "customer_name": "John Doe",
+    "customer_phone": "+91-9876543210",
+    "timestamp": "2024-01-01T10:00:00Z"
+  },
+  "device_id": "device-001"
+}
+```
+
+**Note:** For credit payments, `amount_paid` is typically 0 or less than `total`, indicating pending payment.
+
+---
+
+### Example 5: GST Bill - Intra-State - Other Payment - No Discounts
+
+**Scenario:** Customer pays with other payment method (e.g., wallet, cheque), intra-state transaction.
+
+```json
+{
+  "bill_data": {
+    "invoice_number": "INV-2024-007",
+    "billing_mode": "gst",
+    "restaurant_name": "ABC Restaurant",
+    "address": "123 Main St, City, State",
+    "gstin": "29ABCDE1234F1Z5",
+    "fssai_license": "12345678901234",
+    "bill_date": "2024-01-01",
+    "items": [
+      {
+        "id": "item-uuid-1",
+        "name": "Snacks",
+        "price": 100.00,
+        "mrp_price": 100.00,
+        "price_type": "exclusive",
+        "gst_percentage": 18.00,
+        "quantity": 1,
+        "subtotal": 100.00,
+        "item_gst": 18.00,
+        "veg_nonveg": "veg"
+      }
+    ],
+    "subtotal": 100.00,
+    "cgst": 9.00,
+    "sgst": 9.00,
+    "igst": 0.00,
+    "total_tax": 18.00,
+    "total": 118.00,
+    "payment_mode": "other",
+    "payment_reference": "WALLET123456",
+    "amount_paid": 118.00,
+    "timestamp": "2024-01-01T10:00:00Z"
+  },
+  "device_id": "device-001"
+}
+```
+
+---
+
+### Example 6: GST Bill - Inter-State - Cash Payment - No Discounts
+
+**Scenario:** Customer from different state, inter-state transaction (IGST only).
+
+```json
+{
+  "bill_data": {
+    "invoice_number": "INV-2024-008",
+    "billing_mode": "gst",
+    "restaurant_name": "ABC Restaurant",
+    "address": "123 Main St, City, State",
+    "gstin": "29ABCDE1234F1Z5",
+    "fssai_license": "12345678901234",
+    "bill_date": "2024-01-01",
+    "items": [
+      {
+        "id": "item-uuid-1",
+        "name": "Pizza",
+        "price": 300.00,
+        "mrp_price": 300.00,
+        "price_type": "exclusive",
+        "gst_percentage": 18.00,
+        "quantity": 1,
+        "subtotal": 300.00,
+        "item_gst": 54.00,
+        "veg_nonveg": "veg"
+      }
+    ],
+    "subtotal": 300.00,
+    "cgst": 0.00,
+    "sgst": 0.00,
+    "igst": 54.00,
+    "total_tax": 54.00,
+    "total": 354.00,
+    "payment_mode": "cash",
+    "amount_paid": 354.00,
+    "timestamp": "2024-01-01T10:00:00Z"
+  },
+  "device_id": "device-001"
+}
+```
+
+**Note:** For inter-state transactions, use IGST only (CGST and SGST are 0).
+
+---
+
+### Example 7: GST Bill - Inter-State - UPI Payment - No Discounts
+
+**Scenario:** Inter-state transaction, UPI payment.
+
+```json
+{
+  "bill_data": {
+    "invoice_number": "INV-2024-009",
+    "billing_mode": "gst",
+    "restaurant_name": "ABC Restaurant",
+    "address": "123 Main St, City, State",
+    "gstin": "29ABCDE1234F1Z5",
+    "fssai_license": "12345678901234",
+    "bill_date": "2024-01-01",
+    "items": [
+      {
+        "id": "item-uuid-1",
+        "name": "Biryani",
+        "price": 250.00,
+        "mrp_price": 250.00,
+        "price_type": "exclusive",
+        "gst_percentage": 18.00,
+        "quantity": 1,
+        "subtotal": 250.00,
+        "item_gst": 45.00,
+        "veg_nonveg": "nonveg"
+      }
+    ],
+    "subtotal": 250.00,
+    "cgst": 0.00,
+    "sgst": 0.00,
+    "igst": 45.00,
+    "total_tax": 45.00,
+    "total": 295.00,
+    "payment_mode": "upi",
+    "payment_reference": "UPI987654321",
+    "amount_paid": 295.00,
+    "timestamp": "2024-01-01T10:00:00Z"
+  },
+  "device_id": "device-001"
+}
+```
+
+---
+
+### Example 8: GST Bill - Intra-State - Cash Payment - With Discounts
+
+**Scenario:** Customer pays with cash, discounts applied on items and bill.
+
+```json
+{
+  "bill_data": {
+    "invoice_number": "INV-2024-010",
+    "billing_mode": "gst",
+    "restaurant_name": "ABC Restaurant",
+    "address": "123 Main St, City, State",
+    "gstin": "29ABCDE1234F1Z5",
+    "fssai_license": "12345678901234",
+    "bill_date": "2024-01-01",
+    "items": [
+      {
+        "id": "item-uuid-1",
+        "name": "Pizza",
+        "price": 200.00,
+        "mrp_price": 200.00,
+        "price_type": "exclusive",
+        "gst_percentage": 18.00,
+        "quantity": 2,
+        "subtotal": 400.00,
+        "item_gst": 72.00,
+        "additional_discount": 20.00,
+        "discount_amount": 20.00,
+        "veg_nonveg": "veg"
+      }
+    ],
+    "subtotal": 380.00,
+    "cgst": 34.20,
+    "sgst": 34.20,
+    "igst": 0.00,
+    "total_tax": 68.40,
+    "discount_amount": 20.00,
+    "discount_percentage": 5.00,
+    "total": 448.40,
+    "payment_mode": "cash",
+    "amount_paid": 450.00,
+    "change_amount": 1.60,
+    "timestamp": "2024-01-01T10:00:00Z"
+  },
+  "device_id": "device-001"
+}
+```
+
+---
+
+### Example 9: Non-GST Bill - Cash Payment - No Discounts
+
+**Scenario:** Non-GST bill, cash payment, no discounts.
+
+```json
+{
+  "bill_data": {
+    "invoice_number": "INV-2024-011",
+    "billing_mode": "non_gst",
+    "restaurant_name": "ABC Restaurant",
+    "address": "123 Main St, City, State",
+    "gstin": "29ABCDE1234F1Z5",
+    "fssai_license": "12345678901234",
+    "bill_date": "2024-01-01",
+    "items": [
+      {
+        "id": "item-uuid-1",
+        "name": "Tea",
+        "price": 20.00,
+        "mrp_price": 20.00,
+        "price_type": "exclusive",
+        "quantity": 2,
+        "subtotal": 40.00,
+        "veg_nonveg": "veg"
+      }
+    ],
+    "subtotal": 40.00,
+    "total": 40.00,
+    "payment_mode": "cash",
+    "amount_paid": 40.00,
+    "timestamp": "2024-01-01T10:00:00Z"
+  },
+  "device_id": "device-001"
+}
+```
+
+**Note:** For Non-GST bills, no tax fields are required. `total` should equal `subtotal`.
+
+---
+
+### Example 10: Non-GST Bill - UPI Payment - No Discounts
+
+**Scenario:** Non-GST bill, UPI payment.
+
+```json
+{
+  "bill_data": {
+    "invoice_number": "INV-2024-012",
+    "billing_mode": "non_gst",
+    "restaurant_name": "ABC Restaurant",
+    "address": "123 Main St, City, State",
+    "gstin": "29ABCDE1234F1Z5",
+    "fssai_license": "12345678901234",
+    "bill_date": "2024-01-01",
+    "items": [
+      {
+        "id": "item-uuid-1",
+        "name": "Coffee",
+        "price": 30.00,
+        "mrp_price": 30.00,
+        "price_type": "exclusive",
+        "quantity": 1,
+        "subtotal": 30.00,
+        "veg_nonveg": "veg"
+      }
+    ],
+    "subtotal": 30.00,
+    "total": 30.00,
+    "payment_mode": "upi",
+    "payment_reference": "UPI111222333",
+    "amount_paid": 30.00,
+    "timestamp": "2024-01-01T10:00:00Z"
+  },
+  "device_id": "device-001"
+}
+```
+
+---
+
+### Example 11: GST Bill - With Linked Items (item_id present)
+
+**Scenario:** Bill items are linked to master Item records for analytics.
+
+```json
+{
+  "bill_data": {
+    "invoice_number": "INV-2024-013",
+    "billing_mode": "gst",
+    "restaurant_name": "ABC Restaurant",
+    "address": "123 Main St, City, State",
+    "gstin": "29ABCDE1234F1Z5",
+    "fssai_license": "12345678901234",
+    "bill_date": "2024-01-01",
+    "items": [
+      {
+        "id": "billitem-uuid-1",
+        "item_id": "master-item-uuid-1",
+        "name": "Pizza Margherita",
+        "price": 200.00,
+        "mrp_price": 200.00,
+        "price_type": "exclusive",
+        "gst_percentage": 18.00,
+        "quantity": 1,
+        "subtotal": 200.00,
+        "item_gst": 36.00,
+        "veg_nonveg": "veg"
+      }
+    ],
+    "subtotal": 200.00,
+    "cgst": 18.00,
+    "sgst": 18.00,
+    "igst": 0.00,
+    "total_tax": 36.00,
+    "total": 236.00,
+    "payment_mode": "cash",
+    "amount_paid": 236.00,
+    "timestamp": "2024-01-01T10:00:00Z"
+  },
+  "device_id": "device-001"
+}
+```
+
+**Note:** When `item_id` is provided and matches an existing Item, the bill item is linked to the master Item for analytics.
+
+---
+
+### Example 12: GST Bill - With Additional Items (no item_id)
+
+**Scenario:** Bill contains additional items not in the master Item list.
+
+```json
+{
+  "bill_data": {
+    "invoice_number": "INV-2024-014",
+    "billing_mode": "gst",
+    "restaurant_name": "ABC Restaurant",
+    "address": "123 Main St, City, State",
+    "gstin": "29ABCDE1234F1Z5",
+    "fssai_license": "12345678901234",
+    "bill_date": "2024-01-01",
+    "items": [
+      {
+        "id": "billitem-uuid-1",
+        "name": "Special Dish (Not in Menu)",
+        "price": 350.00,
+        "mrp_price": 350.00,
+        "price_type": "exclusive",
+        "gst_percentage": 18.00,
+        "quantity": 1,
+        "subtotal": 350.00,
+        "item_gst": 63.00,
+        "veg_nonveg": "veg"
+      }
+    ],
+    "subtotal": 350.00,
+    "cgst": 31.50,
+    "sgst": 31.50,
+    "igst": 0.00,
+    "total_tax": 63.00,
+    "total": 413.00,
+    "payment_mode": "cash",
+    "amount_paid": 413.00,
+    "timestamp": "2024-01-01T10:00:00Z"
+  },
+  "device_id": "device-001"
+}
+```
+
+**Note:** When `item_id` is not provided, the item is stored as an additional item (not linked to master Item).
+
+---
+
+### Example 13: GST Bill - Mixed Items (Some Linked, Some Additional)
+
+**Scenario:** Bill contains both linked items and additional items.
+
+```json
+{
+  "bill_data": {
+    "invoice_number": "INV-2024-015",
+    "billing_mode": "gst",
+    "restaurant_name": "ABC Restaurant",
+    "address": "123 Main St, City, State",
+    "gstin": "29ABCDE1234F1Z5",
+    "fssai_license": "12345678901234",
+    "bill_date": "2024-01-01",
+    "items": [
+      {
+        "id": "billitem-uuid-1",
+        "item_id": "master-item-uuid-1",
+        "name": "Pizza Margherita",
+        "price": 200.00,
+        "mrp_price": 200.00,
+        "price_type": "exclusive",
+        "gst_percentage": 18.00,
+        "quantity": 1,
+        "subtotal": 200.00,
+        "item_gst": 36.00,
+        "veg_nonveg": "veg"
+      },
+      {
+        "id": "billitem-uuid-2",
+        "name": "Special Combo (Not in Menu)",
+        "price": 300.00,
+        "mrp_price": 300.00,
+        "price_type": "exclusive",
+        "gst_percentage": 18.00,
+        "quantity": 1,
+        "subtotal": 300.00,
+        "item_gst": 54.00,
+        "veg_nonveg": "veg"
+      }
+    ],
+    "subtotal": 500.00,
+    "cgst": 45.00,
+    "sgst": 45.00,
+    "igst": 0.00,
+    "total_tax": 90.00,
+    "total": 590.00,
+    "payment_mode": "cash",
+    "amount_paid": 590.00,
+    "timestamp": "2024-01-01T10:00:00Z"
+  },
+  "device_id": "device-001"
+}
+```
+
+---
+
+### Example 14: GST Bill - Multiple Items with Different GST Percentages
+
+**Scenario:** Bill contains items with different GST rates (0%, 5%, 8%, 18%).
+
+```json
+{
+  "bill_data": {
+    "invoice_number": "INV-2024-016",
+    "billing_mode": "gst",
+    "restaurant_name": "ABC Restaurant",
+    "address": "123 Main St, City, State",
+    "gstin": "29ABCDE1234F1Z5",
+    "fssai_license": "12345678901234",
+    "bill_date": "2024-01-01",
+    "items": [
+      {
+        "id": "billitem-uuid-1",
+        "name": "Rice (0% GST)",
+        "price": 50.00,
+        "mrp_price": 50.00,
+        "price_type": "exclusive",
+        "gst_percentage": 0.00,
+        "quantity": 1,
+        "subtotal": 50.00,
+        "item_gst": 0.00,
+        "veg_nonveg": "veg"
+      },
+      {
+        "id": "billitem-uuid-2",
+        "name": "Tea (5% GST)",
+        "price": 20.00,
+        "mrp_price": 20.00,
+        "price_type": "exclusive",
+        "gst_percentage": 5.00,
+        "quantity": 2,
+        "subtotal": 40.00,
+        "item_gst": 2.00,
+        "veg_nonveg": "veg"
+      },
+      {
+        "id": "billitem-uuid-3",
+        "name": "Snacks (8% GST)",
+        "price": 100.00,
+        "mrp_price": 100.00,
+        "price_type": "exclusive",
+        "gst_percentage": 8.00,
+        "quantity": 1,
+        "subtotal": 100.00,
+        "item_gst": 8.00,
+        "veg_nonveg": "veg"
+      },
+      {
+        "id": "billitem-uuid-4",
+        "name": "Pizza (18% GST)",
+        "price": 200.00,
+        "mrp_price": 200.00,
+        "price_type": "exclusive",
+        "gst_percentage": 18.00,
+        "quantity": 1,
+        "subtotal": 200.00,
+        "item_gst": 36.00,
+        "veg_nonveg": "veg"
+      }
+    ],
+    "subtotal": 390.00,
+    "cgst": 23.00,
+    "sgst": 23.00,
+    "igst": 0.00,
+    "total_tax": 46.00,
+    "total": 436.00,
+    "payment_mode": "cash",
+    "amount_paid": 436.00,
+    "timestamp": "2024-01-01T10:00:00Z"
+  },
+  "device_id": "device-001"
+}
+```
+
+**Note:** Total tax = Sum of all item_gst amounts. CGST and SGST are split equally (50-50) for intra-state.
+
+---
+
+### Example 15: GST Bill - Inclusive Pricing
+
+**Scenario:** Items use inclusive pricing (GST already included in MRP).
+
+```json
+{
+  "bill_data": {
+    "invoice_number": "INV-2024-017",
+    "billing_mode": "gst",
+    "restaurant_name": "ABC Restaurant",
+    "address": "123 Main St, City, State",
+    "gstin": "29ABCDE1234F1Z5",
+    "fssai_license": "12345678901234",
+    "bill_date": "2024-01-01",
+    "items": [
+      {
+        "id": "billitem-uuid-1",
+        "name": "Pizza (Inclusive)",
+        "price": 200.00,
+        "mrp_price": 236.00,
+        "price_type": "inclusive",
+        "gst_percentage": 18.00,
+        "quantity": 1,
+        "subtotal": 236.00,
+        "item_gst": 36.00,
+        "veg_nonveg": "veg"
+      }
+    ],
+    "subtotal": 236.00,
+    "cgst": 18.00,
+    "sgst": 18.00,
+    "igst": 0.00,
+    "total_tax": 36.00,
+    "total": 236.00,
+    "payment_mode": "cash",
+    "amount_paid": 236.00,
+    "timestamp": "2024-01-01T10:00:00Z"
+  },
+  "device_id": "device-001"
+}
+```
+
+**Note:** For inclusive pricing, MRP already includes GST. The GST amount is extracted from MRP for calculation.
+
+---
+
+### Example 16: Non-GST Bill - With Discounts
+
+**Scenario:** Non-GST bill with discounts applied.
+
+```json
+{
+  "bill_data": {
+    "invoice_number": "INV-2024-018",
+    "billing_mode": "non_gst",
+    "restaurant_name": "ABC Restaurant",
+    "address": "123 Main St, City, State",
+    "gstin": "29ABCDE1234F1Z5",
+    "fssai_license": "12345678901234",
+    "bill_date": "2024-01-01",
+    "items": [
+      {
+        "id": "billitem-uuid-1",
+        "name": "Tea",
+        "price": 20.00,
+        "mrp_price": 20.00,
+        "price_type": "exclusive",
+        "quantity": 5,
+        "subtotal": 100.00,
+        "additional_discount": 10.00,
+        "discount_amount": 10.00,
+        "veg_nonveg": "veg"
+      }
+    ],
+    "subtotal": 90.00,
+    "discount_amount": 10.00,
+    "discount_percentage": 10.00,
+    "total": 90.00,
+    "payment_mode": "cash",
+    "amount_paid": 90.00,
+    "timestamp": "2024-01-01T10:00:00Z"
+  },
+  "device_id": "device-001"
+}
+```
+
+---
+
+### Payment Mode Summary
+
+**Available Payment Modes:**
+- `"cash"` - Cash payment
+- `"upi"` - UPI payment (include `payment_reference` for transaction ID)
+- `"card"` - Card payment (include `payment_reference` for card transaction ID)
+- `"credit"` - Credit payment (pending payment, `amount_paid` typically 0 or less than `total`)
+- `"other"` - Other payment methods (wallet, cheque, etc. - include `payment_reference`)
+
+**For Credit Payments:**
+- Set `payment_mode: "credit"`
+- Set `amount_paid: 0.00` or amount less than `total`
+- Include `customer_name` and `customer_phone` for tracking
+- Outstanding amount = `total - amount_paid`
+
 **Bill Data Structure (Complete):**
 
 **Required Fields (All Bills):**
@@ -2061,6 +3408,346 @@ Batch upload sales/bill data. Accepts single bill or array of bills. Server acts
 - **Duplicate Handling**: If a bill with the same `invoice_number` already exists for the vendor, the server will skip it (no error)
 - **Passive Receiver**: Server accepts bills even with missing optional fields or invalid data structure
 - **Item Linking**: If `item_id` is provided in bill items and matches an existing Item, the bill item will be linked to the master Item record
+
+---
+
+## Dashboard & Analytics
+
+The dashboard endpoints provide analytics and insights for vendors. All endpoints require authentication and return data filtered by the authenticated vendor.
+
+**Base URL:** `/dashboard/`
+
+**Authentication:** All endpoints require Token Authentication.
+
+---
+
+### Dashboard Stats
+
+**GET** `/dashboard/stats`
+
+**Requires authentication**
+
+Get overall dashboard statistics including total bills, revenue, tax collected, and payment split.
+
+**Query Parameters:**
+- `start_date` (optional): YYYY-MM-DD format (default: today)
+- `end_date` (optional): YYYY-MM-DD format (default: today)
+
+**Success Response (200):**
+```json
+{
+  "vendor_id": "550e8400-e29b-41d4-a716-446655440000",
+  "vendor_name": "ABC Restaurant",
+  "date_range": {
+    "start_date": "2024-01-01",
+    "end_date": "2024-01-31"
+  },
+  "statistics": {
+    "total_bills": 150,
+    "gst_bills": 100,
+    "non_gst_bills": 50,
+    "total_revenue": "50000.00",
+    "total_tax_collected": "9000.00",
+    "payment_split": {
+      "cash": {
+        "count": 80,
+        "amount": "30000.00"
+      },
+      "upi": {
+        "count": 50,
+        "amount": "15000.00"
+      },
+      "card": {
+        "count": 20,
+        "amount": "5000.00"
+      },
+      "credit": {
+        "count": 0,
+        "amount": "0.00"
+      },
+      "other": {
+        "count": 0,
+        "amount": "0.00"
+      }
+    }
+  }
+}
+```
+
+**Example (cURL):**
+```bash
+curl -X GET "http://localhost:8000/dashboard/stats/?start_date=2024-01-01&end_date=2024-01-31" \
+  -H "Authorization: Token YOUR_TOKEN_HERE"
+```
+
+---
+
+### Sales Analytics
+
+**GET** `/dashboard/sales`
+
+**Requires authentication**
+
+Get detailed sales analytics filtered by billing mode (GST/Non-GST) with daily breakdown.
+
+**Query Parameters:**
+- `start_date` (optional): YYYY-MM-DD format (default: today)
+- `end_date` (optional): YYYY-MM-DD format (default: today)
+- `billing_mode` (optional): `gst` or `non_gst` (default: all)
+
+**Success Response (200):**
+```json
+{
+  "vendor_id": "550e8400-e29b-41d4-a716-446655440000",
+  "date_range": {
+    "start_date": "2024-01-01",
+    "end_date": "2024-01-31"
+  },
+  "filters": {
+    "billing_mode": "gst"
+  },
+  "summary": {
+    "total_bills": 100,
+    "total_revenue": "35000.00",
+    "total_subtotal": "29661.02",
+    "total_tax": "5338.98",
+    "total_cgst": "2669.49",
+    "total_sgst": "2669.49",
+    "total_discount": "500.00"
+  },
+  "daily_breakdown": [
+    {
+      "date": "2024-01-01",
+      "bills_count": 10,
+      "revenue": "3500.00",
+      "tax": "533.90"
+    },
+    {
+      "date": "2024-01-02",
+      "bills_count": 8,
+      "revenue": "2800.00",
+      "tax": "427.12"
+    }
+  ]
+}
+```
+
+**Example (cURL):**
+```bash
+curl -X GET "http://localhost:8000/dashboard/sales/?billing_mode=gst&start_date=2024-01-01&end_date=2024-01-31" \
+  -H "Authorization: Token YOUR_TOKEN_HERE"
+```
+
+---
+
+### Item Analytics
+
+**GET** `/dashboard/items`
+
+**Requires authentication**
+
+Get most/least sold dishes with sales statistics.
+
+**Query Parameters:**
+- `start_date` (optional): YYYY-MM-DD format (default: today)
+- `end_date` (optional): YYYY-MM-DD format (default: today)
+- `sort` (optional): `most_sold` or `least_sold` (default: `most_sold`)
+- `limit` (optional): Integer, number of items to return (default: 10)
+
+**Success Response (200):**
+```json
+{
+  "vendor_id": "550e8400-e29b-41d4-a716-446655440000",
+  "date_range": {
+    "start_date": "2024-01-01",
+    "end_date": "2024-01-31"
+  },
+  "sort": "most_sold",
+  "items": [
+    {
+      "item_name": "Coca Cola",
+      "item_id": "item-uuid-1",
+      "category": ["Beverages"],
+      "veg_nonveg": "veg",
+      "total_quantity": "150.00",
+      "total_revenue": "3750.00",
+      "bill_count": 120
+    },
+    {
+      "item_name": "Pizza Margherita",
+      "item_id": "item-uuid-2",
+      "category": ["Dinner"],
+      "veg_nonveg": "veg",
+      "total_quantity": "80.00",
+      "total_revenue": "8000.00",
+      "bill_count": 75
+    }
+  ]
+}
+```
+
+**Example (cURL):**
+```bash
+# Most sold items
+curl -X GET "http://localhost:8000/dashboard/items/?sort=most_sold&limit=10" \
+  -H "Authorization: Token YOUR_TOKEN_HERE"
+
+# Least sold items
+curl -X GET "http://localhost:8000/dashboard/items/?sort=least_sold&limit=10" \
+  -H "Authorization: Token YOUR_TOKEN_HERE"
+```
+
+---
+
+### Payment Analytics
+
+**GET** `/dashboard/payments`
+
+**Requires authentication**
+
+Get transaction split by payment mode (Cash/Card/UPI/Credit/Other).
+
+**Query Parameters:**
+- `start_date` (optional): YYYY-MM-DD format (default: today)
+- `end_date` (optional): YYYY-MM-DD format (default: today)
+
+**Success Response (200):**
+```json
+{
+  "vendor_id": "550e8400-e29b-41d4-a716-446655440000",
+  "date_range": {
+    "start_date": "2024-01-01",
+    "end_date": "2024-01-31"
+  },
+  "summary": {
+    "total_transactions": 150,
+    "total_revenue": "50000.00"
+  },
+  "payment_split": [
+    {
+      "payment_mode": "cash",
+      "transaction_count": 80,
+      "total_amount": "30000.00",
+      "percentage": "60.00"
+    },
+    {
+      "payment_mode": "upi",
+      "transaction_count": 50,
+      "total_amount": "15000.00",
+      "percentage": "30.00"
+    },
+    {
+      "payment_mode": "card",
+      "transaction_count": 20,
+      "total_amount": "5000.00",
+      "percentage": "10.00"
+    }
+  ]
+}
+```
+
+**Example (cURL):**
+```bash
+curl -X GET "http://localhost:8000/dashboard/payments/?start_date=2024-01-01&end_date=2024-01-31" \
+  -H "Authorization: Token YOUR_TOKEN_HERE"
+```
+
+---
+
+### Tax Analytics
+
+**GET** `/dashboard/tax`
+
+**Requires authentication**
+
+Get total tax (GST) collected with breakdown by GST percentage.
+
+**Query Parameters:**
+- `start_date` (optional): YYYY-MM-DD format (default: today)
+- `end_date` (optional): YYYY-MM-DD format (default: today)
+
+**Success Response (200):**
+```json
+{
+  "vendor_id": "550e8400-e29b-41d4-a716-446655440000",
+  "date_range": {
+    "start_date": "2024-01-01",
+    "end_date": "2024-01-31"
+  },
+  "summary": {
+    "gst_bills_count": 100,
+    "total_tax_collected": "9000.00",
+    "cgst_collected": "4500.00",
+    "sgst_collected": "4500.00",
+    "igst_collected": "0.00"
+  },
+  "tax_by_percentage": [
+    {
+      "gst_percentage": "18.00",
+      "item_count": 500,
+      "tax_collected": "5400.00"
+    },
+    {
+      "gst_percentage": "5.00",
+      "item_count": 200,
+      "tax_collected": "2500.00"
+    },
+    {
+      "gst_percentage": "0.00",
+      "item_count": 100,
+      "tax_collected": "0.00"
+    }
+  ]
+}
+```
+
+**Example (cURL):**
+```bash
+curl -X GET "http://localhost:8000/dashboard/tax/?start_date=2024-01-01&end_date=2024-01-31" \
+  -H "Authorization: Token YOUR_TOKEN_HERE"
+```
+
+---
+
+### Profit Analytics
+
+**GET** `/dashboard/profit`
+
+**Requires authentication**
+
+Get net profit calculation (estimated based on revenue and cost assumptions).
+
+**Query Parameters:**
+- `start_date` (optional): YYYY-MM-DD format (default: today)
+- `end_date` (optional): YYYY-MM-DD format (default: today)
+
+**Note:** Profit calculation is estimated based on a 60% cost assumption. For accurate profit, actual cost data is required (cost_price field in Item model).
+
+**Success Response (200):**
+```json
+{
+  "vendor_id": "550e8400-e29b-41d4-a716-446655440000",
+  "date_range": {
+    "start_date": "2024-01-01",
+    "end_date": "2024-01-31"
+  },
+  "profit_calculation": {
+    "total_revenue": "50000.00",
+    "estimated_cost": "30000.00",
+    "estimated_cost_percentage": "60.00",
+    "gross_profit": "20000.00",
+    "net_profit": "20000.00",
+    "profit_margin_percentage": "40.00"
+  },
+  "note": "Profit calculation is estimated based on 60% cost assumption. For accurate profit, actual cost data is required."
+}
+```
+
+**Example (cURL):**
+```bash
+curl -X GET "http://localhost:8000/dashboard/profit/?start_date=2024-01-01&end_date=2024-01-31" \
+  -H "Authorization: Token YOUR_TOKEN_HERE"
+```
 
 ---
 

@@ -48,6 +48,7 @@ INSTALLED_APPS = [
     'sales',
     'settings',
     'sales_rep',
+    'dashboard',
 ]
 
 MIDDLEWARE = [

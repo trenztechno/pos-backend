@@ -6,9 +6,10 @@ from rest_framework.authtoken.models import Token
 from django.contrib.auth import authenticate
 from django.contrib.auth.models import User
 from django.conf import settings
-from .serializers import LoginSerializer, RegisterSerializer, ForgotPasswordSerializer, ResetPasswordSerializer
+from .serializers import LoginSerializer, RegisterSerializer, ForgotPasswordSerializer, ResetPasswordSerializer, VendorProfileSerializer
 from .models import Vendor
 from backend.s3_utils import generate_presigned_url
+from rest_framework.permissions import IsAuthenticated
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
@@ -212,5 +213,98 @@ def reset_password(request):
     
     return Response({
         'error': 'Password reset failed',
+        'details': serializer.errors
+    }, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['GET', 'PATCH'])
+@permission_classes([IsAuthenticated])
+def profile(request):
+    """
+    GET /auth/profile - Get vendor profile
+    PATCH /auth/profile - Update vendor profile (logo, business details)
+    
+    Headers: Authorization: Token <token>
+    
+    PATCH Body (multipart/form-data for logo upload):
+    {
+        "business_name": "Updated Restaurant Name",
+        "phone": "+1234567890",
+        "address": "Updated Address",
+        "fssai_license": "12345678901234",
+        "footer_note": "Thank you!",
+        "logo": <file>  // Optional image file
+    }
+    
+    Returns: Vendor profile with logo_url (pre-signed URL if S3 enabled)
+    """
+    try:
+        vendor = request.user.vendor_profile
+    except Vendor.DoesNotExist:
+        return Response({
+            'error': 'Vendor profile not found. This endpoint is only for vendors.'
+        }, status=status.HTTP_403_FORBIDDEN)
+    
+    if request.method == 'GET':
+        serializer = VendorProfileSerializer(vendor)
+        data = serializer.data
+        
+        # Add logo_url with pre-signed URL if exists
+        if vendor.logo:
+            if settings.USE_S3 and getattr(settings, 'USE_S3_PRESIGNED_URLS', True):
+                presigned_url = generate_presigned_url(vendor.logo)
+                if presigned_url:
+                    data['logo_url'] = presigned_url
+                else:
+                    logo_url = vendor.logo.url
+                    if logo_url.startswith('http://') or logo_url.startswith('https://'):
+                        data['logo_url'] = logo_url
+                    else:
+                        data['logo_url'] = request.build_absolute_uri(logo_url)
+            else:
+                logo_url = vendor.logo.url
+                if logo_url.startswith('http://') or logo_url.startswith('https://'):
+                    data['logo_url'] = logo_url
+                else:
+                    data['logo_url'] = request.build_absolute_uri(logo_url)
+        else:
+            data['logo_url'] = None
+        
+        return Response(data, status=status.HTTP_200_OK)
+    
+    elif request.method == 'PATCH':
+        serializer = VendorProfileSerializer(vendor, data=request.data, partial=True)
+        
+        if serializer.is_valid():
+            serializer.save()
+            
+            # Get updated data with logo_url
+            data = serializer.data
+            if vendor.logo:
+                if settings.USE_S3 and getattr(settings, 'USE_S3_PRESIGNED_URLS', True):
+                    presigned_url = generate_presigned_url(vendor.logo)
+                    if presigned_url:
+                        data['logo_url'] = presigned_url
+                    else:
+                        logo_url = vendor.logo.url
+                        if logo_url.startswith('http://') or logo_url.startswith('https://'):
+                            data['logo_url'] = logo_url
+                        else:
+                            data['logo_url'] = request.build_absolute_uri(logo_url)
+                else:
+                    logo_url = vendor.logo.url
+                    if logo_url.startswith('http://') or logo_url.startswith('https://'):
+                        data['logo_url'] = logo_url
+                    else:
+                        data['logo_url'] = request.build_absolute_uri(logo_url)
+            else:
+                data['logo_url'] = None
+            
+            return Response({
+                'message': 'Profile updated successfully',
+                'vendor': data
+            }, status=status.HTTP_200_OK)
+        
+        return Response({
+            'error': 'Profile update failed',
         'details': serializer.errors
     }, status=status.HTTP_400_BAD_REQUEST)

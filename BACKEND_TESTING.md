@@ -150,42 +150,133 @@ All functionality verified successfully!
 - Views importable
 - Templates exist
 
-### 11. API Endpoints (HTTP Requests) (60+ scenarios)
+### 11. API Endpoints (HTTP Requests) (65+ scenarios)
+
+#### Authentication Tests
 - **GET /health/** - Health check
 - **POST /auth/register** - User registration (with FSSAI license)
 - **POST /auth/login** - Login and get token (returns vendor data with fssai_license, logo_url, footer_note)
-- **POST /auth/forgot-password** - Verify username and GST number
-- **POST /auth/reset-password** - Reset password (invalidates old token)
+- **GET /auth/profile** - Get vendor profile (business details, logo URL)
+- **PATCH /auth/profile** - Update vendor profile (business details)
+- **PATCH /auth/profile** - Update vendor profile with logo upload (multipart/form-data)
+- **POST /auth/forgot-password** - Verify username and GST number (valid case)
+- **POST /auth/forgot-password** - Verify username and GST number (invalid GST)
+- **POST /auth/forgot-password** - Verify username and GST number (mismatched username/GST)
+- **POST /auth/forgot-password** - Verify username and GST number (pending vendor)
+- **POST /auth/reset-password** - Reset password (valid case, invalidates old token)
+- **POST /auth/reset-password** - Reset password (non-matching passwords)
+- **POST /auth/reset-password** - Reset password (invalid GST)
 - **POST /auth/logout** - Logout (deletes token)
+
+#### Category Tests
 - **GET /items/categories/** - Get categories
+- **GET /items/categories/?is_active=true** - Get active categories
 - **POST /items/categories/** - Create category
 - **GET /items/categories/<uuid>/** - Get category detail
 - **PATCH /items/categories/<uuid>/** - Update category
 - **DELETE /items/categories/<uuid>/** - Delete category
 - **POST /items/categories/sync** - Batch sync categories
-- **GET /items/** - Get items (with filters: category, search, is_active)
-- **POST /items/** - Create item (with GST fields: mrp_price, price_type, gst_percentage, veg_nonveg)
+
+#### Item Tests
+- **GET /items/** - Get items
+- **GET /items/?category=<uuid>** - Get items filtered by category
+- **GET /items/?search=<term>** - Search items
+- **GET /items/?is_active=true** - Get active items
+- **POST /items/** - Create item (JSON, without image)
 - **POST /items/** - Create item with image upload (multipart/form-data)
 - **GET /items/<uuid>/** - Get item detail
-- **PATCH /items/<uuid>/** - Update item
+- **PATCH /items/<uuid>/** - Update item (JSON)
 - **PATCH /items/<uuid>/** - Update item with image upload (multipart/form-data)
 - **PATCH /items/<uuid>/status/** - Update item status
 - **DELETE /items/<uuid>/** - Delete item
 - **POST /items/sync** - Batch sync items
+
+#### Inventory Tests
 - **GET /inventory/unit-types/** - Get unit types
-- **GET /inventory/** - Get inventory items (with filters)
+- **GET /inventory/** - Get inventory items
+- **GET /inventory/?is_active=true** - Get active inventory items
+- **GET /inventory/?search=<term>** - Search inventory items
+- **GET /inventory/?low_stock=true** - Get low stock items
 - **POST /inventory/** - Create inventory item
 - **GET /inventory/<uuid>/** - Get inventory item detail
 - **PATCH /inventory/<uuid>/** - Update inventory item
-- **PATCH /inventory/<uuid>/stock/** - Update stock (set/add/subtract)
+- **PATCH /inventory/<uuid>/stock/** - Update stock (add action)
+- **PATCH /inventory/<uuid>/stock/** - Update stock (subtract action)
 - **DELETE /inventory/<uuid>/** - Delete inventory item
+
+#### Sales Backup Tests
 - **GET /backup/sync** - Download bills from server (bi-directional sync)
-  - Query params: since, limit, billing_mode, start_date, end_date
-- **POST /backup/sync** - Upload bills (GST and Non-GST, single or batch)
-  - Tests: duplicate handling, minimal data, item linking
+  - Query params: `since`, `limit`, `billing_mode`, `start_date`, `end_date`
+- **GET /backup/sync?billing_mode=gst** - Download GST bills only
+- **GET /backup/sync?billing_mode=non_gst** - Download Non-GST bills only
+- **GET /backup/sync?start_date=YYYY-MM-DD&end_date=YYYY-MM-DD** - Download bills by date range
+- **POST /backup/sync** - Upload Non-GST bill (basic)
+- **POST /backup/sync** - Upload GST bill (intra-state with CGST + SGST)
+- **POST /backup/sync** - Upload GST bill (inter-state with IGST)
+- **POST /backup/sync** - Upload Non-GST bill
+- **POST /backup/sync** - Upload batch of bills (multiple bills)
+- **POST /backup/sync** - Upload duplicate bill (same invoice_number, should skip)
+- **POST /backup/sync** - Upload bill with minimal data (only required fields)
+- **POST /backup/sync** - Upload bill with linked items (item_id present)
+- **POST /backup/sync** - Upload bill with additional items (no item_id)
+
+#### Settings Tests
 - **POST /settings/push** - Push device settings
 
-**Total: 60+ test scenarios covering all endpoints, image uploads, edge cases, and error handling**
+#### Dashboard Tests
+- **GET /dashboard/stats** - Overall dashboard statistics
+- **GET /dashboard/stats?start_date=YYYY-MM-DD&end_date=YYYY-MM-DD** - Dashboard stats with date range
+- **GET /dashboard/sales** - Sales analytics
+- **GET /dashboard/sales?billing_mode=gst** - Sales analytics filtered by GST bills
+- **GET /dashboard/items?sort=most_sold** - Most sold items
+- **GET /dashboard/items?sort=least_sold** - Least sold items
+- **GET /dashboard/payments** - Payment mode analytics
+- **GET /dashboard/tax** - Tax collection analytics
+- **GET /dashboard/profit** - Net profit calculation
+
+**Total: 65+ test scenarios covering all endpoints, all billing modes, all payment modes, all GST percentages, image uploads, edge cases, and error handling**
+
+#### Complete Test Coverage
+
+**Billing Modes Tested:**
+- ✅ GST bills (intra-state: CGST + SGST)
+- ✅ GST bills (inter-state: IGST only)
+- ✅ Non-GST bills
+
+**Payment Modes Tested:**
+- ✅ Cash payment
+- ✅ UPI payment (with payment_reference)
+- ✅ Card payment (with payment_reference)
+- ✅ Credit payment (pending payment)
+- ✅ Other payment methods
+
+**GST Percentages Tested:**
+- ✅ 0% GST
+- ✅ 5% GST
+- ✅ 8% GST
+- ✅ 18% GST
+- ✅ Custom GST percentages
+
+**Price Types Tested:**
+- ✅ Exclusive pricing (GST not included in MRP)
+- ✅ Inclusive pricing (GST included in MRP)
+
+**Item Scenarios Tested:**
+- ✅ Items with images (multipart/form-data upload)
+- ✅ Items without images
+- ✅ Veg items
+- ✅ Non-veg items
+- ✅ Items with multiple categories
+- ✅ Items with additional discount
+- ✅ Items without additional discount
+
+**Bill Scenarios Tested:**
+- ✅ Bills with linked items (item_id present)
+- ✅ Bills with additional items (no item_id)
+- ✅ Bills with mixed items (some linked, some additional)
+- ✅ Bills with discounts
+- ✅ Bills without discounts
+- ✅ Bills with multiple items (different GST percentages)
 
 ---
 

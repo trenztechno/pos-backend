@@ -16,6 +16,11 @@
   - Required fields: username, email, password, password_confirm, business_name, phone, gst_no, address
 - **POST** `/auth/login` - Login and get token (No auth)
   - Returns vendor object with `logo_url` (pre-signed URL if S3 enabled)
+- **GET** `/auth/profile` - Get vendor profile (Auth required)
+  - Returns business details and logo URL
+- **PATCH** `/auth/profile` - Update vendor profile (Auth required)
+  - Use `multipart/form-data` to upload logo
+  - Update business_name, phone, address, fssai_license, footer_note
 - **POST** `/auth/forgot-password` - Verify GST number for password reset (No auth)
 - **POST** `/auth/reset-password` - Reset password using GST number (No auth)
 - **POST** `/auth/logout` - Logout (Auth required)
@@ -30,10 +35,17 @@
 
 ### Items (Products)
 - **GET** `/items/` - List all items (Auth required)
-  - Query params: `category=<uuid>`, `search=<term>`
+  - Query params: 
+    - `category=<uuid>` - Filter by category
+    - `search=<term>` - Search by name, description, SKU, barcode
+    - `is_active=<true|false>` - Filter by active status
 - **POST** `/items/` - Create item (Auth required)
   - Use `multipart/form-data` to upload images
   - Response includes `image_url` with pre-signed URL (if S3 enabled)
+  - **GST Percentages:** `0.00`, `5.00`, `8.00`, `18.00`, or custom (0-100)
+  - **Price Types:** `"exclusive"` (GST not included in MRP) or `"inclusive"` (GST included in MRP)
+  - **Veg/Non-Veg:** `"veg"` or `"nonveg"` (optional)
+  - **Item Examples:** See [API_DOCUMENTATION.md](API_DOCUMENTATION.md#complete-item-creation-examples---all-cases) for 12 complete examples
 - **GET** `/items/<uuid:id>/` - Get item details (Auth required)
 - **PATCH** `/items/<uuid:id>/` - Update item (Auth required)
   - Use `multipart/form-data` to update images
@@ -54,8 +66,52 @@
 
 ### Sales Backup
 - **GET** `/backup/sync` - Download bills from server (Auth required)
-  - Query params: `since`, `limit`, `billing_mode`, `start_date`, `end_date`
+  - Query params: 
+    - `since` (ISO timestamp) - Get bills since this timestamp
+    - `limit` (integer, default: 1000) - Maximum number of bills to return
+    - `billing_mode` (`gst` or `non_gst`) - Filter by billing mode
+    - `start_date` (YYYY-MM-DD) - Filter bills from this date
+    - `end_date` (YYYY-MM-DD) - Filter bills until this date
+  - Returns: Array of Bill objects with nested BillItem objects
 - **POST** `/backup/sync` - Batch upload sales/bill data (Auth required)
+  - Accepts: Single bill object or array of bills
+  - **Billing Modes:**
+    - `"gst"` - GST bill (requires: cgst, sgst, igst, total_tax)
+    - `"non_gst"` - Non-GST bill (no tax fields required)
+  - **Payment Modes:**
+    - `"cash"` - Cash payment
+    - `"upi"` - UPI payment (include `payment_reference` for transaction ID)
+    - `"card"` - Card payment (include `payment_reference` for card transaction ID)
+    - `"credit"` - Credit payment (pending payment, `amount_paid` typically 0)
+    - `"other"` - Other payment methods (wallet, cheque, etc.)
+  - **Bill Examples:** See [API_DOCUMENTATION.md](API_DOCUMENTATION.md#complete-bill-creation-examples---all-cases) for 16 complete examples
+
+### Dashboard & Analytics
+- **GET** `/dashboard/stats` - Overall dashboard statistics (Auth required)
+  - Query params: `start_date` (YYYY-MM-DD, default: today), `end_date` (YYYY-MM-DD, default: today)
+  - Returns: total bills, GST bills, non-GST bills, revenue, tax collected, payment split (cash/upi/card/credit/other)
+- **GET** `/dashboard/sales` - Sales analytics by billing mode (Auth required)
+  - Query params: 
+    - `start_date` (YYYY-MM-DD, default: today)
+    - `end_date` (YYYY-MM-DD, default: today)
+    - `billing_mode` (`gst` or `non_gst`, default: all)
+  - Returns: sales summary with daily breakdown, CGST/SGST/IGST breakdown
+- **GET** `/dashboard/items` - Item sales analytics (Auth required)
+  - Query params: 
+    - `start_date` (YYYY-MM-DD, default: today)
+    - `end_date` (YYYY-MM-DD, default: today)
+    - `sort` (`most_sold` or `least_sold`, default: `most_sold`)
+    - `limit` (integer, default: 10)
+  - Returns: most/least sold dishes with statistics (quantity, revenue, bill count)
+- **GET** `/dashboard/payments` - Payment mode analytics (Auth required)
+  - Query params: `start_date` (YYYY-MM-DD, default: today), `end_date` (YYYY-MM-DD, default: today)
+  - Returns: transaction split by payment mode (cash/upi/card/credit/other) with percentages
+- **GET** `/dashboard/tax` - Tax collection analytics (Auth required)
+  - Query params: `start_date` (YYYY-MM-DD, default: today), `end_date` (YYYY-MM-DD, default: today)
+  - Returns: total tax collected with GST breakdown (CGST/SGST/IGST), tax by GST percentage
+- **GET** `/dashboard/profit` - Net profit calculation (Auth required)
+  - Query params: `start_date` (YYYY-MM-DD, default: today), `end_date` (YYYY-MM-DD, default: today)
+  - Returns: estimated profit based on revenue and cost assumptions (60% cost, 40% profit)
 
 ### Settings
 - **POST** `/settings/push` - Push device settings (Auth required)
@@ -75,9 +131,9 @@
 
 ## 📊 Endpoint Statistics
 
-- **Total Endpoints:** 30
+- **Total Endpoints:** 37
 - **No Auth Required:** 6 (health, unit-types, register, login, forgot-password, reset-password)
-- **Token Auth Required:** 23
+- **Token Auth Required:** 30 (includes 2 profile endpoints + 6 dashboard endpoints)
 - **Session Auth Required:** 5 (sales rep interface)
 - **Admin Auth Required:** 1 (admin panel)
 
