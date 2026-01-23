@@ -377,6 +377,8 @@ def create_test_bills(vendor1, vendor2):
                 'address': vendor1.address,
                 'gstin': vendor1.gst_no,
                 'fssai_license': vendor1.fssai_license or '',
+                'payment_mode': 'cash',
+                'amount_paid': total,
                 'footer_note': vendor1.footer_note or '',
                 'billing_mode': 'gst',
                 'subtotal': Decimal(str(subtotal)),
@@ -507,6 +509,51 @@ def create_test_bills(vendor1, vendor2):
                     item_gst_amount=Decimal('18.00'),
                 )
                 print(f"  ✓ Created Yesterday's Bill: {yesterday_bill.invoice_number}")
+        
+        # Create a credit bill (pending payment) for testing dues endpoint
+        if vendor1_items.exists():
+            item = vendor1_items[0]
+            credit_subtotal = float(item.mrp_price or item.price or 0) * 3
+            credit_tax = credit_subtotal * 0.18
+            credit_total = credit_subtotal + credit_tax
+            
+            credit_bill, created = Bill.objects.get_or_create(
+                vendor=vendor1,
+                invoice_number=f'INV-{year}-{next_num + 3:03d}',
+                defaults={
+                    'device_id': 'test-device-001',
+                    'bill_number': f'BN-{year}-{next_num + 3:03d}',
+                    'bill_date': today,
+                    'restaurant_name': vendor1.business_name,
+                    'address': vendor1.address,
+                    'gstin': vendor1.gst_no,
+                    'fssai_license': vendor1.fssai_license or '',
+                    'billing_mode': 'gst',
+                    'subtotal': Decimal(str(credit_subtotal)),
+                    'total_amount': Decimal(str(credit_total)),
+                    'total_tax': Decimal(str(credit_tax)),
+                    'cgst_amount': Decimal(str(credit_tax / 2)),
+                    'sgst_amount': Decimal(str(credit_tax / 2)),
+                    'payment_mode': 'credit',
+                    'amount_paid': Decimal('0.00'),  # No payment received
+                    'customer_name': 'Credit Customer',
+                    'customer_phone': '+91-9876543210',
+                    'created_at': created_at,
+                }
+            )
+            if created:
+                BillItem.objects.create(
+                    bill=credit_bill,
+                    item=item,
+                    item_name=item.name,
+                    price=item.price or Decimal('50.00'),
+                    mrp_price=item.mrp_price or item.price or Decimal('50.00'),
+                    quantity=Decimal('3.00'),
+                    subtotal=Decimal(str(credit_subtotal)),
+                    gst_percentage=Decimal('18.00'),
+                    item_gst_amount=Decimal(str(credit_tax)),
+                )
+                print(f"  ✓ Created Credit Bill (Pending Payment): {credit_bill.invoice_number} (₹{credit_bill.total_amount:.2f} outstanding)")
     
     # Create bills for vendor2
     if vendor2_items.exists():

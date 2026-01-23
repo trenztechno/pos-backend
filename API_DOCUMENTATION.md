@@ -49,6 +49,7 @@ Each bill can be either GST or Non-GST. The `billing_mode` field in the bill dat
    - [Payment Analytics](#payment-analytics)
    - [Tax Analytics](#tax-analytics)
    - [Profit Analytics](#profit-analytics)
+   - [Pending Payments & Dues](#pending-payments--dues)
 10. [Settings](#settings)
 11. [Error Responses](#error-responses)
 

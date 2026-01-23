@@ -5,7 +5,8 @@ from .views import (
     dashboard_items,
     dashboard_payments,
     dashboard_tax,
-    dashboard_profit
+    dashboard_profit,
+    dashboard_dues
 )
 
 urlpatterns = [
@@ -15,5 +16,6 @@ urlpatterns = [
     path('payments', dashboard_payments, name='dashboard-payments'),
     path('tax', dashboard_tax, name='dashboard-tax'),
     path('profit', dashboard_profit, name='dashboard-profit'),
+    path('dues', dashboard_dues, name='dashboard-dues'),
 ]
 

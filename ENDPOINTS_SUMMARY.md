@@ -131,9 +131,9 @@
 
 ## 📊 Endpoint Statistics
 
-- **Total Endpoints:** 37
+- **Total Endpoints:** 38
 - **No Auth Required:** 6 (health, unit-types, register, login, forgot-password, reset-password)
-- **Token Auth Required:** 30 (includes 2 profile endpoints + 6 dashboard endpoints)
+- **Token Auth Required:** 31 (includes 2 profile endpoints + 7 dashboard endpoints)
 - **Session Auth Required:** 5 (sales rep interface)
 - **Admin Auth Required:** 1 (admin panel)
 

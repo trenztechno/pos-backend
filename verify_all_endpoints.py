@@ -1876,6 +1876,29 @@ def test_api_endpoints():
         print(f"✗ GET /dashboard/profit - Error: {e}")
         results.append(False)
     
+    # Test 43: Dashboard Dues (Pending Payments)
+    try:
+        if not client._credentials:
+            token, _ = Token.objects.get_or_create(user=test_user)
+            client.credentials(HTTP_AUTHORIZATION=f'Token {token.key}')
+        
+        response = client.get('/dashboard/dues')
+        if response.status_code == 200:
+            data = response.data
+            if 'summary' in data:
+                print("✓ GET /dashboard/dues - Working")
+                print(f"  - Pending Bills: {data['summary'].get('total_pending_bills', 0)}")
+                print(f"  - Outstanding: ₹{data['summary'].get('total_outstanding_amount', '0.00')}")
+            else:
+                print("✓ GET /dashboard/dues - Working (response structure may vary)")
+            results.append(True)
+        else:
+            print(f"✗ GET /dashboard/dues - Status: {response.status_code}")
+            results.append(False)
+    except Exception as e:
+        print(f"✗ GET /dashboard/dues - Error: {e}")
+        results.append(False)
+    
     # Cleanup test user
     try:
         test_user.delete()

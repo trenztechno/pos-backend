@@ -529,3 +529,83 @@ def dashboard_profit(request):
         'note': 'Profit calculation is estimated based on 60% cost assumption. For accurate profit, actual cost data is required.'
     }, status=status.HTTP_200_OK)
 
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def dashboard_dues(request):
+    """
+    GET /dashboard/dues - Pending payments and dues
+    
+    Query Parameters:
+    - start_date: YYYY-MM-DD (optional, default: today)
+    - end_date: YYYY-MM-DD (optional, default: today)
+    
+    Returns pending payments and outstanding dues
+    """
+    vendor = get_vendor_from_request(request)
+    if not vendor:
+        return Response({
+            'error': 'Vendor profile not found. This endpoint is only for vendors.'
+        }, status=status.HTTP_403_FORBIDDEN)
+    
+    start_date, end_date = parse_date_range(request)
+    
+    # Get bills in date range
+    bills = Bill.objects.filter(
+        vendor=vendor,
+        bill_date__gte=start_date,
+        bill_date__lte=end_date
+    )
+    
+    # Calculate pending payments (credit bills or bills where amount_paid < total_amount)
+    credit_bills = bills.filter(
+        Q(payment_mode='credit') | Q(amount_paid__lt=F('total_amount'))
+    )
+    
+    # Calculate total outstanding
+    total_outstanding = Decimal('0')
+    pending_bills = []
+    
+    for bill in credit_bills:
+        amount_paid = bill.amount_paid or Decimal('0')
+        outstanding = bill.total_amount - amount_paid
+        total_outstanding += outstanding
+        
+        pending_bills.append({
+            'bill_id': str(bill.id),
+            'invoice_number': bill.invoice_number,
+            'bill_date': bill.bill_date.isoformat(),
+            'customer_name': bill.customer_name or 'N/A',
+            'customer_phone': bill.customer_phone or 'N/A',
+            'total_amount': str(bill.total_amount),
+            'amount_paid': str(amount_paid),
+            'outstanding_amount': str(outstanding),
+            'payment_mode': bill.payment_mode,
+            'days_pending': (timezone.now().date() - bill.bill_date).days
+        })
+    
+    # Sort by outstanding amount (highest first)
+    pending_bills.sort(key=lambda x: Decimal(x['outstanding_amount']), reverse=True)
+    
+    # Count by payment mode
+    credit_count = bills.filter(payment_mode='credit').count()
+    partial_payment_count = bills.filter(
+        ~Q(payment_mode='credit'),
+        amount_paid__lt=F('total_amount')
+    ).count()
+    
+    return Response({
+        'vendor_id': str(vendor.id),
+        'date_range': {
+            'start_date': start_date.isoformat(),
+            'end_date': end_date.isoformat()
+        },
+        'summary': {
+            'total_pending_bills': len(pending_bills),
+            'total_outstanding_amount': str(total_outstanding),
+            'credit_bills_count': credit_count,
+            'partial_payment_bills_count': partial_payment_count
+        },
+        'pending_bills': pending_bills
+    }, status=status.HTTP_200_OK)
+

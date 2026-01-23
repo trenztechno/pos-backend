@@ -461,6 +461,19 @@ def verify_dashboard_data():
         else:
             print_fail(f"Dashboard profit failed: {response.status_code}")
             all_passed = False
+        
+        # Test dashboard dues (pending payments)
+        response = client.get('/dashboard/dues')
+        if response.status_code == 200:
+            data = response.data
+            summary = data.get('summary', {})
+            print_pass(f"Dashboard Dues: Working")
+            print_pass(f"  - Pending Bills: {summary.get('total_pending_bills', 0)}")
+            print_pass(f"  - Outstanding Amount: ₹{summary.get('total_outstanding_amount', '0.00')}")
+            print_pass(f"  - Credit Bills: {summary.get('credit_bills_count', 0)}")
+        else:
+            print_fail(f"Dashboard dues failed: {response.status_code}")
+            all_passed = False
             
     except Exception as e:
         print_fail(f"Dashboard verification error: {e}")
