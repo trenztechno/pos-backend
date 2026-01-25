@@ -817,7 +817,7 @@ const billData = {
   igst: 0.00,       // 0 for intra-state, 180.00 for inter-state
   total_tax: 180.00,
   total: 1180.00,
-  timestamp: "2024-01-01T10:00:00Z"
+  timestamp: "2026-01-01T10:00:00Z"
 };
 ```
 
@@ -829,7 +829,7 @@ const billData = {
   items: [...],
   subtotal: 1000.00,
   total: 1000.00,
-  timestamp: "2024-01-01T10:00:00Z"
+  timestamp: "2026-01-01T10:00:00Z"
 };
 ```
 

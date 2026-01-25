@@ -178,7 +178,16 @@ def test_get_items(token):
                     img_url = item.get('image_url')
                     if img_url:
                         try:
-                            img_response = requests.head(img_url, timeout=5)
+                            # Check if pre-signed URL (has query params)
+                            is_presigned = '?' in img_url and ('X-Amz-Algorithm' in img_url or 'X-Amz-Expires' in img_url)
+                            if is_presigned:
+                                # Pre-signed URL - use GET
+                                img_response = requests.get(img_url, timeout=5, stream=True)
+                                img_response.close()
+                            else:
+                                # Direct URL - use HEAD
+                                img_response = requests.head(img_url, timeout=5)
+                            
                             if img_response.status_code == 200:
                                 print_success(f"  Image accessible: {item.get('name')}")
                             else:
@@ -476,7 +485,22 @@ def test_image_urls(token):
                 img_url = item.get('image_url')
                 if img_url:
                     try:
-                        img_response = requests.head(img_url, timeout=10, allow_redirects=True)
+                        # Use GET instead of HEAD - pre-signed URLs work better with GET
+                        # Also check if URL is pre-signed (has query params)
+                        is_presigned = '?' in img_url and ('X-Amz-Algorithm' in img_url or 'X-Amz-Expires' in img_url)
+                        if is_presigned:
+                            # Pre-signed URL - use GET request
+                            img_response = requests.get(img_url, timeout=10, allow_redirects=True, stream=True)
+                            # For GET, we just need to check status, don't download full image
+                            img_response.close()
+                        else:
+                            # Direct URL - try HEAD first, fallback to GET
+                            try:
+                                img_response = requests.head(img_url, timeout=10, allow_redirects=True)
+                            except:
+                                img_response = requests.get(img_url, timeout=10, allow_redirects=True, stream=True)
+                                img_response.close()
+                        
                         if img_response.status_code == 200:
                             accessible += 1
                         else:

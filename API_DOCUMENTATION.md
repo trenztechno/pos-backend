@@ -88,7 +88,7 @@ Returns server health status, database connectivity, and system information. Use
 ```json
 {
   "status": "healthy",
-  "timestamp": "2024-01-01T10:00:00.000000+00:00",
+  "timestamp": "2026-01-01T10:00:00.000000+00:00",
   "version": "1.0.0",
   "services": {
     "database": {
@@ -119,7 +119,7 @@ Returns server health status, database connectivity, and system information. Use
 ```json
 {
   "status": "unhealthy",
-  "timestamp": "2024-01-01T10:00:00.000000+00:00",
+  "timestamp": "2026-01-01T10:00:00.000000+00:00",
   "version": "1.0.0",
   "services": {
     "database": {
@@ -361,8 +361,8 @@ Authorization: Token <your_token>
   "logo_url": "https://bucket.s3.region.amazonaws.com/vendors/.../logo.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Expires=3600&...",
   "footer_note": "Thank you for visiting!",
   "is_approved": true,
-  "created_at": "2024-01-01T10:00:00Z",
-  "updated_at": "2024-01-01T10:00:00Z"
+  "created_at": "2026-01-01T10:00:00Z",
+  "updated_at": "2026-01-01T10:00:00Z"
 }
 ```
 
@@ -434,8 +434,8 @@ logo: <file>  (JPG, PNG, WebP)
     "logo_url": "https://bucket.s3.region.amazonaws.com/vendors/.../logo.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Expires=3600&...",
     "footer_note": "Thank you for visiting!",
     "is_approved": true,
-    "created_at": "2024-01-01T10:00:00Z",
-    "updated_at": "2024-01-01T10:05:00Z"
+    "created_at": "2026-01-01T10:00:00Z",
+    "updated_at": "2026-01-01T10:05:00Z"
   }
 }
 ```
@@ -768,8 +768,8 @@ Returns all categories available to the vendor (vendor-specific + global categor
     "is_active": true,
     "sort_order": 1,
     "item_count": 5,
-    "created_at": "2024-01-01T10:00:00Z",
-    "updated_at": "2024-01-01T10:00:00Z"
+    "created_at": "2026-01-01T10:00:00Z",
+    "updated_at": "2026-01-01T10:00:00Z"
   },
   {
     "id": "550e8400-e29b-41d4-a716-446655440001",
@@ -778,8 +778,8 @@ Returns all categories available to the vendor (vendor-specific + global categor
     "is_active": true,
     "sort_order": 2,
     "item_count": 3,
-    "created_at": "2024-01-01T10:00:00Z",
-    "updated_at": "2024-01-01T10:00:00Z"
+    "created_at": "2026-01-01T10:00:00Z",
+    "updated_at": "2026-01-01T10:00:00Z"
   }
 ]
 ```
@@ -812,8 +812,8 @@ Creates a new category for the vendor.
   "is_active": true,
   "sort_order": 3,
   "item_count": 0,
-  "created_at": "2024-01-01T10:00:00Z",
-  "updated_at": "2024-01-01T10:00:00Z"
+  "created_at": "2026-01-01T10:00:00Z",
+  "updated_at": "2026-01-01T10:00:00Z"
 }
 ```
 
@@ -843,8 +843,8 @@ Returns details of a specific category.
   "is_active": true,
   "sort_order": 1,
   "item_count": 5,
-  "created_at": "2024-01-01T10:00:00Z",
-  "updated_at": "2024-01-01T10:00:00Z"
+  "created_at": "2026-01-01T10:00:00Z",
+  "updated_at": "2026-01-01T10:00:00Z"
 }
 ```
 
@@ -882,8 +882,8 @@ Updates a category. Only vendor's own categories can be updated.
   "is_active": true,
   "sort_order": 0,
   "item_count": 5,
-  "created_at": "2024-01-01T10:00:00Z",
-  "updated_at": "2024-01-01T11:00:00Z"
+  "created_at": "2026-01-01T10:00:00Z",
+  "updated_at": "2026-01-01T11:00:00Z"
 }
 ```
 
@@ -957,8 +957,8 @@ GET /items/?category=550e8400-e29b-41d4-a716-446655440000&search=cola
     "vendor_name": "ABC Store",
     "image": null,
     "image_url": null,
-    "last_updated": "2024-01-01T10:00:00Z",
-    "created_at": "2024-01-01T10:00:00Z"
+    "last_updated": "2026-01-01T10:00:00Z",
+    "created_at": "2026-01-01T10:00:00Z"
   }
 ]
 ```
@@ -1042,8 +1042,8 @@ Creates a new item. Items can be assigned to multiple categories.
   "vendor_name": "ABC Restaurant",
   "image": null,
   "image_url": null,
-  "last_updated": "2024-01-01T10:00:00Z",
-  "created_at": "2024-01-01T10:00:00Z"
+  "last_updated": "2026-01-01T10:00:00Z",
+  "created_at": "2026-01-01T10:00:00Z"
 }
 ```
 
@@ -1503,7 +1503,7 @@ const item = await response.json();
   "stock_quantity": 100,
   "image": "items/660e8400-e29b-41d4-a716-446655440000/image.jpg",
   "image_url": "https://bucket.s3.region.amazonaws.com/items/660e8400-e29b-41d4-a716-446655440000/image.jpg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Expires=3600&X-Amz-Credential=...&X-Amz-Signature=...",
-  "created_at": "2024-01-01T10:00:00Z"
+  "created_at": "2026-01-01T10:00:00Z"
 }
 ```
 
@@ -1607,8 +1607,8 @@ Returns details of a specific item.
   "vendor_name": "ABC Restaurant",
   "image": "items/660e8400-e29b-41d4-a716-446655440000/660e8400-e29b-41d4-a716-446655440000.jpg",
   "image_url": "https://bucket.s3.region.amazonaws.com/items/660e8400-e29b-41d4-a716-446655440000/image.jpg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Expires=3600&...",
-  "last_updated": "2024-01-01T10:00:00Z",
-  "created_at": "2024-01-01T10:00:00Z"
+  "last_updated": "2026-01-01T10:00:00Z",
+  "created_at": "2026-01-01T10:00:00Z"
 }
 ```
 
@@ -1670,8 +1670,8 @@ See [Update Item Image](#update-item-image) section above for complete examples.
   "vendor_name": "ABC Store",
   "image": "items/660e8400-e29b-41d4-a716-446655440000/660e8400-e29b-41d4-a716-446655440000.jpg",
   "image_url": "https://bucket.s3.region.amazonaws.com/items/660e8400-e29b-41d4-a716-446655440000/image.jpg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Expires=3600&...",
-  "last_updated": "2024-01-01T11:00:00Z",
-  "created_at": "2024-01-01T10:00:00Z"
+  "last_updated": "2026-01-01T11:00:00Z",
+  "created_at": "2026-01-01T10:00:00Z"
 }
 ```
 
@@ -1826,7 +1826,7 @@ Returns all inventory items (raw materials) for the authenticated vendor.
     "is_active": true,
     "is_low_stock": false,
     "needs_reorder": false,
-    "updated_at": "2024-01-01T10:00:00Z"
+    "updated_at": "2026-01-01T10:00:00Z"
   },
   {
     "id": "770e8400-e29b-41d4-a716-446655440001",
@@ -1838,7 +1838,7 @@ Returns all inventory items (raw materials) for the authenticated vendor.
     "is_active": true,
     "is_low_stock": true,
     "needs_reorder": true,
-    "updated_at": "2024-01-01T10:00:00Z"
+    "updated_at": "2026-01-01T10:00:00Z"
   }
 ]
 ```
@@ -1920,8 +1920,8 @@ Creates a new inventory item (raw material).
   "is_active": true,
   "is_low_stock": false,
   "needs_reorder": false,
-  "created_at": "2024-01-01T10:00:00Z",
-  "updated_at": "2024-01-01T10:00:00Z",
+  "created_at": "2026-01-01T10:00:00Z",
+  "updated_at": "2026-01-01T10:00:00Z",
   "last_restocked_at": null
 }
 ```
@@ -1963,8 +1963,8 @@ Returns details of a specific inventory item.
   "is_active": true,
   "is_low_stock": false,
   "needs_reorder": false,
-  "created_at": "2024-01-01T10:00:00Z",
-  "updated_at": "2024-01-01T10:00:00Z",
+  "created_at": "2026-01-01T10:00:00Z",
+  "updated_at": "2026-01-01T10:00:00Z",
   "last_restocked_at": null
 }
 ```
@@ -2030,7 +2030,7 @@ Updates stock quantity with different actions: set, add, or subtract.
   "id": "770e8400-e29b-41d4-a716-446655440000",
   ...
   "quantity": "60.0",
-  "last_restocked_at": "2024-01-01T11:00:00Z",
+  "last_restocked_at": "2026-01-01T11:00:00Z",
   ...
 }
 ```
@@ -2110,7 +2110,7 @@ Batch sync categories for offline-first mobile apps. Supports create, update, an
       "sort_order": 1,
       "is_active": true
     },
-    "timestamp": "2024-01-01T10:00:00Z"
+    "timestamp": "2026-01-01T10:00:00Z"
   },
   {
     "operation": "update",
@@ -2118,12 +2118,12 @@ Batch sync categories for offline-first mobile apps. Supports create, update, an
       "id": "550e8400-e29b-41d4-a716-446655440001",
       "name": "Updated Category"
     },
-    "timestamp": "2024-01-01T11:00:00Z"
+    "timestamp": "2026-01-01T11:00:00Z"
   },
   {
     "operation": "delete",
     "id": "550e8400-e29b-41d4-a716-446655440002",
-    "timestamp": "2024-01-01T12:00:00Z"
+    "timestamp": "2026-01-01T12:00:00Z"
   }
 ]
 ```
@@ -2170,7 +2170,7 @@ Batch sync items for offline-first mobile apps. Supports create, update, and del
       "stock_quantity": 100,
       "category_ids": ["550e8400-e29b-41d4-a716-446655440000"]
     },
-    "timestamp": "2024-01-01T10:00:00Z"
+    "timestamp": "2026-01-01T10:00:00Z"
   },
   {
     "operation": "update",
@@ -2179,12 +2179,12 @@ Batch sync items for offline-first mobile apps. Supports create, update, and del
       "price": "30.00",
       "stock_quantity": 150
     },
-    "timestamp": "2024-01-01T11:00:00Z"
+    "timestamp": "2026-01-01T11:00:00Z"
   },
   {
     "operation": "delete",
     "id": "660e8400-e29b-41d4-a716-446655440002",
-    "timestamp": "2024-01-01T12:00:00Z"
+    "timestamp": "2026-01-01T12:00:00Z"
   }
 ]
 ```
@@ -2225,11 +2225,11 @@ Batch sync items for offline-first mobile apps. Supports create, update, and del
 Download bills from the server. This is used when a new device logs in with the same tenant to load existing sales history.
 
 **Query Parameters:**
-- `since` (optional): ISO timestamp - Only get bills synced after this time (e.g., `2024-01-01T10:00:00Z`)
+- `since` (optional): ISO timestamp - Only get bills synced after this time (e.g., `2026-01-01T10:00:00Z`)
 - `limit` (optional, default=1000): Maximum number of bills to return
 - `billing_mode` (optional): Filter by billing mode (`gst` or `non_gst`)
-- `start_date` (optional): Filter by bill date - YYYY-MM-DD format (e.g., `2024-01-01`)
-- `end_date` (optional): Filter by bill date - YYYY-MM-DD format (e.g., `2024-01-31`)
+- `start_date` (optional): Filter by bill date - YYYY-MM-DD format (e.g., `2026-01-01`)
+- `end_date` (optional): Filter by bill date - YYYY-MM-DD format (e.g., `2026-01-31`)
 
 **Success Response (200):**
 ```json
@@ -2240,9 +2240,9 @@ Download bills from the server. This is used when a new device logs in with the 
   "bills": [
     {
       "id": "bill-uuid-1",
-      "invoice_number": "INV-2024-001",
-      "bill_number": "BN-2024-001",
-      "bill_date": "2024-01-01",
+      "invoice_number": "INV-2026-001",
+      "bill_number": "BN-2026-001",
+      "bill_date": "2026-01-01",
       "billing_mode": "gst",
       "restaurant_name": "ABC Restaurant",
       "address": "123 Main St",
@@ -2275,8 +2275,8 @@ Download bills from the server. This is used when a new device logs in with the 
       ],
       "item_count": 1,
       "total_quantity": 2.0,
-      "created_at": "2024-01-01T10:00:00Z",
-      "synced_at": "2024-01-01T10:00:00Z"
+      "created_at": "2026-01-01T10:00:00Z",
+      "synced_at": "2026-01-01T10:00:00Z"
     }
   ]
 }
@@ -2293,11 +2293,11 @@ curl -X GET "http://localhost:8000/backup/sync?billing_mode=gst" \
   -H "Authorization: Token <token>"
 
 # Get bills since a specific date
-curl -X GET "http://localhost:8000/backup/sync?since=2024-01-01T00:00:00Z&limit=100" \
+curl -X GET "http://localhost:8000/backup/sync?since=2026-01-01T00:00:00Z&limit=100" \
   -H "Authorization: Token <token>"
 
 # Get bills for a date range
-curl -X GET "http://localhost:8000/backup/sync?start_date=2024-01-01&end_date=2024-01-31" \
+curl -X GET "http://localhost:8000/backup/sync?start_date=2026-01-01&end_date=2026-01-31" \
   -H "Authorization: Token <token>"
 ```
 
@@ -2317,7 +2317,7 @@ Batch upload sales/bill data. Accepts single bill or array of bills. Server acts
 ```json
 {
   "bill_data": {
-    "invoice_number": "INV-2024-001",
+    "invoice_number": "INV-2026-001",
     "bill_id": "bill-123",
     "billing_mode": "gst",
     "restaurant_name": "ABC Restaurant",
@@ -2325,8 +2325,8 @@ Batch upload sales/bill data. Accepts single bill or array of bills. Server acts
     "gstin": "29ABCDE1234F1Z5",
     "fssai_license": "12345678901234",
     "logo_url": "https://bucket.s3.region.amazonaws.com/vendors/vendor-id/logo.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Expires=3600&...",
-    "bill_number": "BN-2024-001",
-    "bill_date": "2024-01-01",
+    "bill_number": "BN-2026-001",
+    "bill_date": "2026-01-01",
     "items": [
       {
         "id": "item-uuid-1",
@@ -2353,7 +2353,7 @@ Batch upload sales/bill data. Accepts single bill or array of bills. Server acts
     "total_tax": 36.00,
     "total": 236.00,
     "footer_note": "Thank you for visiting!",
-    "timestamp": "2024-01-01T10:00:00Z"
+    "timestamp": "2026-01-01T10:00:00Z"
   },
   "device_id": "device-001"
 }
@@ -2363,7 +2363,7 @@ Batch upload sales/bill data. Accepts single bill or array of bills. Server acts
 ```json
 {
   "bill_data": {
-    "invoice_number": "INV-2024-002",
+    "invoice_number": "INV-2026-002",
     "bill_id": "bill-124",
     "billing_mode": "non_gst",
     "restaurant_name": "ABC Restaurant",
@@ -2371,8 +2371,8 @@ Batch upload sales/bill data. Accepts single bill or array of bills. Server acts
     "gstin": "29ABCDE1234F1Z5",
     "fssai_license": "12345678901234",
     "logo_url": "https://bucket.s3.region.amazonaws.com/vendors/vendor-id/logo.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Expires=3600&...",
-    "bill_number": "BN-2024-002",
-    "bill_date": "2024-01-01",
+    "bill_number": "BN-2026-002",
+    "bill_date": "2026-01-01",
     "items": [
       {
         "id": "item-uuid-1",
@@ -2390,7 +2390,7 @@ Batch upload sales/bill data. Accepts single bill or array of bills. Server acts
     "subtotal": 150.00,
     "total": 150.00,
     "footer_note": "Thank you for visiting!",
-    "timestamp": "2024-01-01T10:00:00Z"
+    "timestamp": "2026-01-01T10:00:00Z"
   },
   "device_id": "device-001"
 }
@@ -2407,15 +2407,15 @@ Batch upload sales/bill data. Accepts single bill or array of bills. Server acts
 ```json
 {
   "bill_data": {
-    "invoice_number": "INV-2024-003",
+    "invoice_number": "INV-2026-003",
     "bill_id": "bill-125",
     "billing_mode": "gst",
     "restaurant_name": "ABC Restaurant",
     "address": "123 Main St, City, State",
     "gstin": "29ABCDE1234F1Z5",
     "fssai_license": "12345678901234",
-    "bill_number": "BN-2024-003",
-    "bill_date": "2024-01-01",
+    "bill_number": "BN-2026-003",
+    "bill_date": "2026-01-01",
     "items": [
       {
         "id": "item-uuid-1",
@@ -2454,7 +2454,7 @@ Batch upload sales/bill data. Accepts single bill or array of bills. Server acts
     "amount_paid": 531.00,
     "change_amount": 0.00,
     "discount_amount": 0.00,
-    "timestamp": "2024-01-01T10:00:00Z"
+    "timestamp": "2026-01-01T10:00:00Z"
   },
   "device_id": "device-001"
 }
@@ -2467,13 +2467,13 @@ curl -X POST http://localhost:8000/backup/sync \
   -H "Content-Type: application/json" \
   -d '{
     "bill_data": {
-      "invoice_number": "INV-2024-003",
+      "invoice_number": "INV-2026-003",
       "billing_mode": "gst",
       "restaurant_name": "ABC Restaurant",
       "address": "123 Main St",
       "gstin": "29ABCDE1234F1Z5",
       "fssai_license": "12345678901234",
-      "bill_date": "2024-01-01",
+      "bill_date": "2026-01-01",
       "items": [
         {
           "id": "item-uuid-1",
@@ -2510,13 +2510,13 @@ curl -X POST http://localhost:8000/backup/sync \
 ```json
 {
   "bill_data": {
-    "invoice_number": "INV-2024-004",
+    "invoice_number": "INV-2026-004",
     "billing_mode": "gst",
     "restaurant_name": "ABC Restaurant",
     "address": "123 Main St, City, State",
     "gstin": "29ABCDE1234F1Z5",
     "fssai_license": "12345678901234",
-    "bill_date": "2024-01-01",
+    "bill_date": "2026-01-01",
     "items": [
       {
         "id": "item-uuid-1",
@@ -2540,7 +2540,7 @@ curl -X POST http://localhost:8000/backup/sync \
     "payment_mode": "upi",
     "payment_reference": "UPI123456789",
     "amount_paid": 177.00,
-    "timestamp": "2024-01-01T10:00:00Z"
+    "timestamp": "2026-01-01T10:00:00Z"
   },
   "device_id": "device-001"
 }
@@ -2555,13 +2555,13 @@ curl -X POST http://localhost:8000/backup/sync \
 ```json
 {
   "bill_data": {
-    "invoice_number": "INV-2024-005",
+    "invoice_number": "INV-2026-005",
     "billing_mode": "gst",
     "restaurant_name": "ABC Restaurant",
     "address": "123 Main St, City, State",
     "gstin": "29ABCDE1234F1Z5",
     "fssai_license": "12345678901234",
-    "bill_date": "2024-01-01",
+    "bill_date": "2026-01-01",
     "items": [
       {
         "id": "item-uuid-1",
@@ -2585,7 +2585,7 @@ curl -X POST http://localhost:8000/backup/sync \
     "payment_mode": "card",
     "payment_reference": "CARD987654321",
     "amount_paid": 212.40,
-    "timestamp": "2024-01-01T10:00:00Z"
+    "timestamp": "2026-01-01T10:00:00Z"
   },
   "device_id": "device-001"
 }
@@ -2600,13 +2600,13 @@ curl -X POST http://localhost:8000/backup/sync \
 ```json
 {
   "bill_data": {
-    "invoice_number": "INV-2024-006",
+    "invoice_number": "INV-2026-006",
     "billing_mode": "gst",
     "restaurant_name": "ABC Restaurant",
     "address": "123 Main St, City, State",
     "gstin": "29ABCDE1234F1Z5",
     "fssai_license": "12345678901234",
-    "bill_date": "2024-01-01",
+    "bill_date": "2026-01-01",
     "items": [
       {
         "id": "item-uuid-1",
@@ -2631,7 +2631,7 @@ curl -X POST http://localhost:8000/backup/sync \
     "amount_paid": 0.00,
     "customer_name": "John Doe",
     "customer_phone": "+91-9876543210",
-    "timestamp": "2024-01-01T10:00:00Z"
+    "timestamp": "2026-01-01T10:00:00Z"
   },
   "device_id": "device-001"
 }
@@ -2648,13 +2648,13 @@ curl -X POST http://localhost:8000/backup/sync \
 ```json
 {
   "bill_data": {
-    "invoice_number": "INV-2024-007",
+    "invoice_number": "INV-2026-007",
     "billing_mode": "gst",
     "restaurant_name": "ABC Restaurant",
     "address": "123 Main St, City, State",
     "gstin": "29ABCDE1234F1Z5",
     "fssai_license": "12345678901234",
-    "bill_date": "2024-01-01",
+    "bill_date": "2026-01-01",
     "items": [
       {
         "id": "item-uuid-1",
@@ -2678,7 +2678,7 @@ curl -X POST http://localhost:8000/backup/sync \
     "payment_mode": "other",
     "payment_reference": "WALLET123456",
     "amount_paid": 118.00,
-    "timestamp": "2024-01-01T10:00:00Z"
+    "timestamp": "2026-01-01T10:00:00Z"
   },
   "device_id": "device-001"
 }
@@ -2693,13 +2693,13 @@ curl -X POST http://localhost:8000/backup/sync \
 ```json
 {
   "bill_data": {
-    "invoice_number": "INV-2024-008",
+    "invoice_number": "INV-2026-008",
     "billing_mode": "gst",
     "restaurant_name": "ABC Restaurant",
     "address": "123 Main St, City, State",
     "gstin": "29ABCDE1234F1Z5",
     "fssai_license": "12345678901234",
-    "bill_date": "2024-01-01",
+    "bill_date": "2026-01-01",
     "items": [
       {
         "id": "item-uuid-1",
@@ -2722,7 +2722,7 @@ curl -X POST http://localhost:8000/backup/sync \
     "total": 354.00,
     "payment_mode": "cash",
     "amount_paid": 354.00,
-    "timestamp": "2024-01-01T10:00:00Z"
+    "timestamp": "2026-01-01T10:00:00Z"
   },
   "device_id": "device-001"
 }
@@ -2739,13 +2739,13 @@ curl -X POST http://localhost:8000/backup/sync \
 ```json
 {
   "bill_data": {
-    "invoice_number": "INV-2024-009",
+    "invoice_number": "INV-2026-009",
     "billing_mode": "gst",
     "restaurant_name": "ABC Restaurant",
     "address": "123 Main St, City, State",
     "gstin": "29ABCDE1234F1Z5",
     "fssai_license": "12345678901234",
-    "bill_date": "2024-01-01",
+    "bill_date": "2026-01-01",
     "items": [
       {
         "id": "item-uuid-1",
@@ -2769,7 +2769,7 @@ curl -X POST http://localhost:8000/backup/sync \
     "payment_mode": "upi",
     "payment_reference": "UPI987654321",
     "amount_paid": 295.00,
-    "timestamp": "2024-01-01T10:00:00Z"
+    "timestamp": "2026-01-01T10:00:00Z"
   },
   "device_id": "device-001"
 }
@@ -2784,13 +2784,13 @@ curl -X POST http://localhost:8000/backup/sync \
 ```json
 {
   "bill_data": {
-    "invoice_number": "INV-2024-010",
+    "invoice_number": "INV-2026-010",
     "billing_mode": "gst",
     "restaurant_name": "ABC Restaurant",
     "address": "123 Main St, City, State",
     "gstin": "29ABCDE1234F1Z5",
     "fssai_license": "12345678901234",
-    "bill_date": "2024-01-01",
+    "bill_date": "2026-01-01",
     "items": [
       {
         "id": "item-uuid-1",
@@ -2818,7 +2818,7 @@ curl -X POST http://localhost:8000/backup/sync \
     "payment_mode": "cash",
     "amount_paid": 450.00,
     "change_amount": 1.60,
-    "timestamp": "2024-01-01T10:00:00Z"
+    "timestamp": "2026-01-01T10:00:00Z"
   },
   "device_id": "device-001"
 }
@@ -2833,13 +2833,13 @@ curl -X POST http://localhost:8000/backup/sync \
 ```json
 {
   "bill_data": {
-    "invoice_number": "INV-2024-011",
+    "invoice_number": "INV-2026-011",
     "billing_mode": "non_gst",
     "restaurant_name": "ABC Restaurant",
     "address": "123 Main St, City, State",
     "gstin": "29ABCDE1234F1Z5",
     "fssai_license": "12345678901234",
-    "bill_date": "2024-01-01",
+    "bill_date": "2026-01-01",
     "items": [
       {
         "id": "item-uuid-1",
@@ -2856,7 +2856,7 @@ curl -X POST http://localhost:8000/backup/sync \
     "total": 40.00,
     "payment_mode": "cash",
     "amount_paid": 40.00,
-    "timestamp": "2024-01-01T10:00:00Z"
+    "timestamp": "2026-01-01T10:00:00Z"
   },
   "device_id": "device-001"
 }
@@ -2873,13 +2873,13 @@ curl -X POST http://localhost:8000/backup/sync \
 ```json
 {
   "bill_data": {
-    "invoice_number": "INV-2024-012",
+    "invoice_number": "INV-2026-012",
     "billing_mode": "non_gst",
     "restaurant_name": "ABC Restaurant",
     "address": "123 Main St, City, State",
     "gstin": "29ABCDE1234F1Z5",
     "fssai_license": "12345678901234",
-    "bill_date": "2024-01-01",
+    "bill_date": "2026-01-01",
     "items": [
       {
         "id": "item-uuid-1",
@@ -2897,7 +2897,7 @@ curl -X POST http://localhost:8000/backup/sync \
     "payment_mode": "upi",
     "payment_reference": "UPI111222333",
     "amount_paid": 30.00,
-    "timestamp": "2024-01-01T10:00:00Z"
+    "timestamp": "2026-01-01T10:00:00Z"
   },
   "device_id": "device-001"
 }
@@ -2912,13 +2912,13 @@ curl -X POST http://localhost:8000/backup/sync \
 ```json
 {
   "bill_data": {
-    "invoice_number": "INV-2024-013",
+    "invoice_number": "INV-2026-013",
     "billing_mode": "gst",
     "restaurant_name": "ABC Restaurant",
     "address": "123 Main St, City, State",
     "gstin": "29ABCDE1234F1Z5",
     "fssai_license": "12345678901234",
-    "bill_date": "2024-01-01",
+    "bill_date": "2026-01-01",
     "items": [
       {
         "id": "billitem-uuid-1",
@@ -2942,7 +2942,7 @@ curl -X POST http://localhost:8000/backup/sync \
     "total": 236.00,
     "payment_mode": "cash",
     "amount_paid": 236.00,
-    "timestamp": "2024-01-01T10:00:00Z"
+    "timestamp": "2026-01-01T10:00:00Z"
   },
   "device_id": "device-001"
 }
@@ -2959,13 +2959,13 @@ curl -X POST http://localhost:8000/backup/sync \
 ```json
 {
   "bill_data": {
-    "invoice_number": "INV-2024-014",
+    "invoice_number": "INV-2026-014",
     "billing_mode": "gst",
     "restaurant_name": "ABC Restaurant",
     "address": "123 Main St, City, State",
     "gstin": "29ABCDE1234F1Z5",
     "fssai_license": "12345678901234",
-    "bill_date": "2024-01-01",
+    "bill_date": "2026-01-01",
     "items": [
       {
         "id": "billitem-uuid-1",
@@ -2988,7 +2988,7 @@ curl -X POST http://localhost:8000/backup/sync \
     "total": 413.00,
     "payment_mode": "cash",
     "amount_paid": 413.00,
-    "timestamp": "2024-01-01T10:00:00Z"
+    "timestamp": "2026-01-01T10:00:00Z"
   },
   "device_id": "device-001"
 }
@@ -3005,13 +3005,13 @@ curl -X POST http://localhost:8000/backup/sync \
 ```json
 {
   "bill_data": {
-    "invoice_number": "INV-2024-015",
+    "invoice_number": "INV-2026-015",
     "billing_mode": "gst",
     "restaurant_name": "ABC Restaurant",
     "address": "123 Main St, City, State",
     "gstin": "29ABCDE1234F1Z5",
     "fssai_license": "12345678901234",
-    "bill_date": "2024-01-01",
+    "bill_date": "2026-01-01",
     "items": [
       {
         "id": "billitem-uuid-1",
@@ -3047,7 +3047,7 @@ curl -X POST http://localhost:8000/backup/sync \
     "total": 590.00,
     "payment_mode": "cash",
     "amount_paid": 590.00,
-    "timestamp": "2024-01-01T10:00:00Z"
+    "timestamp": "2026-01-01T10:00:00Z"
   },
   "device_id": "device-001"
 }
@@ -3062,13 +3062,13 @@ curl -X POST http://localhost:8000/backup/sync \
 ```json
 {
   "bill_data": {
-    "invoice_number": "INV-2024-016",
+    "invoice_number": "INV-2026-016",
     "billing_mode": "gst",
     "restaurant_name": "ABC Restaurant",
     "address": "123 Main St, City, State",
     "gstin": "29ABCDE1234F1Z5",
     "fssai_license": "12345678901234",
-    "bill_date": "2024-01-01",
+    "bill_date": "2026-01-01",
     "items": [
       {
         "id": "billitem-uuid-1",
@@ -3127,7 +3127,7 @@ curl -X POST http://localhost:8000/backup/sync \
     "total": 436.00,
     "payment_mode": "cash",
     "amount_paid": 436.00,
-    "timestamp": "2024-01-01T10:00:00Z"
+    "timestamp": "2026-01-01T10:00:00Z"
   },
   "device_id": "device-001"
 }
@@ -3144,13 +3144,13 @@ curl -X POST http://localhost:8000/backup/sync \
 ```json
 {
   "bill_data": {
-    "invoice_number": "INV-2024-017",
+    "invoice_number": "INV-2026-017",
     "billing_mode": "gst",
     "restaurant_name": "ABC Restaurant",
     "address": "123 Main St, City, State",
     "gstin": "29ABCDE1234F1Z5",
     "fssai_license": "12345678901234",
-    "bill_date": "2024-01-01",
+    "bill_date": "2026-01-01",
     "items": [
       {
         "id": "billitem-uuid-1",
@@ -3173,7 +3173,7 @@ curl -X POST http://localhost:8000/backup/sync \
     "total": 236.00,
     "payment_mode": "cash",
     "amount_paid": 236.00,
-    "timestamp": "2024-01-01T10:00:00Z"
+    "timestamp": "2026-01-01T10:00:00Z"
   },
   "device_id": "device-001"
 }
@@ -3190,13 +3190,13 @@ curl -X POST http://localhost:8000/backup/sync \
 ```json
 {
   "bill_data": {
-    "invoice_number": "INV-2024-018",
+    "invoice_number": "INV-2026-018",
     "billing_mode": "non_gst",
     "restaurant_name": "ABC Restaurant",
     "address": "123 Main St, City, State",
     "gstin": "29ABCDE1234F1Z5",
     "fssai_license": "12345678901234",
-    "bill_date": "2024-01-01",
+    "bill_date": "2026-01-01",
     "items": [
       {
         "id": "billitem-uuid-1",
@@ -3217,7 +3217,7 @@ curl -X POST http://localhost:8000/backup/sync \
     "total": 90.00,
     "payment_mode": "cash",
     "amount_paid": 90.00,
-    "timestamp": "2024-01-01T10:00:00Z"
+    "timestamp": "2026-01-01T10:00:00Z"
   },
   "device_id": "device-001"
 }
@@ -3353,9 +3353,9 @@ curl -X POST http://localhost:8000/backup/sync \
       "vendor": "550e8400-e29b-41d4-a716-446655440010",
       "vendor_name": "ABC Restaurant",
       "device_id": "device-001",
-      "invoice_number": "INV-2024-001",
-      "bill_number": "BN-2024-001",
-      "bill_date": "2024-01-01",
+      "invoice_number": "INV-2026-001",
+      "bill_number": "BN-2026-001",
+      "bill_date": "2026-01-01",
       "billing_mode": "gst",
       "restaurant_name": "ABC Restaurant",
       "address": "123 Main St",
@@ -3388,9 +3388,9 @@ curl -X POST http://localhost:8000/backup/sync \
       ],
       "item_count": 1,
       "total_quantity": 2.0,
-      "created_at": "2024-01-01T10:00:00Z",
-      "synced_at": "2024-01-01T10:00:00Z",
-      "updated_at": "2024-01-01T10:00:00Z"
+      "created_at": "2026-01-01T10:00:00Z",
+      "synced_at": "2026-01-01T10:00:00Z",
+      "updated_at": "2026-01-01T10:00:00Z"
     },
     ...
   ],
@@ -3440,8 +3440,8 @@ Get overall dashboard statistics including total bills, revenue, tax collected, 
   "vendor_id": "550e8400-e29b-41d4-a716-446655440000",
   "vendor_name": "ABC Restaurant",
   "date_range": {
-    "start_date": "2024-01-01",
-    "end_date": "2024-01-31"
+    "start_date": "2026-01-01",
+    "end_date": "2026-01-31"
   },
   "statistics": {
     "total_bills": 150,
@@ -3477,7 +3477,7 @@ Get overall dashboard statistics including total bills, revenue, tax collected, 
 
 **Example (cURL):**
 ```bash
-curl -X GET "http://localhost:8000/dashboard/stats/?start_date=2024-01-01&end_date=2024-01-31" \
+curl -X GET "http://localhost:8000/dashboard/stats/?start_date=2026-01-01&end_date=2026-01-31" \
   -H "Authorization: Token YOUR_TOKEN_HERE"
 ```
 
@@ -3501,8 +3501,8 @@ Get detailed sales analytics filtered by billing mode (GST/Non-GST) with daily b
 {
   "vendor_id": "550e8400-e29b-41d4-a716-446655440000",
   "date_range": {
-    "start_date": "2024-01-01",
-    "end_date": "2024-01-31"
+    "start_date": "2026-01-01",
+    "end_date": "2026-01-31"
   },
   "filters": {
     "billing_mode": "gst"
@@ -3518,13 +3518,13 @@ Get detailed sales analytics filtered by billing mode (GST/Non-GST) with daily b
   },
   "daily_breakdown": [
     {
-      "date": "2024-01-01",
+      "date": "2026-01-01",
       "bills_count": 10,
       "revenue": "3500.00",
       "tax": "533.90"
     },
     {
-      "date": "2024-01-02",
+      "date": "2026-01-02",
       "bills_count": 8,
       "revenue": "2800.00",
       "tax": "427.12"
@@ -3535,7 +3535,7 @@ Get detailed sales analytics filtered by billing mode (GST/Non-GST) with daily b
 
 **Example (cURL):**
 ```bash
-curl -X GET "http://localhost:8000/dashboard/sales/?billing_mode=gst&start_date=2024-01-01&end_date=2024-01-31" \
+curl -X GET "http://localhost:8000/dashboard/sales/?billing_mode=gst&start_date=2026-01-01&end_date=2026-01-31" \
   -H "Authorization: Token YOUR_TOKEN_HERE"
 ```
 
@@ -3560,8 +3560,8 @@ Get most/least sold dishes with sales statistics.
 {
   "vendor_id": "550e8400-e29b-41d4-a716-446655440000",
   "date_range": {
-    "start_date": "2024-01-01",
-    "end_date": "2024-01-31"
+    "start_date": "2026-01-01",
+    "end_date": "2026-01-31"
   },
   "sort": "most_sold",
   "items": [
@@ -3617,8 +3617,8 @@ Get transaction split by payment mode (Cash/Card/UPI/Credit/Other).
 {
   "vendor_id": "550e8400-e29b-41d4-a716-446655440000",
   "date_range": {
-    "start_date": "2024-01-01",
-    "end_date": "2024-01-31"
+    "start_date": "2026-01-01",
+    "end_date": "2026-01-31"
   },
   "summary": {
     "total_transactions": 150,
@@ -3649,7 +3649,7 @@ Get transaction split by payment mode (Cash/Card/UPI/Credit/Other).
 
 **Example (cURL):**
 ```bash
-curl -X GET "http://localhost:8000/dashboard/payments/?start_date=2024-01-01&end_date=2024-01-31" \
+curl -X GET "http://localhost:8000/dashboard/payments/?start_date=2026-01-01&end_date=2026-01-31" \
   -H "Authorization: Token YOUR_TOKEN_HERE"
 ```
 
@@ -3672,8 +3672,8 @@ Get total tax (GST) collected with breakdown by GST percentage.
 {
   "vendor_id": "550e8400-e29b-41d4-a716-446655440000",
   "date_range": {
-    "start_date": "2024-01-01",
-    "end_date": "2024-01-31"
+    "start_date": "2026-01-01",
+    "end_date": "2026-01-31"
   },
   "summary": {
     "gst_bills_count": 100,
@@ -3704,7 +3704,7 @@ Get total tax (GST) collected with breakdown by GST percentage.
 
 **Example (cURL):**
 ```bash
-curl -X GET "http://localhost:8000/dashboard/tax/?start_date=2024-01-01&end_date=2024-01-31" \
+curl -X GET "http://localhost:8000/dashboard/tax/?start_date=2026-01-01&end_date=2026-01-31" \
   -H "Authorization: Token YOUR_TOKEN_HERE"
 ```
 
@@ -3729,8 +3729,8 @@ Get net profit calculation (estimated based on revenue and cost assumptions).
 {
   "vendor_id": "550e8400-e29b-41d4-a716-446655440000",
   "date_range": {
-    "start_date": "2024-01-01",
-    "end_date": "2024-01-31"
+    "start_date": "2026-01-01",
+    "end_date": "2026-01-31"
   },
   "profit_calculation": {
     "total_revenue": "50000.00",
@@ -3746,7 +3746,7 @@ Get net profit calculation (estimated based on revenue and cost assumptions).
 
 **Example (cURL):**
 ```bash
-curl -X GET "http://localhost:8000/dashboard/profit/?start_date=2024-01-01&end_date=2024-01-31" \
+curl -X GET "http://localhost:8000/dashboard/profit/?start_date=2026-01-01&end_date=2026-01-31" \
   -H "Authorization: Token YOUR_TOKEN_HERE"
 ```
 
@@ -3769,8 +3769,8 @@ Get pending payments and outstanding dues (credit bills and partial payments).
 {
   "vendor_id": "550e8400-e29b-41d4-a716-446655440000",
   "date_range": {
-    "start_date": "2024-01-01",
-    "end_date": "2024-01-31"
+    "start_date": "2026-01-01",
+    "end_date": "2026-01-31"
   },
   "summary": {
     "total_pending_bills": 5,
@@ -3781,8 +3781,8 @@ Get pending payments and outstanding dues (credit bills and partial payments).
   "pending_bills": [
     {
       "bill_id": "770e8400-e29b-41d4-a716-446655440000",
-      "invoice_number": "INV-2024-006",
-      "bill_date": "2024-01-15",
+      "invoice_number": "INV-2026-006",
+      "bill_date": "2026-01-15",
       "customer_name": "John Doe",
       "customer_phone": "+91-9876543210",
       "total_amount": "590.00",
@@ -3793,8 +3793,8 @@ Get pending payments and outstanding dues (credit bills and partial payments).
     },
     {
       "bill_id": "770e8400-e29b-41d4-a716-446655440001",
-      "invoice_number": "INV-2024-010",
-      "bill_date": "2024-01-20",
+      "invoice_number": "INV-2026-010",
+      "bill_date": "2026-01-20",
       "customer_name": "Jane Smith",
       "customer_phone": "+91-9876543211",
       "total_amount": "1000.00",
@@ -3805,8 +3805,8 @@ Get pending payments and outstanding dues (credit bills and partial payments).
     },
     {
       "bill_id": "770e8400-e29b-41d4-a716-446655440002",
-      "invoice_number": "INV-2024-012",
-      "bill_date": "2024-01-18",
+      "invoice_number": "INV-2026-012",
+      "bill_date": "2026-01-18",
       "customer_name": "Bob Johnson",
       "customer_phone": "+91-9876543212",
       "total_amount": "1200.00",
@@ -3827,7 +3827,7 @@ curl -X GET "http://localhost:8000/dashboard/dues" \
 
 **Example 2: Get Pending Payments for Date Range (cURL):**
 ```bash
-curl -X GET "http://localhost:8000/dashboard/dues?start_date=2024-01-01&end_date=2024-01-31" \
+curl -X GET "http://localhost:8000/dashboard/dues?start_date=2026-01-01&end_date=2026-01-31" \
   -H "Authorization: Token YOUR_TOKEN_HERE"
 ```
 
@@ -4168,7 +4168,7 @@ for bill in data['pending_bills']:
     print(f"Days Pending: {bill['days_pending']}")
 
 # Get for date range
-data = get_pending_payments(token, start_date='2024-01-01', end_date='2024-01-31')
+data = get_pending_payments(token, start_date='2026-01-01', end_date='2026-01-31')
 ```
 
 **Note:** 
@@ -4217,8 +4217,8 @@ Backup device-specific settings per vendor.
     "currency": "INR",
     "theme": "dark"
   },
-  "last_updated": "2024-01-01T10:00:00Z",
-  "created_at": "2024-01-01T10:00:00Z"
+  "last_updated": "2026-01-01T10:00:00Z",
+  "created_at": "2026-01-01T10:00:00Z"
 }
 ```
 
@@ -4491,7 +4491,7 @@ curl -X POST http://localhost:8000/items/categories/sync \
         "name": "New Category",
         "sort_order": 1
       },
-      "timestamp": "2024-01-01T10:00:00Z"
+      "timestamp": "2026-01-01T10:00:00Z"
     },
     {
       "operation": "update",
@@ -4499,7 +4499,7 @@ curl -X POST http://localhost:8000/items/categories/sync \
         "id": "550e8400-e29b-41d4-a716-446655440001",
         "name": "Updated Category"
       },
-      "timestamp": "2024-01-01T11:00:00Z"
+      "timestamp": "2026-01-01T11:00:00Z"
     }
   ]'
 
@@ -4516,7 +4516,7 @@ curl -X POST http://localhost:8000/items/sync \
         "price": "25.00",
         "category_ids": ["550e8400-e29b-41d4-a716-446655440000"]
       },
-      "timestamp": "2024-01-01T10:00:00Z"
+      "timestamp": "2026-01-01T10:00:00Z"
     }
   ]'
 ```
@@ -4593,5 +4593,5 @@ curl -X POST http://localhost:8000/items/sync \
 
 ---
 
-**Last Updated:** 2024-01-01
+**Last Updated:** 2026-01-01
 
