@@ -6,7 +6,7 @@ import sys
 
 BASE_URL = 'http://localhost:8000'
 USERNAME = 'mobiledev'
-PASSWORD = 'mobiledev123'
+PASSWORD = 'mobile123'  # Password from populate_mobile_dev_data.py
 
 print("Testing API for pre-signed URLs...")
 print()
