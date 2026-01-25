@@ -214,7 +214,17 @@ def test_get_items(token):
                 print_info(f"  Price Type: {sample.get('price_type')}")
                 print_info(f"  GST: {sample.get('gst_percentage')}%")
                 print_info(f"  Veg/Nonveg: {sample.get('veg_nonveg')}")
-                print_info(f"  Image: {sample.get('image_url', 'None')[:60]}...")
+                img_url = sample.get('image_url', 'None')
+                if img_url and img_url != 'None':
+                    # Show if it's pre-signed (has query params)
+                    is_presigned = '?' in img_url and ('X-Amz' in img_url or 'X-Amz-Algorithm' in img_url)
+                    print_info(f"  Image: {img_url[:100]}...")
+                    if is_presigned:
+                        print_info(f"  ✓ Pre-signed URL detected")
+                    else:
+                        print_info(f"  ⚠ Direct URL (not pre-signed)")
+                else:
+                    print_info(f"  Image: None")
             
             return len(items)
         else:
