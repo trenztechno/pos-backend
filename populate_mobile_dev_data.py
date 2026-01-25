@@ -550,8 +550,21 @@ def create_comprehensive_items(vendor, categories):
             defaults=item_data
         )
         
-        # If item already exists, update image if it doesn't have one
-        if not created and not item.image:
+        # If item already exists, update image if it doesn't have one OR if image file doesn't exist in S3
+        should_update_image = not created and not item.image
+        if not should_update_image and item.image:
+            # Check if image file actually exists in S3
+            try:
+                from backend.s3_utils import get_s3_client
+                from django.conf import settings
+                s3_client = get_s3_client()
+                if s3_client:
+                    s3_client.head_object(Bucket=settings.AWS_STORAGE_BUCKET_NAME, Key=item.image.name)
+            except:
+                # File doesn't exist in S3, force update
+                should_update_image = True
+        
+        if should_update_image:
             try:
                 image_file = create_item_image(item_data['name'], veg_nonveg)
                 item.image = image_file
