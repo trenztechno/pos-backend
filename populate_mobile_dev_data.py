@@ -566,9 +566,10 @@ def create_comprehensive_items(vendor, categories):
         
         if should_update_image:
             try:
-                image_file = create_item_image(item_data['name'], veg_nonveg)
-                item.image = image_file
-                item.save()
+                image_file = download_food_image(item_data['name'], veg_nonveg)
+                if image_file:
+                    item.image = image_file
+                    item.save()
             except Exception as e:
                 print(f"  ⚠️ Could not add image to existing {item_data['name']}: {e}")
         
