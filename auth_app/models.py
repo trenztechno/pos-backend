@@ -57,6 +57,21 @@ class Vendor(models.Model):
         null=True,
         help_text="Hashed security PIN for accessing sensitive operations (user management, etc.)",
     )
+    # Bill Number Configuration (Server-controlled sequential numbering)
+    bill_prefix = models.CharField(
+        max_length=50,
+        blank=True,
+        null=True,
+        help_text="Prefix for bill numbers (e.g., 'INV', 'BILL', 'REST'). Format: {prefix}-{date}-{number}"
+    )
+    bill_starting_number = models.IntegerField(
+        default=1,
+        help_text="Starting bill number (to account for existing bills before system migration)"
+    )
+    last_bill_number = models.IntegerField(
+        default=0,
+        help_text="Last generated bill number (for sequential generation, auto-incremented)"
+    )
     is_approved = models.BooleanField(default=False)  # Admin approval status
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
