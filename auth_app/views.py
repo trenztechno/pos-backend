@@ -1,15 +1,44 @@
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.authtoken.models import Token
 from django.contrib.auth import authenticate
 from django.contrib.auth.models import User
 from django.conf import settings
-from .serializers import LoginSerializer, RegisterSerializer, ForgotPasswordSerializer, ResetPasswordSerializer, VendorProfileSerializer
-from .models import Vendor
+
+from .serializers import (
+    LoginSerializer,
+    RegisterSerializer,
+    ForgotPasswordSerializer,
+    ResetPasswordSerializer,
+    VendorProfileSerializer,
+)
+from .models import Vendor, VendorUser
 from backend.s3_utils import generate_presigned_url
-from rest_framework.permissions import IsAuthenticated
+
+
+def get_vendor_from_request(request):
+    """
+    Helper to resolve the vendor for the current authenticated user.
+
+    - Owner: via user.vendor_profile
+    - Staff: via VendorUser relation
+    """
+    if not request.user.is_authenticated:
+        return None
+    return Vendor.get_vendor_for_user(request.user)
+
+
+def is_vendor_owner(request, vendor=None):
+    """
+    Helper to check if the current user is the owner/admin of the vendor.
+    """
+    if vendor is None:
+        vendor = get_vendor_from_request(request)
+    if not vendor:
+        return False
+    return vendor.is_user_owner(request.user)
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
@@ -70,9 +99,9 @@ def login(request):
             'message': 'Login successful'
         }
         
-        # Add vendor-specific data if user is a vendor
-        try:
-            vendor = user.vendor_profile
+        # Add vendor-specific data if user is a vendor (owner or staff)
+        vendor = Vendor.get_vendor_for_user(user)
+        if vendor:
             vendor_data = {
                 'id': str(vendor.id),
                 'business_name': vendor.business_name,
@@ -105,8 +134,6 @@ def login(request):
                 vendor_data['logo_url'] = None
             vendor_data['footer_note'] = vendor.footer_note
             response_data['vendor'] = vendor_data
-        except Vendor.DoesNotExist:
-            pass  # Not a vendor, skip vendor data
         
         return Response(response_data, status=status.HTTP_200_OK)
     
@@ -237,12 +264,14 @@ def profile(request):
     
     Returns: Vendor profile with logo_url (pre-signed URL if S3 enabled)
     """
-    try:
-        vendor = request.user.vendor_profile
-    except Vendor.DoesNotExist:
-        return Response({
-            'error': 'Vendor profile not found. This endpoint is only for vendors.'
-        }, status=status.HTTP_403_FORBIDDEN)
+    vendor = get_vendor_from_request(request)
+    if not vendor:
+        return Response(
+            {
+                'error': 'Vendor profile not found. This endpoint is only for vendors.'
+            },
+            status=status.HTTP_403_FORBIDDEN,
+        )
     
     if request.method == 'GET':
         serializer = VendorProfileSerializer(vendor)
@@ -306,5 +335,206 @@ def profile(request):
         
         return Response({
             'error': 'Profile update failed',
-        'details': serializer.errors
-    }, status=status.HTTP_400_BAD_REQUEST)
+            'details': serializer.errors,
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def create_staff_user(request):
+    """
+    POST /auth/vendor/users/create
+
+    Vendor owner can create staff users (username + password) who can perform all
+    billing actions but cannot manage other users or access Django admin.
+    """
+    vendor = get_vendor_from_request(request)
+    if not vendor:
+        return Response({'error': 'Vendor not found'}, status=status.HTTP_403_FORBIDDEN)
+
+    if not is_vendor_owner(request, vendor):
+        return Response(
+            {'error': 'Only vendor owner can create staff users'},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
+    username = request.data.get('username')
+    password = request.data.get('password')
+    email = request.data.get('email')
+
+    if not username or not password:
+        return Response(
+            {'error': 'Username and password are required'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    if User.objects.filter(username=username).exists():
+        return Response(
+            {'error': 'Username already exists'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    # Create Django user for staff (no admin access)
+    user = User.objects.create_user(
+        username=username,
+        email=email or '',
+        password=password,
+        is_active=True,
+        is_staff=False,
+        is_superuser=False,
+    )
+
+    vendor_user = VendorUser.objects.create(
+        vendor=vendor,
+        user=user,
+        is_owner=False,
+        is_active=True,
+        created_by=request.user,
+    )
+
+    return Response(
+        {
+            'message': 'Staff user created successfully',
+            'user': {
+                'id': user.id,
+                'username': user.username,
+                'email': user.email,
+                'role': 'staff',
+                'created_at': vendor_user.created_at,
+            },
+        },
+        status=status.HTTP_201_CREATED,
+    )
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def list_vendor_users(request):
+    """
+    GET /auth/vendor/users
+
+    List all users (owner + staff) for the current vendor.
+    """
+    vendor = get_vendor_from_request(request)
+    if not vendor:
+        return Response({'error': 'Vendor not found'}, status=status.HTTP_403_FORBIDDEN)
+
+    vendor_users = vendor.vendor_users.filter(is_active=True).select_related('user')
+
+    return Response(
+        {
+            'users': [
+                {
+                    'id': vu.user.id,
+                    'username': vu.user.username,
+                    'email': vu.user.email,
+                    'role': 'owner' if vu.is_owner else 'staff',
+                    'created_at': vu.created_at,
+                    'created_by': vu.created_by.username if vu.created_by else None,
+                }
+                for vu in vendor_users
+            ]
+        },
+        status=status.HTTP_200_OK,
+    )
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def reset_staff_password(request, user_id):
+    """
+    POST /auth/vendor/users/<user_id>/reset-password
+
+    Vendor owner can reset password for a staff user.
+    Staff users do NOT have public forgot-password flow.
+    """
+    vendor = get_vendor_from_request(request)
+    if not vendor:
+        return Response({'error': 'Vendor not found'}, status=status.HTTP_403_FORBIDDEN)
+
+    if not is_vendor_owner(request, vendor):
+        return Response(
+            {'error': 'Only vendor owner can reset staff passwords'},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
+    try:
+        vendor_user = vendor.vendor_users.get(user_id=user_id, is_active=True)
+    except VendorUser.DoesNotExist:
+        return Response(
+            {'error': 'User not found in this vendor'},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    if vendor_user.is_owner:
+        return Response(
+            {
+                'error': 'Owner password must be reset via GST-based forgot-password flow.'
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    new_password = request.data.get('new_password')
+    if not new_password:
+        return Response(
+            {'error': 'new_password is required'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    vendor_user.user.set_password(new_password)
+    vendor_user.user.save()
+
+    # Invalidate tokens so staff must log in again with new password
+    Token.objects.filter(user=vendor_user.user).delete()
+
+    return Response(
+        {'message': 'Staff user password reset successfully'},
+        status=status.HTTP_200_OK,
+    )
+
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def remove_staff_user(request, user_id):
+    """
+    DELETE /auth/vendor/users/<user_id>
+
+    Vendor owner can deactivate a staff user (cannot remove owner).
+    """
+    vendor = get_vendor_from_request(request)
+    if not vendor:
+        return Response({'error': 'Vendor not found'}, status=status.HTTP_403_FORBIDDEN)
+
+    if not is_vendor_owner(request, vendor):
+        return Response(
+            {'error': 'Only vendor owner can remove staff users'},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
+    try:
+        vendor_user = vendor.vendor_users.get(user_id=user_id, is_active=True)
+    except VendorUser.DoesNotExist:
+        return Response(
+            {'error': 'User not found in this vendor'},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    if vendor_user.is_owner:
+        return Response(
+            {'error': 'Cannot remove owner account'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    vendor_user.is_active = False
+    vendor_user.save()
+
+    vendor_user.user.is_active = False
+    vendor_user.user.save()
+
+    # Invalidate tokens
+    Token.objects.filter(user=vendor_user.user).delete()
+
+    return Response(
+        {'message': 'Staff user removed successfully'},
+        status=status.HTTP_200_OK,
+    )

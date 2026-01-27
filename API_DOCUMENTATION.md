@@ -511,7 +511,7 @@ Verifies the username and GST number to initiate password reset flow. This is th
 ```
 
 **Error Responses:**
-
+  
 **Username Not Found (400):**
 ```json
 {
