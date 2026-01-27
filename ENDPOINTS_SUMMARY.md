@@ -22,6 +22,7 @@
 - **PATCH** `/auth/profile` - Update vendor profile (Auth required)
   - Use `multipart/form-data` to upload logo
   - Update business_name, phone, address, fssai_license, footer_note
+  - Set `cgst_percentage` and `sgst_percentage` for vendor-level flat GST rates (e.g., 2.5% + 2.5%)
 - **POST** `/auth/forgot-password` - Verify phone number for password reset (No auth)
 - **POST** `/auth/reset-password` - Reset password using phone number (No auth)
 - **POST** `/auth/logout` - Logout (Auth required)

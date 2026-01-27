@@ -421,7 +421,9 @@ Content-Type: application/json     (when updating text fields only)
   "fssai_license": "12345678901234",
   "footer_note": "Thank you for visiting!",
   "bill_prefix": "INV",
-  "bill_starting_number": 100
+  "bill_starting_number": 100,
+  "cgst_percentage": 2.5,
+  "sgst_percentage": 2.5
 }
 ```
 
@@ -434,6 +436,8 @@ fssai_license: 12345678901234
 footer_note: Thank you for visiting!
 bill_prefix: INV
 bill_starting_number: 100
+cgst_percentage: 2.5
+sgst_percentage: 2.5
 logo: <file>  (JPG, PNG, WebP)
 ```
 
@@ -444,6 +448,20 @@ logo: <file>  (JPG, PNG, WebP)
 - `bill_prefix`: Prefix for bill numbers (e.g., "INV", "BILL", "REST"). Format: `{prefix}-{date}-{number}` (e.g., "INV-2026-01-27-0001")
 - `bill_starting_number`: Starting bill number (to account for existing bills before system migration). **Can only be set once before any bills are created.** Cannot be changed after bills exist.
 - `last_bill_number`: Read-only field showing the last generated bill number (auto-incremented by server)
+- `cgst_percentage`: Vendor-level CGST percentage (e.g., 2.5 for 2.5%). **If set, bills automatically calculate CGST on subtotal using this rate.** Leave 0 or null to use product-level GST calculations.
+- `sgst_percentage`: Vendor-level SGST percentage (e.g., 2.5 for 2.5%). **If set, bills automatically calculate SGST on subtotal using this rate.** Leave 0 or null to use product-level GST calculations.
+
+**Vendor-Level GST Rates (Flat Rate System):**
+- Many restaurants/cafes in India use a **flat CGST/SGST rate** (e.g., 2.5% + 2.5% = 5% total) applied to the entire bill subtotal
+- When `cgst_percentage` and `sgst_percentage` are set on the vendor profile, the system automatically calculates taxes on bill creation:
+  - `cgst_amount = subtotal × (cgst_percentage / 100)`
+  - `sgst_amount = subtotal × (sgst_percentage / 100)`
+  - `total_tax = cgst_amount + sgst_amount`
+- This is useful for restaurants where:
+  - Products have MRP that already includes taxes
+  - Restaurant applies a flat service tax/GST rate on the entire bill
+  - Product-level GST percentages are set to 0%
+- If vendor-level rates are **not set** (0 or null), the system uses product-level GST calculations (existing behavior)
 
 **Success Response (200):**
 ```json
@@ -5020,10 +5038,20 @@ curl -X POST http://localhost:8000/backup/sync \
 - `footer_note`: Footer note to display on bill (from vendor.footer_note)
 
 **For GST Bills (`billing_mode: "gst"`):**
-- `cgst`: Central GST amount (required for intra-state)
-- `sgst`: State GST amount (required for intra-state)
-- `igst`: Integrated GST amount (required for inter-state, 0 for intra-state)
-- `total_tax`: Sum of all taxes (cgst + sgst + igst)
+
+**Tax Calculation (Automatic if Vendor-Level Rates Set):**
+- If vendor has `cgst_percentage` and `sgst_percentage` set in profile, server **automatically calculates**:
+  - `cgst_amount = subtotal × (cgst_percentage / 100)`
+  - `sgst_amount = subtotal × (sgst_percentage / 100)`
+  - `total_tax = cgst_amount + sgst_amount`
+  - `igst_amount = 0` (intra-state only)
+- If vendor-level rates are **not set** (0 or null), provide tax values manually:
+  - `cgst`: Central GST amount (for intra-state)
+  - `sgst`: State GST amount (for intra-state)
+  - `igst`: Integrated GST amount (for inter-state, 0 for intra-state)
+  - `total_tax`: Sum of all taxes (cgst + sgst + igst)
+
+**Note:** Vendor-level rates are ideal for restaurants/cafes with flat GST rates (e.g., 2.5% CGST + 2.5% SGST = 5% total). Set product-level `gst_percentage` to 0% when using vendor-level rates.
 
 **For Non-GST Bills (`billing_mode: "non_gst"`):**
 - No tax fields required

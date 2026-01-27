@@ -436,6 +436,53 @@ class BillListView(APIView):
         else:
             bill_date = timezone.now().date()
         
+        # Calculate subtotal from items if not provided
+        items_data = request.data.get('items_data', [])
+        calculated_subtotal = Decimal('0')
+        if items_data:
+            for item in items_data:
+                # Get subtotal directly if provided, otherwise calculate from mrp_price and quantity
+                if 'subtotal' in item:
+                    item_subtotal = Decimal(str(item.get('subtotal', 0)))
+                else:
+                    mrp_price = Decimal(str(item.get('mrp_price', 0)))
+                    quantity = Decimal(str(item.get('quantity', 1)))
+                    item_subtotal = mrp_price * quantity
+                calculated_subtotal += item_subtotal
+        
+        # Use provided subtotal or calculated subtotal
+        subtotal = Decimal(str(request.data.get('subtotal', calculated_subtotal)))
+        
+        # Calculate taxes based on vendor-level rates or client-provided values
+        billing_mode = request.data.get('billing_mode', 'gst')
+        cgst_amount = Decimal('0')
+        sgst_amount = Decimal('0')
+        igst_amount = Decimal('0')
+        total_tax = Decimal('0')
+        
+        if billing_mode == 'gst':
+            # Check if vendor has CGST/SGST percentages set (vendor-level flat rate)
+            vendor_cgst = Decimal(str(vendor.cgst_percentage or 0))
+            vendor_sgst = Decimal(str(vendor.sgst_percentage or 0))
+            if vendor_cgst > 0 and vendor_sgst > 0:
+                # Use vendor-level flat rates (for restaurants/cafes with fixed rates)
+                # Calculate CGST and SGST on subtotal
+                cgst_amount = (subtotal * vendor_cgst / 100).quantize(Decimal('0.01'))
+                sgst_amount = (subtotal * vendor_sgst / 100).quantize(Decimal('0.01'))
+                igst_amount = Decimal('0')  # Intra-state only (CGST + SGST)
+                total_tax = cgst_amount + sgst_amount
+            else:
+                # Use client-provided tax values (product-level GST or manual calculation)
+                cgst_amount = Decimal(str(request.data.get('cgst', request.data.get('cgst_amount', 0))))
+                sgst_amount = Decimal(str(request.data.get('sgst', request.data.get('sgst_amount', 0))))
+                igst_amount = Decimal(str(request.data.get('igst', request.data.get('igst_amount', 0))))
+                total_tax = Decimal(str(request.data.get('total_tax', cgst_amount + sgst_amount + igst_amount)))
+        
+        # Calculate total amount
+        total_amount = subtotal + total_tax
+        if request.data.get('total') or request.data.get('total_amount'):
+            total_amount = Decimal(str(request.data.get('total', request.data.get('total_amount', total_amount))))
+        
         # Prepare bill data
         bill_data = {
             'vendor': vendor.id,  # Pass vendor UUID (DRF handles UUID objects)
@@ -453,13 +500,13 @@ class BillListView(APIView):
             'customer_phone': request.data.get('customer_phone'),
             'customer_email': request.data.get('customer_email'),
             'customer_address': request.data.get('customer_address'),
-            'billing_mode': request.data.get('billing_mode', 'gst'),
-            'subtotal': Decimal(str(request.data.get('subtotal', 0))),
-            'total_amount': Decimal(str(request.data.get('total', request.data.get('total_amount', 0)))),
-            'total_tax': Decimal(str(request.data.get('total_tax', 0))),
-            'cgst_amount': Decimal(str(request.data.get('cgst', 0))),
-            'sgst_amount': Decimal(str(request.data.get('sgst', 0))),
-            'igst_amount': Decimal(str(request.data.get('igst', 0))),
+            'billing_mode': billing_mode,
+            'subtotal': subtotal,
+            'total_amount': total_amount,
+            'total_tax': total_tax,
+            'cgst_amount': cgst_amount,
+            'sgst_amount': sgst_amount,
+            'igst_amount': igst_amount,
             'payment_mode': request.data.get('payment_mode', 'cash'),
             'payment_reference': request.data.get('payment_reference'),
             'amount_paid': Decimal(str(request.data.get('amount_paid', 0))) if request.data.get('amount_paid') else None,
@@ -472,7 +519,7 @@ class BillListView(APIView):
         }
         
         # Use serializer to create bill with items
-        serializer = BillSerializer(data={**bill_data, 'items_data': request.data.get('items_data', [])})
+        serializer = BillSerializer(data={**bill_data, 'items_data': items_data})
         
         if serializer.is_valid():
             # Vendor is in bill_data - serializer will handle it

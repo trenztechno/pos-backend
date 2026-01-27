@@ -1,7 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import User
 from django.contrib.auth.hashers import make_password, check_password
-from django.core.validators import FileExtensionValidator
+from django.core.validators import FileExtensionValidator, MinValueValidator, MaxValueValidator
 import uuid
 import os
 
@@ -71,6 +71,27 @@ class Vendor(models.Model):
     last_bill_number = models.IntegerField(
         default=0,
         help_text="Last generated bill number (for sequential generation, auto-incremented)"
+    )
+    # Vendor-Level GST Rates (for flat rate restaurants/cafes)
+    # If set, bills will automatically calculate CGST/SGST using these rates on subtotal
+    # Common rates: 2.5% CGST + 2.5% SGST = 5% total, or 3% + 3% = 6% total
+    cgst_percentage = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=0,
+        blank=True,
+        null=True,
+        validators=[MinValueValidator(0), MaxValueValidator(100)],
+        help_text="Vendor-level CGST percentage (e.g., 2.5 for 2.5%). If set, bills automatically calculate CGST on subtotal. Leave 0 or null to use product-level GST."
+    )
+    sgst_percentage = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=0,
+        blank=True,
+        null=True,
+        validators=[MinValueValidator(0), MaxValueValidator(100)],
+        help_text="Vendor-level SGST percentage (e.g., 2.5 for 2.5%). If set, bills automatically calculate SGST on subtotal. Leave 0 or null to use product-level GST."
     )
     is_approved = models.BooleanField(default=False)  # Admin approval status
     created_at = models.DateTimeField(auto_now_add=True)
