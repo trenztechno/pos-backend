@@ -412,7 +412,9 @@ Content-Type: application/json     (when updating text fields only)
   "phone": "+1234567890",
   "address": "Updated Address, City",
   "fssai_license": "12345678901234",
-  "footer_note": "Thank you for visiting!"
+  "footer_note": "Thank you for visiting!",
+  "bill_prefix": "INV",
+  "bill_starting_number": 100
 }
 ```
 
@@ -423,6 +425,8 @@ phone: +1234567890
 address: Updated Address, City
 fssai_license: 12345678901234
 footer_note: Thank you for visiting!
+bill_prefix: INV
+bill_starting_number: 100
 logo: <file>  (JPG, PNG, WebP)
 ```
 
@@ -430,6 +434,9 @@ logo: <file>  (JPG, PNG, WebP)
 - All fields are optional (partial update supported)
 - `logo`: Image file (JPG, PNG, WebP) - optional
 - `gst_no`: Cannot be changed (read-only)
+- `bill_prefix`: Prefix for bill numbers (e.g., "INV", "BILL", "REST"). Format: `{prefix}-{date}-{number}` (e.g., "INV-2026-01-27-0001")
+- `bill_starting_number`: Starting bill number (to account for existing bills before system migration). **Can only be set once before any bills are created.** Cannot be changed after bills exist.
+- `last_bill_number`: Read-only field showing the last generated bill number (auto-incremented by server)
 
 **Success Response (200):**
 ```json
@@ -445,9 +452,22 @@ logo: <file>  (JPG, PNG, WebP)
     "fssai_license": "12345678901234",
     "logo_url": "https://bucket.s3.region.amazonaws.com/vendors/.../logo.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Expires=3600&...",
     "footer_note": "Thank you for visiting!",
+    "bill_prefix": "INV",
+    "bill_starting_number": 100,
+    "last_bill_number": 150,
     "is_approved": true,
     "created_at": "2026-01-01T10:00:00Z",
     "updated_at": "2026-01-01T10:05:00Z"
+  }
+}
+```
+
+**Error Response (400) - Changing bill_starting_number after bills exist:**
+```json
+{
+  "error": "Cannot change bill_starting_number after bills have been created. Please contact admin if you need to reset bill numbering.",
+  "details": {
+    "bill_starting_number": ["Cannot change starting number after bills exist"]
   }
 }
 ```
@@ -463,6 +483,24 @@ curl -X PATCH http://localhost:8000/auth/profile \
     "address": "Updated Address"
   }'
 ```
+
+**Example (cURL - configure bill numbering):**
+```bash
+# Set bill prefix and starting number (one-time setup, before creating bills)
+curl -X PATCH http://localhost:8000/auth/profile \
+  -H "Authorization: Token YOUR_TOKEN_HERE" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "bill_prefix": "INV",
+    "bill_starting_number": 100
+  }'
+```
+
+**Note:** 
+- `bill_prefix` and `bill_starting_number` should be set **once** before creating bills
+- `bill_starting_number` cannot be changed after bills have been created
+- Server generates all bill numbers in format: `{prefix}-{date}-{number}` (e.g., "INV-2026-01-27-0100")
+- All devices will receive server-generated bill numbers to ensure sequential numbering
 
 **Example (cURL - upload logo):**
 ```bash
@@ -3427,7 +3465,7 @@ Create a new bill directly on the server. Invoice number is auto-generated if no
 - `bill_date` (optional): Bill date (YYYY-MM-DD), defaults to today
 - `billing_mode` (required): `"gst"` or `"non_gst"`
 - `items_data` (required): Array of bill items
-- `invoice_number` (optional): Auto-generated if not provided
+- `invoice_number` (ignored): Server always generates this - do not provide
 - All other fields are optional
 
 **Success Response (201):**
@@ -3719,7 +3757,7 @@ Create a new bill directly on the server. Invoice number is auto-generated if no
 - `bill_date` (optional): Bill date (YYYY-MM-DD), defaults to today
 - `billing_mode` (required): `"gst"` or `"non_gst"`
 - `items_data` (required): Array of bill items
-- `invoice_number` (optional): Auto-generated if not provided
+- `invoice_number` (ignored): Server always generates this - do not provide
 - All other fields are optional
 
 **Success Response (201):**
@@ -3996,7 +4034,17 @@ curl -X GET "http://localhost:8000/backup/sync?start_date=2026-01-01&end_date=20
 
 **Requires authentication + vendor approval**
 
-Batch upload sales/bill data. Accepts single bill or array of bills. Server acts as passive receiver - no validation. Bills are stored in a structured, extendable format (Bill and BillItem models) for future business logic.
+Batch upload sales/bill data for syncing between devices. Accepts single bill or array of bills.
+
+**Bill Numbering Behavior:**
+- **If `invoice_number` is provided:** Server checks if bill exists (for syncing existing bills). If exists, skips. If new, uses provided number.
+- **If `invoice_number` is NOT provided:** Server generates new sequential number (for new bills created on mobile). Server returns generated number in response.
+
+**Important for Multi-Device Sync:**
+- When creating bills offline on mobile, **do not provide `invoice_number`** - let server generate it
+- Server ensures sequential numbering across all devices
+- When syncing, server returns the generated `invoice_number` - save it locally
+- For syncing old bills (before migration), you can provide `invoice_number` to preserve existing numbers
 
 **Request Body (Single Bill):**
 
@@ -4930,7 +4978,7 @@ curl -X POST http://localhost:8000/backup/sync \
 **Bill Data Structure (Complete):**
 
 **Required Fields (All Bills):**
-- `invoice_number`: Auto-generated invoice number (sequential, syncs with GST and non-GST bills)
+- `invoice_number`: **Server-generated** invoice number (sequential, format: `{prefix}-{date}-{number}`). Client should NOT provide this - server generates it automatically.
 - `bill_id`: Unique bill identifier (UUID)
 - `billing_mode`: `"gst"` or `"non_gst"` - Determines if GST calculations are applied
 - `restaurant_name`: Restaurant/Vendor business name

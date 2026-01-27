@@ -304,6 +304,22 @@ def profile(request):
         serializer = VendorProfileSerializer(vendor, data=request.data, partial=True)
         
         if serializer.is_valid():
+            # Validate bill_starting_number: can only be set if no bills exist yet
+            bill_starting_number = serializer.validated_data.get('bill_starting_number')
+            if bill_starting_number is not None:
+                from sales.models import Bill
+                existing_bills_count = Bill.objects.filter(vendor=vendor).count()
+                if existing_bills_count > 0 and vendor.bill_starting_number != bill_starting_number:
+                    return Response({
+                        'error': 'Cannot change bill_starting_number after bills have been created. Please contact admin if you need to reset bill numbering.',
+                        'details': {
+                            'bill_starting_number': ['Cannot change starting number after bills exist']
+                        }
+                    }, status=status.HTTP_400_BAD_REQUEST)
+                # If setting starting number for first time and last_bill_number is 0, initialize it
+                if vendor.last_bill_number == 0 and bill_starting_number > 0:
+                    vendor.last_bill_number = bill_starting_number - 1
+            
             serializer.save()
             
             # Get updated data with logo_url

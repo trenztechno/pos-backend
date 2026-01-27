@@ -86,6 +86,7 @@
 
 ### Bills (Direct CRUD Operations)
 - **GET** `/bills/` - List all bills (Auth required)
+  - **Note:** All bill numbers are server-generated in format: `{prefix}-{date}-{number}`
   - Query params: 
     - `billing_mode` (`gst` or `non_gst`) - Filter by billing mode
     - `start_date` (YYYY-MM-DD) - Filter bills from this date
@@ -96,8 +97,8 @@
   - Returns: Paginated list of Bill objects
 - **POST** `/bills/` - Create a new bill (Auth required)
   - Body: Bill object with `items_data` array
-  - Auto-generates invoice number if not provided
-  - Returns: Created Bill object with nested BillItem objects
+  - **Server always generates invoice number** (client cannot provide it)
+  - Returns: Created Bill object with server-generated `invoice_number`
 - **GET** `/bills/<uuid:id>/` - Get bill details (Auth required)
   - Returns: Bill object with nested BillItem objects
 - **PATCH** `/bills/<uuid:id>/` - Update bill (Auth required)

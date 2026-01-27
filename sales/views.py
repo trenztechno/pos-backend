@@ -154,19 +154,28 @@ class SalesSyncView(APIView):
                 device_id = bill_request.get('device_id', '')
                 bill_data = bill_request.get('bill_data', bill_request)
                 
-                # Extract bill header data
-                invoice_number = bill_data.get('invoice_number') or bill_data.get('bill_id', str(uuid.uuid4()))
+                # Extract invoice number from bill_data (if provided, for syncing existing bills)
+                # If not provided, server generates new number (for new bills)
+                invoice_number = bill_data.get('invoice_number')
                 
-                # Check if bill already exists (prevent duplicates)
-                existing_bill = Bill.objects.filter(
-                    vendor=vendor,
-                    invoice_number=invoice_number
-                ).first()
-                
-                if existing_bill:
-                    # Bill already exists, skip or update
-                    created_bills.append(BillSerializer(existing_bill).data)
-                    continue
+                # If invoice_number provided, check if bill already exists (for syncing existing bills)
+                if invoice_number:
+                    existing_bill = Bill.objects.filter(
+                        vendor=vendor,
+                        invoice_number=invoice_number
+                    ).first()
+                    
+                    if existing_bill:
+                        # Bill already exists, skip (already synced)
+                        created_bills.append(BillSerializer(existing_bill).data)
+                        continue
+                else:
+                    # No invoice_number provided - server generates new number (new bill from mobile)
+                    invoice_number, bill_number = generate_bill_number(vendor)
+                    # Update bill_data with server-generated numbers
+                    bill_data['invoice_number'] = invoice_number
+                    if not bill_data.get('bill_number'):
+                        bill_data['bill_number'] = bill_number
                 
                 # Parse bill date
                 bill_date_str = bill_data.get('bill_date')
@@ -407,12 +416,9 @@ class BillListView(APIView):
         # Get device_id from request (optional)
         device_id = request.data.get('device_id', '')
         
-        # Generate invoice number if not provided
-        invoice_number = request.data.get('invoice_number')
-        bill_number = request.data.get('bill_number')
-        
-        if not invoice_number:
-            invoice_number, bill_number = generate_bill_number(vendor)
+        # Server always generates invoice number (client cannot provide it)
+        # This ensures sequential numbering across all devices
+        invoice_number, bill_number = generate_bill_number(vendor)
         
         # Parse bill date
         bill_date_str = request.data.get('bill_date')

@@ -212,6 +212,9 @@ class VendorProfileSerializer(serializers.ModelSerializer):
     """Serializer for vendor profile (GET/PATCH)"""
     username = serializers.CharField(source='user.username', read_only=True)
     email = serializers.EmailField(source='user.email', read_only=True)
+    bill_prefix = serializers.CharField(required=False, allow_blank=True, max_length=50, help_text="Prefix for bill numbers (e.g., 'INV', 'BILL', 'REST')")
+    bill_starting_number = serializers.IntegerField(required=False, min_value=1, help_text="Starting bill number (to account for existing bills before system migration)")
+    last_bill_number = serializers.IntegerField(read_only=True, help_text="Last generated bill number (read-only, auto-incremented by server)")
     
     class Meta:
         model = Vendor
@@ -220,9 +223,10 @@ class VendorProfileSerializer(serializers.ModelSerializer):
             'business_name', 'phone', 'address',
             'gst_no', 'fssai_license',
             'logo', 'footer_note',
+            'bill_prefix', 'bill_starting_number', 'last_bill_number',
             'is_approved', 'created_at', 'updated_at'
         ]
-        read_only_fields = ['id', 'is_approved', 'created_at', 'updated_at', 'gst_no']  # GST cannot be changed
+        read_only_fields = ['id', 'is_approved', 'created_at', 'updated_at', 'gst_no', 'last_bill_number']  # GST and last_bill_number cannot be changed
     
     def validate_gst_no(self, value):
         """GST number cannot be changed via API (read-only)"""
