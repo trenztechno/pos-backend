@@ -16,6 +16,7 @@
   - Required fields: username, email, password, password_confirm, business_name, phone, gst_no, address
 - **POST** `/auth/login` - Login and get token (No auth)
   - Returns vendor object with `logo_url` (pre-signed URL if S3 enabled)
+  - **Token is permanent** - same token reused on each login, never expires automatically
 - **GET** `/auth/profile` - Get vendor profile (Auth required)
   - Returns business details and logo URL
 - **PATCH** `/auth/profile` - Update vendor profile (Auth required)

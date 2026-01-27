@@ -84,11 +84,18 @@ def login(request):
     NOTE: Login does NOT require phone number. Vendors can login with just username and password.
     Phone number is only required for password reset, not for login.
     This ensures backward compatibility with existing vendors.
+    
+    TOKEN PERMANENCE: Tokens are permanent and never expire automatically.
+    - If user already has a token, the same token is returned (reused)
+    - Token is only deleted when user explicitly logs out or password is reset
+    - Users stay logged in indefinitely unless they logout manually
     """
     serializer = LoginSerializer(data=request.data)
     
     if serializer.is_valid():
         user = serializer.validated_data['user']
+        # get_or_create ensures tokens are permanent - reuses existing token if it exists
+        # Token is only deleted on explicit logout or password reset
         token, created = Token.objects.get_or_create(user=user)
         
         # Get vendor profile if exists (for vendors)

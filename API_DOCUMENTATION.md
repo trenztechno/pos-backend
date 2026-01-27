@@ -6,6 +6,11 @@
 
 **Authentication:** All endpoints (except `/health/`, `/auth/login`, `/auth/register`, `/auth/forgot-password`, and `/auth/reset-password`) require Token Authentication.
 
+**Token Permanence:** Authentication tokens are **permanent and never expire automatically**. Users stay logged in indefinitely unless they explicitly logout. The same token is reused on each login - tokens are only deleted when:
+- User explicitly logs out (POST /auth/logout)
+- Password is reset (for security)
+- Staff user is removed by owner
+
 **Billing Modes:** The system supports per-bill billing modes (not vendor-specific):
 - **GST Billing** (`"gst"`): GST calculations are applied to the bill (CGST, SGST, IGST)
 - **Non-GST Billing** (`"non_gst"`): No GST calculations are applied
@@ -251,6 +256,8 @@ curl -X POST http://localhost:8000/auth/register \
 
 Login to get an authentication token. Only approved vendors can login.
 Both **vendor owners** and **vendor staff users** use this same endpoint.
+
+**Token Permanence:** Tokens are **permanent and never expire automatically**. The same token is returned on each login (reused if it exists). Users stay logged in indefinitely unless they explicitly logout via `POST /auth/logout`.
 
 **Request Body:**
 ```json

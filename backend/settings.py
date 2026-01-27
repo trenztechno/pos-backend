@@ -213,5 +213,14 @@ REST_FRAMEWORK = {
     'EXCEPTION_HANDLER': 'backend.exceptions.custom_exception_handler',
 }
 
+# Token Authentication Settings
+# Tokens are PERMANENT and never expire automatically
+# - Tokens are reused on login (get_or_create pattern)
+# - Tokens are only deleted when:
+#   1. User explicitly logs out (POST /auth/logout)
+#   2. Password is reset (for security)
+#   3. Staff user is removed by owner
+# Users stay logged in indefinitely unless they logout manually
+
 # Logging Configuration
 from .logging_config import LOGGING
