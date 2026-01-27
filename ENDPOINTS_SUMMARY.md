@@ -119,7 +119,9 @@
     - `end_date` (YYYY-MM-DD) - Filter bills until this date
   - Returns: Array of Bill objects with nested BillItem objects
 - **POST** `/backup/sync` - Batch upload sales/bill data (Auth required)
-  - **Purpose:** For syncing bills created offline on mobile devices
+  - **Purpose:** For syncing existing bills between devices (not for creating new bills)
+  - **Important:** `invoice_number` is REQUIRED - this endpoint only accepts bills with existing invoice numbers
+  - To create new bills, use `POST /bills/` which automatically generates invoice numbers
   - Accepts: Single bill object or array of bills
   - Format: `{ device_id, bill_data: {...} }` or `[{ device_id, bill_data: {...} }, ...]`
   - **Billing Modes:**

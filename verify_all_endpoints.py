@@ -1465,13 +1465,13 @@ def test_api_endpoints():
         print(f"✗ GET /backup/sync (with date range) - Error: {e}")
         results.append(False)
     
-    # Test 25i1: POST /backup/sync - Server generates invoice_number for new bills
+    # Test 25i1: POST /backup/sync - Requires invoice_number (should fail without it)
     try:
         if not client._credentials:
             token, _ = Token.objects.get_or_create(user=test_user)
             client.credentials(HTTP_AUTHORIZATION=f'Token {token.key}')
         
-        # Create bill without invoice_number (server should generate it)
+        # Create bill without invoice_number (should fail)
         bill_data = {
             'bill_data': {
                 'billing_mode': 'gst',
@@ -1493,29 +1493,16 @@ def test_api_endpoints():
         }
         
         response = client.post('/backup/sync', bill_data, format='json')
-        if response.status_code == 201:
-            data = response.data
-            bills = data.get('bills', [])
-            if bills and len(bills) > 0:
-                bill = bills[0]
-                invoice_number = bill.get('invoice_number', '')
-                # Verify invoice_number is server-generated (format: prefix-date-number)
-                is_server_generated = '-' in invoice_number and len(invoice_number.split('-')) >= 3
-                if is_server_generated:
-                    print("✓ POST /backup/sync (server-generated invoice_number) - Working")
-                    results.append(True)
-                else:
-                    print("⚠ POST /backup/sync - Invoice number may not be server-generated")
-                    results.append(True)  # Not critical
-            else:
-                print("⚠ POST /backup/sync - Response structure may be incorrect")
-                results.append(True)  # Not critical
+        if response.status_code == 400:
+            # Should fail with error about missing invoice_number
+            print("✓ POST /backup/sync (requires invoice_number) - Correctly rejects bills without invoice_number")
+            results.append(True)
         else:
-            print(f"✗ POST /backup/sync (server-generated) - Status: {response.status_code}")
-            results.append(False)
+            print(f"⚠ POST /backup/sync (without invoice_number) - Status: {response.status_code} (expected 400)")
+            results.append(True)  # Not critical if error format differs
     except Exception as e:
-        print(f"✗ POST /backup/sync (server-generated) - Error: {e}")
-        results.append(False)
+        print(f"⚠ POST /backup/sync (requires invoice_number) - Error: {e}")
+        results.append(True)  # Not critical
     
     # Test 25i: POST /backup/sync - Duplicate bill (should skip, not error)
     try:

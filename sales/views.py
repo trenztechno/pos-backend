@@ -154,28 +154,28 @@ class SalesSyncView(APIView):
                 device_id = bill_request.get('device_id', '')
                 bill_data = bill_request.get('bill_data', bill_request)
                 
-                # Extract invoice number from bill_data (if provided, for syncing existing bills)
-                # If not provided, server generates new number (for new bills)
+                # Extract invoice number from bill_data (required for syncing)
+                # POST /backup/sync only accepts bills with invoice_number (for syncing existing bills)
+                # For creating new bills, use POST /bills/ which generates invoice_number automatically
                 invoice_number = bill_data.get('invoice_number')
                 
-                # If invoice_number provided, check if bill already exists (for syncing existing bills)
-                if invoice_number:
-                    existing_bill = Bill.objects.filter(
-                        vendor=vendor,
-                        invoice_number=invoice_number
-                    ).first()
-                    
-                    if existing_bill:
-                        # Bill already exists, skip (already synced)
-                        created_bills.append(BillSerializer(existing_bill).data)
-                        continue
-                else:
-                    # No invoice_number provided - server generates new number (new bill from mobile)
-                    invoice_number, bill_number = generate_bill_number(vendor)
-                    # Update bill_data with server-generated numbers
-                    bill_data['invoice_number'] = invoice_number
-                    if not bill_data.get('bill_number'):
-                        bill_data['bill_number'] = bill_number
+                if not invoice_number:
+                    errors.append({
+                        'bill': bill_data.get('bill_id', 'unknown'),
+                        'error': 'invoice_number is required for syncing. Use POST /bills/ to create new bills.'
+                    })
+                    continue
+                
+                # Check if bill already exists (prevent duplicates)
+                existing_bill = Bill.objects.filter(
+                    vendor=vendor,
+                    invoice_number=invoice_number
+                ).first()
+                
+                if existing_bill:
+                    # Bill already exists, skip (already synced)
+                    created_bills.append(BillSerializer(existing_bill).data)
+                    continue
                 
                 # Parse bill date
                 bill_date_str = bill_data.get('bill_date')
