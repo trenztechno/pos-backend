@@ -12,7 +12,7 @@
 - Staff user is removed by owner
 
 **Billing Modes:** The system supports per-bill billing modes (not vendor-specific):
-- **GST Billing** (`"gst"`): GST calculations are applied to the bill (CGST, SGST, IGST)
+- **GST Billing** (`"gst"`): GST calculations are applied to the bill (CGST, SGST for intra-state; IGST for inter-state). Vendors can configure vendor-level flat CGST/SGST rates for intra-state transactions.
 - **Non-GST Billing** (`"non_gst"`): No GST calculations are applied
 
 Each bill can be either GST or Non-GST. The `billing_mode` field in the bill data determines how taxes are calculated. Vendors can create both types of bills.
@@ -375,10 +375,15 @@ Authorization: Token <your_token>
   "business_name": "ABC Restaurant",
   "phone": "+1234567890",
   "address": "123 Main St, City",
-  "phone": "+919876543210",
+  "gst_no": "29ABCDE1234F1Z5",
   "fssai_license": "12345678901234",
   "logo_url": "https://bucket.s3.region.amazonaws.com/vendors/.../logo.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Expires=3600&...",
   "footer_note": "Thank you for visiting!",
+  "bill_prefix": "INV",
+  "bill_starting_number": 1,
+  "last_bill_number": 42,
+  "cgst_percentage": "2.50",
+  "sgst_percentage": "2.50",
   "is_approved": true,
   "created_at": "2026-01-01T10:00:00Z",
   "updated_at": "2026-01-01T10:00:00Z"
@@ -457,6 +462,8 @@ logo: <file>  (JPG, PNG, WebP)
   - `cgst_amount = subtotal × (cgst_percentage / 100)`
   - `sgst_amount = subtotal × (sgst_percentage / 100)`
   - `total_tax = cgst_amount + sgst_amount`
+  - `igst_amount = 0` (vendor-level rates are for intra-state transactions only)
+- **Note:** Vendor-level rates are for **intra-state transactions only**. For inter-state transactions, use product-level GST with IGST calculation.
 - This is useful for restaurants where:
   - Products have MRP that already includes taxes
   - Restaurant applies a flat service tax/GST rate on the entire bill
@@ -480,6 +487,8 @@ logo: <file>  (JPG, PNG, WebP)
     "bill_prefix": "INV",
     "bill_starting_number": 100,
     "last_bill_number": 150,
+    "cgst_percentage": "2.50",
+    "sgst_percentage": "2.50",
     "is_approved": true,
     "created_at": "2026-01-01T10:00:00Z",
     "updated_at": "2026-01-01T10:05:00Z"

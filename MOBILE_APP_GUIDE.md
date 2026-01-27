@@ -266,14 +266,28 @@ async function syncQueuedOperations() {
 
 **Complete Bill Creation Examples for All Cases:**
 
+**Important - Vendor-Level GST Rates:**
+- Check vendor profile (`GET /auth/profile`) for `cgst_percentage` and `sgst_percentage`
+- If both are set and > 0, use vendor-level flat rates instead of product-level GST
+- Vendor-level rates apply to **intra-state transactions only** (CGST + SGST)
+- For inter-state transactions, always use product-level GST with IGST
+- When using vendor-level rates, set product `gst_percentage` to 0%
+
 #### Example 1: GST Bill - Intra-State - Cash Payment
 
 ```javascript
 // Creating a GST bill with intra-state tax (CGST + SGST)
-async function createGSTBillIntraStateCash(billData) {
+// NOTE: Check if vendor has vendor-level CGST/SGST rates set
+// If vendor.cgst_percentage and vendor.sgst_percentage are set, use those instead of product-level GST
+async function createGSTBillIntraStateCash(billData, vendorData) {
   const billingMode = 'gst';
   const paymentMode = 'cash';
   const isInterState = false; // Intra-state transaction
+  
+  // Check for vendor-level flat rates
+  const hasVendorLevelRates = vendorData.cgst_percentage && vendorData.sgst_percentage && 
+                               parseFloat(vendorData.cgst_percentage) > 0 && 
+                               parseFloat(vendorData.sgst_percentage) > 0;
   
   // Calculate subtotal
   let subtotal = 0;
@@ -283,19 +297,34 @@ async function createGSTBillIntraStateCash(billData) {
     const itemSubtotal = item.mrp_price * item.quantity;
     subtotal += itemSubtotal;
     
-    // Calculate GST for each item
-    if (item.gst_percentage > 0) {
+    // Calculate GST for each item (only if NOT using vendor-level rates)
+    if (!hasVendorLevelRates && item.gst_percentage > 0) {
       const itemGST = itemSubtotal * (item.gst_percentage / 100);
       totalItemGST += itemGST;
       item.item_gst = itemGST;
+    } else {
+      // When using vendor-level rates, product GST is 0%
+      item.item_gst = 0;
     }
   });
   
-  // Calculate CGST and SGST (split equally for intra-state)
-  const cgst = totalItemGST / 2;
-  const sgst = totalItemGST / 2;
-  const igst = 0;
-  const totalTax = totalItemGST;
+  // Calculate CGST and SGST
+  let cgst, sgst, igst, totalTax;
+  if (hasVendorLevelRates) {
+    // Use vendor-level flat rates (e.g., 2.5% CGST + 2.5% SGST)
+    const cgstRate = parseFloat(vendorData.cgst_percentage);
+    const sgstRate = parseFloat(vendorData.sgst_percentage);
+    cgst = (subtotal * cgstRate / 100);
+    sgst = (subtotal * sgstRate / 100);
+    igst = 0;
+    totalTax = cgst + sgst;
+  } else {
+    // Use product-level GST (split equally for intra-state)
+    cgst = totalItemGST / 2;
+    sgst = totalItemGST / 2;
+    igst = 0;
+    totalTax = totalItemGST;
+  }
   const total = subtotal + totalTax;
   
   // Generate invoice number
@@ -354,6 +383,8 @@ async function createGSTBillIntraStateCash(billData) {
 ```
 
 #### Example 2: GST Bill - Inter-State - UPI Payment
+
+**Note:** Vendor-level CGST/SGST rates do NOT apply to inter-state transactions. Always use product-level GST with IGST for inter-state.
 
 ```javascript
 // Creating a GST bill with inter-state tax (IGST only)
