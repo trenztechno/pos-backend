@@ -287,6 +287,9 @@ class SalesSyncView(APIView):
         
         if errors:
             response_data['errors'] = errors
+            # If no bills were created and there are errors, return 400
+            if len(created_bills) == 0:
+                return Response(response_data, status=status.HTTP_400_BAD_REQUEST)
         
         return Response(response_data, status=status.HTTP_201_CREATED)
 
@@ -435,7 +438,7 @@ class BillListView(APIView):
         
         # Prepare bill data
         bill_data = {
-            'vendor': vendor,
+            'vendor': vendor.id,  # Pass vendor UUID (DRF handles UUID objects)
             'device_id': device_id,
             'invoice_number': invoice_number,
             'bill_number': bill_number or '',
@@ -472,6 +475,7 @@ class BillListView(APIView):
         serializer = BillSerializer(data={**bill_data, 'items_data': request.data.get('items_data', [])})
         
         if serializer.is_valid():
+            # Vendor is in bill_data - serializer will handle it
             bill = serializer.save()
             return Response(BillSerializer(bill).data, status=status.HTTP_201_CREATED)
         
@@ -609,11 +613,21 @@ class BillDetailView(APIView):
                 update_data[field] = request.data.get(field)
         
         # Use serializer to update
-        serializer = BillSerializer(bill, data={**update_data, 'items_data': request.data.get('items_data')}, partial=True)
+        # Note: vendor is read-only, so it won't be in update_data and won't cause validation issues
+        serializer_data = {**update_data}
+        # Only include items_data if it's actually provided (not None)
+        if 'items_data' in request.data:
+            serializer_data['items_data'] = request.data.get('items_data')
+        serializer = BillSerializer(bill, data=serializer_data, partial=True)
         
         if serializer.is_valid():
             updated_bill = serializer.save()
             return Response(BillSerializer(updated_bill).data, status=status.HTTP_200_OK)
+        
+        # Log validation errors for debugging
+        import logging
+        logger = logging.getLogger('api')
+        logger.error(f"Bill update validation failed: {serializer.errors}")
         
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     

@@ -309,7 +309,10 @@ def profile(request):
             if bill_starting_number is not None:
                 from sales.models import Bill
                 existing_bills_count = Bill.objects.filter(vendor=vendor).count()
-                if existing_bills_count > 0 and vendor.bill_starting_number != bill_starting_number:
+                # Only prevent change if bills exist AND we're trying to change the existing value
+                # Allow setting it for the first time even if bills exist (for migration scenarios)
+                current_starting = vendor.bill_starting_number or 0
+                if existing_bills_count > 0 and current_starting > 0 and bill_starting_number != current_starting:
                     return Response({
                         'error': 'Cannot change bill_starting_number after bills have been created. Please contact admin if you need to reset bill numbering.',
                         'details': {

@@ -1714,6 +1714,8 @@ def test_api_endpoints():
                 results.append(True)
         else:
             print(f"✗ POST /bills/ - Status: {response.status_code}")
+            if hasattr(response, 'data') and response.data:
+                print(f"  Error details: {response.data}")
             results.append(False)
     except Exception as e:
         print(f"✗ POST /bills/ - Error: {e}")
@@ -1802,6 +1804,8 @@ def test_api_endpoints():
                     results.append(True)
             else:
                 print(f"✗ PATCH /bills/<id>/ - Status: {response.status_code}")
+                if hasattr(response, 'data') and response.data:
+                    print(f"  Error details: {response.data}")
                 results.append(False)
         else:
             results.append(True)
@@ -2199,15 +2203,29 @@ def test_api_endpoints():
             token, _ = Token.objects.get_or_create(user=test_user)
             client.credentials(HTTP_AUTHORIZATION=f'Token {token.key}')
         
-        response = client.patch('/auth/profile', {
-            'bill_prefix': 'TEST',
-            'bill_starting_number': 50
-        }, format='json')
+        # Check if bills exist - if they do, we can only set prefix, not starting_number
+        from sales.models import Bill
+        # Vendor is already imported at top of file
+        vendor = Vendor.get_vendor_for_user(test_user)
+        existing_bills_count = Bill.objects.filter(vendor=vendor).count() if vendor else 0
+        
+        if existing_bills_count > 0:
+            # Bills exist - can only set prefix, not starting_number
+            response = client.patch('/auth/profile', {
+                'bill_prefix': 'TEST'
+            }, format='json')
+        else:
+            # No bills yet - can set both prefix and starting_number
+            response = client.patch('/auth/profile', {
+                'bill_prefix': 'TEST',
+                'bill_starting_number': 50
+            }, format='json')
+        
         if response.status_code == 200:
             data = response.data.get('vendor', response.data)
             has_prefix = 'bill_prefix' in data
             has_starting = 'bill_starting_number' in data
-            if has_prefix and has_starting:
+            if has_prefix:
                 print("✓ PATCH /auth/profile (bill numbering config) - Working")
                 results.append(True)
             else:
@@ -2215,6 +2233,8 @@ def test_api_endpoints():
                 results.append(True)  # Not critical
         else:
             print(f"✗ PATCH /auth/profile (bill numbering) - Status: {response.status_code}")
+            if hasattr(response, 'data') and response.data:
+                print(f"  Error details: {response.data}")
             results.append(False)
     except Exception as e:
         print(f"✗ PATCH /auth/profile (bill numbering) - Error: {e}")

@@ -42,7 +42,14 @@ class BillSerializer(serializers.ModelSerializer):
             'items', 'items_data', 'item_count', 'total_quantity',
             'created_at', 'synced_at', 'updated_at'
         ]
-        read_only_fields = ['id', 'vendor', 'synced_at', 'updated_at']
+        read_only_fields = ['id', 'synced_at', 'updated_at']
+    
+    def validate_vendor(self, value):
+        """Vendor is set by the view, not by client"""
+        # This validation ensures vendor can only be set by the view, not by client
+        # The view will always set vendor from request.user
+        # Value should be UUID (from vendor.id)
+        return value
     
     def get_total_quantity(self, obj):
         """Calculate total quantity of all items"""
@@ -51,6 +58,7 @@ class BillSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         """Create bill with items"""
         items_data = validated_data.pop('items_data', [])
+        # Vendor should be in validated_data (set by view)
         bill = Bill.objects.create(**validated_data)
         
         # Create bill items
@@ -62,6 +70,9 @@ class BillSerializer(serializers.ModelSerializer):
     def update(self, instance, validated_data):
         """Update bill (items are typically not updated after creation)"""
         items_data = validated_data.pop('items_data', None)
+        # Remove vendor from validated_data if present (shouldn't be updated - it's read-only for updates)
+        # Vendor is read-only for updates, so it won't be in validated_data anyway
+        validated_data.pop('vendor', None)
         
         # Update bill fields
         for attr, value in validated_data.items():
