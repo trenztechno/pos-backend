@@ -121,15 +121,15 @@ class LoginSerializer(serializers.Serializer):
         return attrs
 
 class ForgotPasswordSerializer(serializers.Serializer):
-    """Serializer for verifying username and GST number to initiate password reset"""
+    """Serializer for verifying username and phone number to initiate password reset"""
     username = serializers.CharField(required=True)
-    gst_no = serializers.CharField(required=True, max_length=50)
+    phone = serializers.CharField(required=True, max_length=20)
     
     def validate(self, attrs):
         username = attrs.get('username')
-        gst_no = attrs.get('gst_no')
+        phone = attrs.get('phone')
         
-        # Verify both username and GST number match.
+        # Verify both username and phone number match.
         # Forgot-password is ONLY for the primary vendor owner account.
         try:
             user = User.objects.get(username=username)
@@ -144,15 +144,17 @@ class ForgotPasswordSerializer(serializers.Serializer):
                 'Username does not belong to a vendor owner account. Please contact your vendor admin.'
             )
 
-        # Check if vendor has GST number
-        if not vendor.gst_no:
+        # Check if vendor has phone number
+        if not vendor.phone:
             raise serializers.ValidationError(
-                'Your vendor account does not have a GST number. Please contact admin to add GST number for password reset.'
+                'Your vendor account does not have a phone number. Please contact admin to add phone number for password reset.'
             )
 
-        # Check if GST number matches
-        if vendor.gst_no != gst_no:
-            raise serializers.ValidationError('Username and GST number do not match.')
+        # Check if phone number matches (normalize by removing spaces, dashes, etc.)
+        vendor_phone = vendor.phone.replace(' ', '').replace('-', '').replace('+', '')
+        provided_phone = phone.replace(' ', '').replace('-', '').replace('+', '')
+        if vendor_phone != provided_phone:
+            raise serializers.ValidationError('Username and phone number do not match.')
 
         # Check if vendor is approved and active
         if not vendor.is_approved:
@@ -163,9 +165,9 @@ class ForgotPasswordSerializer(serializers.Serializer):
         return attrs
 
 class ResetPasswordSerializer(serializers.Serializer):
-    """Serializer for resetting password after username and GST verification"""
+    """Serializer for resetting password after username and phone verification"""
     username = serializers.CharField(required=True)
-    gst_no = serializers.CharField(required=True, max_length=50)
+    phone = serializers.CharField(required=True, max_length=20)
     new_password = serializers.CharField(required=True, write_only=True, min_length=6)
     new_password_confirm = serializers.CharField(required=True, write_only=True, min_length=6)
     
@@ -174,9 +176,9 @@ class ResetPasswordSerializer(serializers.Serializer):
             raise serializers.ValidationError({'new_password': 'Passwords do not match.'})
         
         username = attrs.get('username')
-        gst_no = attrs.get('gst_no')
+        phone = attrs.get('phone')
         
-        # Verify both username and GST number match.
+        # Verify both username and phone number match.
         # Reset-password is ONLY for the primary vendor owner account.
         try:
             user = User.objects.get(username=username)
@@ -190,15 +192,17 @@ class ResetPasswordSerializer(serializers.Serializer):
                 'Username does not belong to a vendor owner account. Please contact your vendor admin.'
             )
 
-        # Check if vendor has GST number
-        if not vendor.gst_no:
+        # Check if vendor has phone number
+        if not vendor.phone:
             raise serializers.ValidationError(
-                'Your vendor account does not have a GST number. Please contact admin to add GST number for password reset.'
+                'Your vendor account does not have a phone number. Please contact admin to add phone number for password reset.'
             )
 
-        # Check if GST number matches
-        if vendor.gst_no != gst_no:
-            raise serializers.ValidationError('Username and GST number do not match.')
+        # Check if phone number matches (normalize by removing spaces, dashes, etc.)
+        vendor_phone = vendor.phone.replace(' ', '').replace('-', '').replace('+', '')
+        provided_phone = phone.replace(' ', '').replace('-', '').replace('+', '')
+        if vendor_phone != provided_phone:
+            raise serializers.ValidationError('Username and phone number do not match.')
 
         # Check if vendor is approved and active
         if not vendor.is_approved:

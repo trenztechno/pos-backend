@@ -81,8 +81,8 @@ def login(request):
     Body: {"username": "user", "password": "pass"}
     Returns: {"token": "abc123...", "user_id": 1, "username": "user"}
     
-    NOTE: Login does NOT require GST number. Vendors can login with just username and password.
-    GST number is only required for password reset, not for login.
+    NOTE: Login does NOT require phone number. Vendors can login with just username and password.
+    Phone number is only required for password reset, not for login.
     This ensures backward compatibility with existing vendors.
     """
     serializer = LoginSerializer(data=request.data)
@@ -170,30 +170,30 @@ def logout(request):
 @permission_classes([AllowAny])
 def forgot_password(request):
     """
-    POST /auth/forgot-password - Verify username and GST number to initiate password reset
+    POST /auth/forgot-password - Verify username and phone number to initiate password reset
     Body: {
         "username": "vendor1",
-        "gst_no": "29ABCDE1234F1Z5"
+        "phone": "+919876543210"
     }
-    Returns: {"message": "Username and GST number verified. You can now reset your password.", ...}
+    Returns: {"message": "Username and phone number verified. You can now reset your password.", ...}
     """
     serializer = ForgotPasswordSerializer(data=request.data)
     
     if serializer.is_valid():
         username = serializer.validated_data['username']
-        gst_no = serializer.validated_data['gst_no']
+        phone = serializer.validated_data['phone']
         user = User.objects.get(username=username)
         vendor = user.vendor_profile
         
         return Response({
-            'message': 'Username and GST number verified. You can now reset your password.',
+            'message': 'Username and phone number verified. You can now reset your password.',
             'username': username,
-            'gst_no': gst_no,
+            'phone': phone,
             'business_name': vendor.business_name
         }, status=status.HTTP_200_OK)
     
     return Response({
-        'error': 'Username and GST number verification failed',
+        'error': 'Username and phone number verification failed',
         'details': serializer.errors
     }, status=status.HTTP_400_BAD_REQUEST)
 
@@ -214,16 +214,18 @@ def reset_password(request):
     
     if serializer.is_valid():
         username = serializer.validated_data['username']
-        gst_no = serializer.validated_data['gst_no']
+        phone = serializer.validated_data['phone']
         new_password = serializer.validated_data['new_password']
         
         user = User.objects.get(username=username)
         vendor = user.vendor_profile
         
-        # Double-check GST matches (already validated in serializer, but extra safety)
-        if vendor.gst_no != gst_no:
+        # Double-check phone matches (already validated in serializer, but extra safety)
+        vendor_phone = vendor.phone.replace(' ', '').replace('-', '').replace('+', '')
+        provided_phone = phone.replace(' ', '').replace('-', '').replace('+', '')
+        if vendor_phone != provided_phone:
             return Response({
-                'error': 'Username and GST number do not match.'
+                'error': 'Username and phone number do not match.'
             }, status=status.HTTP_400_BAD_REQUEST)
         
         # Set new password
@@ -520,7 +522,7 @@ def reset_staff_password(request, user_id):
     if vendor_user.is_owner:
         return Response(
             {
-                'error': 'Owner password must be reset via GST-based forgot-password flow.'
+                'error': 'Owner password must be reset via phone-based forgot-password flow.'
             },
             status=status.HTTP_400_BAD_REQUEST,
         )

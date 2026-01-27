@@ -28,7 +28,7 @@ Each bill can be either GST or Non-GST. The `billing_mode` field in the bill dat
    - [Register New Vendor](#register-new-vendor)
    - [Login](#login)
    - [Logout](#logout)
-   - [Forgot Password](#forgot-password-verify-username-and-gst-number)
+   - [Forgot Password](#forgot-password-verify-username-and-phone-number)
    - [Reset Password](#reset-password)
 3. [Vendor Registration & Approval](#vendor-registration--approval)
 4. [Categories](#categories)
@@ -190,7 +190,7 @@ Creates a new vendor account. The account will be **inactive** and require admin
 - `password_confirm`: Password confirmation (must match password, required)
 - `business_name`: Name of the business/restaurant (required)
 - `phone`: Phone number with country code (required)
-- `gst_no`: GST number (GSTIN) (required, must be unique, used for password reset and bills)
+- `gst_no`: GST number (GSTIN) (required, must be unique, used for bills)
 - `fssai_license`: FSSAI License Number (optional during registration, can be added later via admin)
 - `address`: Business address (required)
 
@@ -270,7 +270,7 @@ Both **vendor owners** and **vendor staff users** use this same endpoint.
   "vendor": {
     "id": "550e8400-e29b-41d4-a716-446655440000",
     "business_name": "ABC Restaurant",
-    "gst_no": "29ABCDE1234F1Z5",
+    "phone": "+919876543210",
     "fssai_license": "12345678901234",
     "logo_url": "https://bucket.s3.region.amazonaws.com/vendors/vendor-id/logo.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Expires=3600&...",
     "footer_note": "Thank you for visiting!"
@@ -368,7 +368,7 @@ Authorization: Token <your_token>
   "business_name": "ABC Restaurant",
   "phone": "+1234567890",
   "address": "123 Main St, City",
-  "gst_no": "29ABCDE1234F1Z5",
+  "phone": "+919876543210",
   "fssai_license": "12345678901234",
   "logo_url": "https://bucket.s3.region.amazonaws.com/vendors/.../logo.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Expires=3600&...",
   "footer_note": "Thank you for visiting!",
@@ -530,13 +530,13 @@ console.log(data.vendor.logo_url); // Pre-signed URL for logo
 
 ---
 
-### Forgot Password (Verify Username and GST Number)
+### Forgot Password (Verify Username and Phone Number)
 
 **POST** `/auth/forgot-password`
 
 **No authentication required**
 
-Verifies the username and GST number to initiate password reset flow. This is the first step in password reset.
+Verifies the username and phone number to initiate password reset flow. This is the first step in password reset.
 
 🔐 **Important:**
 
@@ -548,20 +548,20 @@ Verifies the username and GST number to initiate password reset flow. This is th
 ```json
 {
   "username": "vendor1",
-  "gst_no": "29ABCDE1234F1Z5"
+  "phone": "+919876543210"
 }
 ```
 
 **Field Descriptions:**
 - `username`: Username of the **vendor owner** account (required)
-- `gst_no`: GST number of the vendor owner account (required, must match the username)
+- `phone`: Phone number of the vendor owner account (required, must match the username)
 
 **Success Response (200):**
 ```json
 {
-  "message": "Username and GST number verified. You can now reset your password.",
+  "message": "Username and phone number verified. You can now reset your password.",
   "username": "vendor1",
-  "gst_no": "29ABCDE1234F1Z5",
+  "phone": "+919876543210",
   "business_name": "ABC Store"
 }
 ```
@@ -571,7 +571,7 @@ Verifies the username and GST number to initiate password reset flow. This is th
 **Username Not Found (400):**
 ```json
 {
-  "error": "Username and GST number verification failed",
+  "error": "Username and phone number verification failed",
   "details": {
     "non_field_errors": ["Username not found. Please check and try again."]
   }
@@ -581,9 +581,9 @@ Verifies the username and GST number to initiate password reset flow. This is th
 **Username and GST Don't Match (400):**
 ```json
 {
-  "error": "Username and GST number verification failed",
+  "error": "Username and phone number verification failed",
   "details": {
-    "non_field_errors": ["Username and GST number do not match."]
+    "non_field_errors": ["Username and phone number do not match."]
   }
 }
 ```
@@ -591,7 +591,7 @@ Verifies the username and GST number to initiate password reset flow. This is th
 **Account Pending Approval (400):**
 ```json
 {
-  "error": "Username and GST number verification failed",
+  "error": "Username and phone number verification failed",
   "details": {
     "non_field_errors": ["Your vendor account is pending approval. Please contact admin."]
   }
@@ -601,7 +601,7 @@ Verifies the username and GST number to initiate password reset flow. This is th
 **Account Inactive (400):**
 ```json
 {
-  "error": "Username and GST number verification failed",
+  "error": "Username and phone number verification failed",
   "details": {
     "non_field_errors": ["Your account is inactive. Please contact admin."]
   }
@@ -612,7 +612,7 @@ Verifies the username and GST number to initiate password reset flow. This is th
 
 ```json
 {
-  "error": "Username and GST number verification failed",
+  "error": "Username and phone number verification failed",
   "details": {
     "non_field_errors": [
       "Username does not belong to a vendor owner account. Please contact your vendor admin."
@@ -622,7 +622,7 @@ Verifies the username and GST number to initiate password reset flow. This is th
 ```
 ```json
 {
-  "error": "Username and GST number verification failed",
+  "error": "Username and phone number verification failed",
   "details": {
     "non_field_errors": ["Your account is inactive. Please contact admin."]
   }
@@ -633,7 +633,7 @@ Verifies the username and GST number to initiate password reset flow. This is th
 ```bash
 curl -X POST http://localhost:8000/auth/forgot-password \
   -H "Content-Type: application/json" \
-  -d '{"username": "vendor1", "gst_no": "29ABCDE1234F1Z5"}'
+  -d '{"username": "vendor1", "phone": "+919876543210"}'
 ```
 
 ---
@@ -644,7 +644,7 @@ curl -X POST http://localhost:8000/auth/forgot-password \
 
 **No authentication required**
 
-Resets the password for a **vendor owner** account using their username and GST number. This is the second step after verifying username and GST number.
+Resets the password for a **vendor owner** account using their username and phone number. This is the second step after verifying username and phone number.
 
 🔐 **Important:**
 
@@ -655,7 +655,7 @@ Resets the password for a **vendor owner** account using their username and GST 
 ```json
 {
   "username": "vendor1",
-  "gst_no": "29ABCDE1234F1Z5",
+  "phone": "+919876543210",
   "new_password": "newpassword123",
   "new_password_confirm": "newpassword123"
 }
@@ -663,7 +663,7 @@ Resets the password for a **vendor owner** account using their username and GST 
 
 **Field Descriptions:**
 - `username`: Username of the **vendor owner** account (required, must match forgot-password step)
-- `gst_no`: GST number (required, must match the username and forgot-password step)
+- `phone`: Phone number (required, must match the username and forgot-password step)
 - `new_password`: New password (minimum 6 characters, required)
 - `new_password_confirm`: Password confirmation (must match new_password, required)
 
@@ -687,12 +687,12 @@ Resets the password for a **vendor owner** account using their username and GST 
 }
 ```
 
-**Username and GST Don't Match (400):**
+**Username and Phone Don't Match (400):**
 ```json
 {
   "error": "Password reset failed",
   "details": {
-    "non_field_errors": ["Username and GST number do not match."]
+    "non_field_errors": ["Username and phone number do not match."]
   }
 }
 ```
@@ -723,7 +723,7 @@ curl -X POST http://localhost:8000/auth/reset-password \
   -H "Content-Type: application/json" \
   -d '{
     "username": "vendor1",
-    "gst_no": "29ABCDE1234F1Z5",
+    "phone": "+919876543210",
     "new_password": "newpassword123",
     "new_password_confirm": "newpassword123"
   }'
@@ -731,9 +731,9 @@ curl -X POST http://localhost:8000/auth/reset-password \
 
 **Password Reset Flow:**
 1. User forgets password
-2. User enters username and GST number → `POST /auth/forgot-password`
-3. System verifies username and GST number match and returns confirmation
-4. User enters new password with username and GST → `POST /auth/reset-password`
+2. User enters username and phone number → `POST /auth/forgot-password`
+3. System verifies username and phone number match and returns confirmation
+4. User enters new password with username and phone → `POST /auth/reset-password`
 5. Password is reset, all existing tokens are invalidated
 6. User can now login with new password
 
@@ -1154,7 +1154,7 @@ Content-Type: application/json
 
 - Not owner (403): `{"error": "Only vendor owner can reset staff passwords"}`
 - User not in this vendor (404): `{"error": "User not found in this vendor"}`
-- Trying to reset owner password (400): `{"error": "Owner password must be reset via GST-based forgot-password flow."}`
+- Trying to reset owner password (400): `{"error": "Owner password must be reset via phone-based forgot-password flow."}`
 - PIN required (400): `{"error": "Security PIN is required for this operation"}`
 - Invalid PIN (403): `{"error": "Invalid security PIN"}`
 
@@ -1316,7 +1316,7 @@ fetch('http://localhost:8000/items/', {
    - Creates User account (inactive)
    - Creates Vendor profile (not approved, with GST number)
    - Returns: "Registration successful. Your account is pending approval."
-   - **Note:** GST number is required and must be unique. It will be used for password reset.
+   - **Note:** GST number is required and must be unique. Phone number is required and will be used for password reset.
 
 2. **Vendor tries to login** (before approval)
    - Returns 403: "Your vendor account is pending approval..."
@@ -6105,16 +6105,16 @@ curl -X POST http://localhost:8000/auth/forgot-password \
   -H "Content-Type: application/json" \
   -d '{
     "username": "vendor1",
-    "gst_no": "29ABCDE1234F1Z5"
+    "phone": "+919876543210"
   }'
 ```
 
 **Response:**
 ```json
 {
-  "message": "Username and GST number verified. You can now reset your password.",
+  "message": "Username and phone number verified. You can now reset your password.",
   "username": "vendor1",
-  "gst_no": "29ABCDE1234F1Z5",
+  "phone": "+919876543210",
   "business_name": "ABC Store"
 }
 ```
@@ -6125,7 +6125,7 @@ curl -X POST http://localhost:8000/auth/reset-password \
   -H "Content-Type: application/json" \
   -d '{
     "username": "vendor1",
-    "gst_no": "29ABCDE1234F1Z5",
+    "phone": "+919876543210",
     "new_password": "newpassword123",
     "new_password_confirm": "newpassword123"
   }'

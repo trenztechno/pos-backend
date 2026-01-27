@@ -21,8 +21,8 @@
 - **PATCH** `/auth/profile` - Update vendor profile (Auth required)
   - Use `multipart/form-data` to upload logo
   - Update business_name, phone, address, fssai_license, footer_note
-- **POST** `/auth/forgot-password` - Verify GST number for password reset (No auth)
-- **POST** `/auth/reset-password` - Reset password using GST number (No auth)
+- **POST** `/auth/forgot-password` - Verify phone number for password reset (No auth)
+- **POST** `/auth/reset-password` - Reset password using phone number (No auth)
 - **POST** `/auth/logout` - Logout (Auth required)
 
 ### Vendor Staff User Management (Owner Only, Requires Security PIN)

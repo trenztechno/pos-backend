@@ -17,9 +17,9 @@ This document explains the authentication flow and ensures backward compatibilit
 **GST Number:** NOT required for login
 
 **Why:** 
-- Existing vendors created before GST field was added don't have GST numbers
-- Login should work for all approved vendors regardless of GST status
-- GST is only needed for password reset, not for login
+- Existing vendors created before phone field was added may not have phone numbers
+- Login should work for all approved vendors regardless of phone status
+- Phone number is only needed for password reset, not for login
 
 **Flow:**
 1. User provides username and password
@@ -78,26 +78,26 @@ This document explains the authentication flow and ensures backward compatibilit
 
 **Note:** Billing mode (GST/Non-GST) is set per bill when creating bills, not during registration.
 
-**Why GST is Required:**
-- New vendors need GST for password reset functionality
+**Why Phone is Required:**
+- New vendors need phone for password reset functionality
 - Ensures all new vendors can use password reset feature
-- GST must be unique across all vendors
+- Phone number is used for verification during password reset
 
 ---
 
-## Password Reset Flow (GST Required, Owner Only)
+## Password Reset Flow (Phone Required, Owner Only)
 
 **Step 1:** `POST /auth/forgot-password`
-- Requires: `username` (vendor owner) + `gst_no`
-- Verifies both match the **vendor owner** account (must have GST)
+- Requires: `username` (vendor owner) + `phone`
+- Verifies both match the **vendor owner** account (must have phone)
 - Returns confirmation if valid
 
 **Step 2:** `POST /auth/reset-password`
-- Requires: `username` (vendor owner) + `gst_no` + `new_password` + `new_password_confirm`
+- Requires: `username` (vendor owner) + `phone` + `new_password` + `new_password_confirm`
 - Resets password and invalidates all tokens for the owner
 
 **Notes:** 
-- Vendors without GST cannot use password reset.
+- Vendors without phone number cannot use password reset.
 - Password reset is **only** for the vendor owner account.
 - Staff users never go through this flow; their passwords are reset by the owner via a protected API.
 
@@ -105,17 +105,17 @@ This document explains the authentication flow and ensures backward compatibilit
 
 ## Backward Compatibility
 
-### Existing Vendors (Created Before GST Field)
+### Existing Vendors (Created Before Phone Field)
 
-✅ **Can Login:** Yes - login doesn't require GST
+✅ **Can Login:** Yes - login doesn't require phone
 ✅ **Can Use API:** Yes - all API endpoints work
-❌ **Can Reset Password:** No - need GST number first
+❌ **Can Reset Password:** No - need phone number first
 
-### New Vendors (Created After GST Field)
+### New Vendors (Created After Phone Field)
 
 ✅ **Can Login:** Yes
 ✅ **Can Use API:** Yes
-✅ **Can Reset Password:** Yes - have GST number
+✅ **Can Reset Password:** Yes - have phone number
 
 ### Default Users (Admin, SalesRep)
 
@@ -192,22 +192,22 @@ curl -X POST http://localhost:8000/auth/login \
   -d '{"username":"new_vendor","password":"password123"}'
 ```
 
-### Test 3: Password Reset Without GST
+### Test 3: Password Reset Without Phone
 ```bash
 # Should fail with clear error
 curl -X POST http://localhost:8000/auth/forgot-password \
   -H "Content-Type: application/json" \
-  -d '{"username":"old_vendor","gst_no":"ANYGST"}'
-# Expected: "Your vendor account does not have a GST number..."
+  -d '{"username":"old_vendor","phone":"+911234567890"}'
+# Expected: "Your vendor account does not have a phone number..."
 ```
 
 ---
 
 ## Summary
 
-✅ **Login:** Works for all vendors (with or without GST)  
-✅ **Registration:** Requires GST (new vendors)  
-✅ **Password Reset:** Requires GST (security feature)  
+✅ **Login:** Works for all vendors (with or without phone)  
+✅ **Registration:** Requires phone (new vendors)  
+✅ **Password Reset:** Requires phone number (security feature)  
 ✅ **Backward Compatible:** Existing vendors can still login  
 ✅ **Protected Workflow:** No breaking changes to login flow
 

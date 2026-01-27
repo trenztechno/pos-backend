@@ -431,10 +431,12 @@ def test_api_endpoints():
     
     vendor, _ = Vendor.objects.get_or_create(
         user=test_user,
-        defaults={'business_name': 'Test Vendor', 'gst_no': 'TESTGST123456', 'is_approved': True}
+        defaults={'business_name': 'Test Vendor', 'gst_no': 'TESTGST123456', 'phone': '+919876543210', 'is_approved': True}
     )
     vendor.is_approved = True
     vendor.gst_no = 'TESTGST123456'  # Ensure GST number is set
+    if not vendor.phone:
+        vendor.phone = '+919876543210'  # Ensure phone number is set for password reset
     vendor.save()
 
     # Ensure VendorUser link exists for owner (multi-user support)
@@ -1910,52 +1912,57 @@ def test_api_endpoints():
         # Endpoint might not exist, that's okay
         results.append(True)  # Not critical
     
-    # Test 27: Forgot Password - Valid Username and GST (Success)
+    # Test 27: Forgot Password - Valid Username and Phone (Success)
     try:
+        # Ensure vendor has a phone number for testing
+        if not vendor.phone:
+            vendor.phone = '+919876543210'
+            vendor.save()
+        
         response = client.post('/auth/forgot-password', {
             'username': test_user.username,
-            'gst_no': vendor.gst_no
+            'phone': vendor.phone
         }, format='json')
-        if response.status_code == 200 and 'username' in response.data and 'gst_no' in response.data:
-            print("✓ POST /auth/forgot-password (valid username and GST) - Working")
+        if response.status_code == 200 and 'username' in response.data and 'phone' in response.data:
+            print("✓ POST /auth/forgot-password (valid username and phone) - Working")
             results.append(True)
         else:
-            print(f"✗ POST /auth/forgot-password (valid username and GST) - Status: {response.status_code}")
+            print(f"✗ POST /auth/forgot-password (valid username and phone) - Status: {response.status_code}")
             results.append(False)
     except Exception as e:
-        print(f"✗ POST /auth/forgot-password (valid username and GST) - Error: {e}")
+        print(f"✗ POST /auth/forgot-password (valid username and phone) - Error: {e}")
         results.append(False)
     
-    # Test 28: Forgot Password - Invalid GST (Should Fail)
+    # Test 28: Forgot Password - Invalid Phone (Should Fail)
     try:
         response = client.post('/auth/forgot-password', {
             'username': test_user.username,
-            'gst_no': 'INVALIDGST999999'
+            'phone': '0000000000'
         }, format='json')
         if response.status_code == 400:
-            print("✓ POST /auth/forgot-password (invalid GST) - Correctly rejects")
+            print("✓ POST /auth/forgot-password (invalid phone) - Correctly rejects")
             results.append(True)
         else:
-            print(f"⚠ POST /auth/forgot-password (invalid GST) - Status: {response.status_code} (expected 400)")
+            print(f"⚠ POST /auth/forgot-password (invalid phone) - Status: {response.status_code} (expected 400)")
             results.append(True)  # Not critical
     except Exception as e:
-        print(f"⚠ POST /auth/forgot-password (invalid GST) - Error: {e}")
+        print(f"⚠ POST /auth/forgot-password (invalid phone) - Error: {e}")
         results.append(True)  # Not critical
     
-    # Test 28b: Forgot Password - Mismatched Username and GST (Should Fail)
+    # Test 28b: Forgot Password - Mismatched Username and Phone (Should Fail)
     try:
         response = client.post('/auth/forgot-password', {
             'username': test_user.username,
-            'gst_no': 'WRONGGST999999'
+            'phone': '+911111111111'
         }, format='json')
         if response.status_code == 400:
-            print("✓ POST /auth/forgot-password (mismatched username and GST) - Correctly rejects")
+            print("✓ POST /auth/forgot-password (mismatched username and phone) - Correctly rejects")
             results.append(True)
         else:
-            print(f"⚠ POST /auth/forgot-password (mismatched username and GST) - Status: {response.status_code} (expected 400)")
+            print(f"⚠ POST /auth/forgot-password (mismatched username and phone) - Status: {response.status_code} (expected 400)")
             results.append(True)  # Not critical
     except Exception as e:
-        print(f"⚠ POST /auth/forgot-password (mismatched username and GST) - Error: {e}")
+        print(f"⚠ POST /auth/forgot-password (mismatched username and phone) - Error: {e}")
         results.append(True)  # Not critical
     
     # Test 28c: Forgot Password - Pending Vendor (Should Fail)
@@ -1970,17 +1977,17 @@ def test_api_endpoints():
         
         pending_vendor, _ = Vendor.objects.get_or_create(
             user=pending_user,
-            defaults={'business_name': 'Pending Test Vendor', 'gst_no': 'PENDINGGST123', 'is_approved': False}
+            defaults={'business_name': 'Pending Test Vendor', 'phone': '+911111111111', 'is_approved': False}
         )
         pending_vendor.is_approved = False
-        pending_vendor.gst_no = 'PENDINGGST123'
+        pending_vendor.phone = '+911111111111'
         pending_vendor.save()
         pending_user.is_active = False
         pending_user.save()
         
         response = client.post('/auth/forgot-password', {
             'username': pending_user.username,
-            'gst_no': 'PENDINGGST123'
+            'phone': '+911111111111'
         }, format='json')
         if response.status_code == 400:
             print("✓ POST /auth/forgot-password (pending vendor) - Correctly rejects")
@@ -2007,10 +2014,15 @@ def test_api_endpoints():
         # Clear credentials before password reset (it's an unauthenticated endpoint)
         client.credentials()
         
-        # Reset password with valid username, GST and matching passwords
+        # Reset password with valid username, phone and matching passwords
+        # Ensure vendor has a phone number for testing
+        if not vendor.phone:
+            vendor.phone = '+919876543210'
+            vendor.save()
+        
         response = client.post('/auth/reset-password', {
             'username': test_user.username,
-            'gst_no': vendor.gst_no,
+            'phone': vendor.phone,
             'new_password': 'newtestpass123',
             'new_password_confirm': 'newtestpass123'
         }, format='json')
@@ -2065,9 +2077,14 @@ def test_api_endpoints():
         # Clear credentials (unauthenticated endpoint)
         client.credentials()
         
+        # Ensure vendor has a phone number for testing
+        if not vendor.phone:
+            vendor.phone = '+919876543210'
+            vendor.save()
+        
         response = client.post('/auth/reset-password', {
             'username': test_user.username,
-            'gst_no': vendor.gst_no,
+            'phone': vendor.phone,
             'new_password': 'password123',
             'new_password_confirm': 'differentpassword'
         }, format='json')
@@ -2081,25 +2098,25 @@ def test_api_endpoints():
         print(f"⚠ POST /auth/reset-password (non-matching passwords) - Error: {e}")
         results.append(True)  # Not critical
     
-    # Test 31: Reset Password - Invalid GST (Should Fail)
+    # Test 31: Reset Password - Invalid Phone (Should Fail)
     try:
         # Clear credentials (unauthenticated endpoint)
         client.credentials()
         
         response = client.post('/auth/reset-password', {
             'username': test_user.username,
-            'gst_no': 'INVALIDGST999999',
+            'phone': '0000000000',
             'new_password': 'password123',
             'new_password_confirm': 'password123'
         }, format='json')
         if response.status_code == 400:
-            print("✓ POST /auth/reset-password (invalid GST) - Correctly rejects")
+            print("✓ POST /auth/reset-password (invalid phone) - Correctly rejects")
             results.append(True)
         else:
-            print(f"⚠ POST /auth/reset-password (invalid GST) - Status: {response.status_code} (expected 400)")
+            print(f"⚠ POST /auth/reset-password (invalid phone) - Status: {response.status_code} (expected 400)")
             results.append(True)  # Not critical
     except Exception as e:
-        print(f"⚠ POST /auth/reset-password (invalid GST) - Error: {e}")
+        print(f"⚠ POST /auth/reset-password (invalid phone) - Error: {e}")
         results.append(True)  # Not critical
     
     # Test 32: Logout
