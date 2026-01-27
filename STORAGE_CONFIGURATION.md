@@ -215,7 +215,7 @@ USE_S3_PRESIGNED_URLS=False
 ```
 Then configure bucket policy for public read (see troubleshooting section below)
 
-**See [PRESIGNED_URLS_GUIDE.md](PRESIGNED_URLS_GUIDE.md) for complete details.**
+**Pre-signed URLs are enabled by default and work automatically - no additional configuration needed!**
 
 ## Benefits of S3
 
@@ -244,7 +244,7 @@ Then configure bucket policy for public read (see troubleshooting section below)
 - Check `USE_S3_PRESIGNED_URLS=True` in `.env`
 - Verify AWS credentials are correct
 - Check IAM user has `s3:GetObject` permission
-- See [PRESIGNED_URLS_GUIDE.md](PRESIGNED_URLS_GUIDE.md) for troubleshooting
+- See pre-signed URL section above for troubleshooting
 
 **Solution (If using public bucket - Not Recommended):**
 1. **Unblock Public Access:**

@@ -764,6 +764,47 @@ Content-Type: application/json
 - PINs don't match (400): `{"error": "PIN and confirmation do not match"}`
 - Invalid old PIN (403): `{"error": "Invalid old PIN"}` (when changing existing PIN)
 
+**Request Example (cURL - Set PIN First Time):**
+```bash
+curl -X POST http://localhost:8000/auth/vendor/security-pin/set \
+  -H "Authorization: Token YOUR_OWNER_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "pin": "1234",
+    "pin_confirm": "1234"
+  }'
+```
+
+**Request Example (cURL - Change Existing PIN):**
+```bash
+curl -X POST http://localhost:8000/auth/vendor/security-pin/set \
+  -H "Authorization: Token YOUR_OWNER_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "old_pin": "1234",
+    "pin": "5678",
+    "pin_confirm": "5678"
+  }'
+```
+
+**Request Example (JavaScript/Fetch):**
+```javascript
+const response = await fetch('http://localhost:8000/auth/vendor/security-pin/set', {
+  method: 'POST',
+  headers: {
+    'Authorization': `Token ${ownerToken}`,
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    pin: '1234',
+    pin_confirm: '1234'
+  })
+});
+
+const result = await response.json();
+console.log(result);
+```
+
 **2. Verify Security PIN**
 
 **POST** `/auth/vendor/security-pin/verify`
@@ -805,6 +846,37 @@ Content-Type: application/json
 }
 ```
 
+**Request Example (cURL):**
+```bash
+curl -X POST http://localhost:8000/auth/vendor/security-pin/verify \
+  -H "Authorization: Token YOUR_OWNER_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "pin": "1234"
+  }'
+```
+
+**Request Example (JavaScript/Fetch):**
+```javascript
+const response = await fetch('http://localhost:8000/auth/vendor/security-pin/verify', {
+  method: 'POST',
+  headers: {
+    'Authorization': `Token ${ownerToken}`,
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    pin: '1234'
+  })
+});
+
+const result = await response.json();
+if (result.verified) {
+  console.log('PIN verified - show sensitive UI');
+} else {
+  console.log('Invalid PIN');
+}
+```
+
 **3. Check PIN Status**
 
 **GET** `/auth/vendor/security-pin/status`
@@ -824,6 +896,28 @@ Authorization: Token <owner_token>
 ```json
 {
   "has_pin": true
+}
+```
+
+**Request Example (cURL):**
+```bash
+curl -X GET http://localhost:8000/auth/vendor/security-pin/status \
+  -H "Authorization: Token YOUR_OWNER_TOKEN"
+```
+
+**Request Example (JavaScript/Fetch):**
+```javascript
+const response = await fetch('http://localhost:8000/auth/vendor/security-pin/status', {
+  headers: {
+    'Authorization': `Token ${ownerToken}`
+  }
+});
+
+const result = await response.json();
+if (result.has_pin) {
+  console.log('PIN is set - show PIN input field');
+} else {
+  console.log('No PIN set - show PIN setup form');
 }
 ```
 
@@ -884,6 +978,39 @@ Content-Type: application/json
 - PIN required (400): `{"error": "Security PIN is required for this operation"}`
 - Invalid PIN (403): `{"error": "Invalid security PIN"}`
 
+**Request Example (cURL):**
+```bash
+curl -X POST http://localhost:8000/auth/vendor/users/create \
+  -H "Authorization: Token YOUR_OWNER_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "username": "cashier1",
+    "password": "cashier123",
+    "email": "cashier1@example.com",
+    "security_pin": "1234"
+  }'
+```
+
+**Request Example (JavaScript/Fetch):**
+```javascript
+const response = await fetch('http://localhost:8000/auth/vendor/users/create', {
+  method: 'POST',
+  headers: {
+    'Authorization': `Token ${ownerToken}`,
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    username: 'cashier1',
+    password: 'cashier123',
+    email: 'cashier1@example.com',
+    security_pin: '1234'
+  })
+});
+
+const result = await response.json();
+console.log('Staff user created:', result.user);
+```
+
 #### 2. List Vendor Users (Owner + Staff)
 
 **GET** `/auth/vendor/users`
@@ -921,6 +1048,24 @@ Authorization: Token <vendor_token>
     }
   ]
 }
+```
+
+**Request Example (cURL):**
+```bash
+curl -X GET http://localhost:8000/auth/vendor/users \
+  -H "Authorization: Token YOUR_VENDOR_TOKEN"
+```
+
+**Request Example (JavaScript/Fetch):**
+```javascript
+const response = await fetch('http://localhost:8000/auth/vendor/users', {
+  headers: {
+    'Authorization': `Token ${vendorToken}`
+  }
+});
+
+const result = await response.json();
+console.log('Vendor users:', result.users);
 ```
 
 #### 3. Reset Staff Password (Owner Only)
@@ -966,6 +1111,35 @@ Content-Type: application/json
 - Trying to reset owner password (400): `{"error": "Owner password must be reset via GST-based forgot-password flow."}`
 - PIN required (400): `{"error": "Security PIN is required for this operation"}`
 - Invalid PIN (403): `{"error": "Invalid security PIN"}`
+
+**Request Example (cURL):**
+```bash
+curl -X POST http://localhost:8000/auth/vendor/users/7/reset-password \
+  -H "Authorization: Token YOUR_OWNER_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "new_password": "newstaff123",
+    "security_pin": "1234"
+  }'
+```
+
+**Request Example (JavaScript/Fetch):**
+```javascript
+const response = await fetch(`http://localhost:8000/auth/vendor/users/${staffUserId}/reset-password`, {
+  method: 'POST',
+  headers: {
+    'Authorization': `Token ${ownerToken}`,
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    new_password: 'newstaff123',
+    security_pin: '1234'
+  })
+});
+
+const result = await response.json();
+console.log(result.message);
+```
 
 #### 4. Remove (Deactivate) Staff User (Owner Only)
 
@@ -1013,6 +1187,52 @@ DELETE /auth/vendor/users/<user_id>?security_pin=1234
 - Attempt to remove owner (400): `{"error": "Cannot remove owner account"}`
 - PIN required (400): `{"error": "Security PIN is required for this operation"}`
 - Invalid PIN (403): `{"error": "Invalid security PIN"}`
+
+**Request Example (cURL - Query Parameter):**
+```bash
+curl -X DELETE "http://localhost:8000/auth/vendor/users/7?security_pin=1234" \
+  -H "Authorization: Token YOUR_OWNER_TOKEN"
+```
+
+**Request Example (cURL - Request Body):**
+```bash
+curl -X DELETE http://localhost:8000/auth/vendor/users/7 \
+  -H "Authorization: Token YOUR_OWNER_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "security_pin": "1234"
+  }'
+```
+
+**Request Example (JavaScript/Fetch - Query Parameter):**
+```javascript
+const response = await fetch(`http://localhost:8000/auth/vendor/users/${staffUserId}?security_pin=1234`, {
+  method: 'DELETE',
+  headers: {
+    'Authorization': `Token ${ownerToken}`
+  }
+});
+
+const result = await response.json();
+console.log(result.message);
+```
+
+**Request Example (JavaScript/Fetch - Request Body):**
+```javascript
+const response = await fetch(`http://localhost:8000/auth/vendor/users/${staffUserId}`, {
+  method: 'DELETE',
+  headers: {
+    'Authorization': `Token ${ownerToken}`,
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    security_pin: '1234'
+  })
+});
+
+const result = await response.json();
+console.log(result.message);
+```
 
 ---
 

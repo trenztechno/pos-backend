@@ -40,10 +40,10 @@ This README serves as the main entry point. For detailed documentation, refer to
    - Test cases for all billing modes
    - Test cases for all payment modes
    - Test cases for all GST percentages
-3. **[STORAGE_CONFIGURATION.md](STORAGE_CONFIGURATION.md)** - Image storage setup (Local/S3)
-4. **[PRESIGNED_URLS_GUIDE.md](PRESIGNED_URLS_GUIDE.md)** - Pre-signed URLs for secure S3 access (recommended)
-5. **[AUTHENTICATION_FLOW.md](AUTHENTICATION_FLOW.md)** - Auth flow details
-6. **[ENDPOINTS_SUMMARY.md](ENDPOINTS_SUMMARY.md)** - Quick endpoint reference
+3. **[STORAGE_CONFIGURATION.md](STORAGE_CONFIGURATION.md)** - Image storage setup (Local/S3 with pre-signed URLs)
+4. **[AUTHENTICATION_FLOW.md](AUTHENTICATION_FLOW.md)** - Auth flow details
+5. **[ENDPOINTS_SUMMARY.md](ENDPOINTS_SUMMARY.md)** - Quick endpoint reference
+6. **[ADMIN_PANEL_GUIDE.md](ADMIN_PANEL_GUIDE.md)** - Django admin panel guide (vendor management, staff users, security PIN)
 
 ### Quick Reference: Where to Find What
 
