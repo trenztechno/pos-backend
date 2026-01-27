@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import User
+from django.contrib.auth.hashers import make_password, check_password
 from django.core.validators import FileExtensionValidator
 import uuid
 import os
@@ -49,6 +50,12 @@ class Vendor(models.Model):
         blank=True,
         null=True,
         help_text="Footer note to be displayed on bills (e.g., 'Thank you for visiting!')",
+    )
+    security_pin = models.CharField(
+        max_length=128,
+        blank=True,
+        null=True,
+        help_text="Hashed security PIN for accessing sensitive operations (user management, etc.)",
     )
     is_approved = models.BooleanField(default=False)  # Admin approval status
     created_at = models.DateTimeField(auto_now_add=True)
@@ -112,6 +119,24 @@ class Vendor(models.Model):
             pass
 
         return False
+
+    def set_security_pin(self, pin):
+        """Set security PIN (hashed)"""
+        if not pin:
+            self.security_pin = None
+        else:
+            self.security_pin = make_password(pin)
+        self.save()
+
+    def check_security_pin(self, pin):
+        """Verify security PIN"""
+        if not self.security_pin:
+            return False
+        return check_password(pin, self.security_pin)
+
+    def has_security_pin(self):
+        """Check if security PIN is set"""
+        return bool(self.security_pin)
 
 
 class SalesRep(models.Model):

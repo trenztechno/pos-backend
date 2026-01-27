@@ -242,6 +242,7 @@ curl -X POST http://localhost:8000/auth/register \
 **No authentication required**
 
 Login to get an authentication token. Only approved vendors can login.
+Both **vendor owners** and **vendor staff users** use this same endpoint.
 
 **Request Body:**
 ```json
@@ -251,7 +252,7 @@ Login to get an authentication token. Only approved vendors can login.
 }
 ```
 
-**Success Response (200):**
+**Success Response (200) (Owner or Staff):**
 ```json
 {
   "token": "9944b09199c62bcf9418ad846dd0e4bbdfc6ee4b",
@@ -269,7 +270,10 @@ Login to get an authentication token. Only approved vendors can login.
 }
 ```
 
-**Note:** The `vendor` object is only included for vendor accounts. It contains:
+**Notes:**
+
+- The `vendor` object is included for **both** vendor owners and vendor staff users (all share the same vendor account).
+- The `vendor` object contains:
 - `logo_url`: Pre-signed URL to restaurant logo (temporary, expires in 1 hour) or null if not uploaded
 - `fssai_license`: FSSAI License Number (required for restaurant bills)
 - `footer_note`: Footer note to display on bills (optional)
@@ -486,7 +490,13 @@ console.log(data.vendor.logo_url); // Pre-signed URL for logo
 
 **No authentication required**
 
-Verifies the username and GST number to initiate password reset flow. This is the first step in password reset. Both username and GST number must match the same vendor account.
+Verifies the username and GST number to initiate password reset flow. This is the first step in password reset.
+
+🔐 **Important:**
+
+- This flow is **only for the main vendor owner account** (the account created via `POST /auth/register`).
+- **Staff users created by the vendor owner CANNOT use this forgot-password endpoint.**
+- If a staff user forgets their password, the vendor owner must reset it using the **"Reset Staff Password"** endpoint (see below).
 
 **Request Body:**
 ```json
@@ -497,8 +507,8 @@ Verifies the username and GST number to initiate password reset flow. This is th
 ```
 
 **Field Descriptions:**
-- `username`: Username of the vendor account (required)
-- `gst_no`: GST number of the vendor account (required, must match the username)
+- `username`: Username of the **vendor owner** account (required)
+- `gst_no`: GST number of the vendor owner account (required, must match the username)
 
 **Success Response (200):**
 ```json
@@ -552,6 +562,27 @@ Verifies the username and GST number to initiate password reset flow. This is th
 }
 ```
 
+**Staff User (Non-Owner) Attempts Forgot Password (400):**
+
+```json
+{
+  "error": "Username and GST number verification failed",
+  "details": {
+    "non_field_errors": [
+      "Username does not belong to a vendor owner account. Please contact your vendor admin."
+    ]
+  }
+}
+```
+```json
+{
+  "error": "Username and GST number verification failed",
+  "details": {
+    "non_field_errors": ["Your account is inactive. Please contact admin."]
+  }
+}
+```
+
 **Example (cURL):**
 ```bash
 curl -X POST http://localhost:8000/auth/forgot-password \
@@ -567,7 +598,12 @@ curl -X POST http://localhost:8000/auth/forgot-password \
 
 **No authentication required**
 
-Resets the password for a vendor account using their username and GST number. This is the second step after verifying username and GST number.
+Resets the password for a **vendor owner** account using their username and GST number. This is the second step after verifying username and GST number.
+
+🔐 **Important:**
+
+- This endpoint only works for the **vendor owner** username.
+- Staff users **cannot** reset their own passwords via this endpoint; the owner must reset it for them.
 
 **Request Body:**
 ```json
@@ -580,7 +616,7 @@ Resets the password for a vendor account using their username and GST number. Th
 ```
 
 **Field Descriptions:**
-- `username`: Username of the vendor account (required, must match forgot-password step)
+- `username`: Username of the **vendor owner** account (required, must match forgot-password step)
 - `gst_no`: GST number (required, must match the username and forgot-password step)
 - `new_password`: New password (minimum 6 characters, required)
 - `new_password_confirm`: Password confirmation (must match new_password, required)
@@ -654,6 +690,329 @@ curl -X POST http://localhost:8000/auth/reset-password \
 4. User enters new password with username and GST → `POST /auth/reset-password`
 5. Password is reset, all existing tokens are invalidated
 6. User can now login with new password
+
+**Staff User Flow (No Forgot-Password):**
+
+1. Staff user forgets password.
+2. Staff user contacts vendor owner.
+3. Vendor owner calls `POST /auth/vendor/users/<user_id>/reset-password` to set a new password for the staff user.
+4. Staff user logs in with the new password via `POST /auth/login`.
+
+---
+
+### Vendor Staff User Management (Multi-User per Vendor)
+
+These endpoints allow the **vendor owner** to create and manage multiple staff users who share the same vendor account.
+
+**🔒 Security PIN Required:** All sensitive operations (create staff, reset password, remove staff) require a **security PIN** that the owner sets. This adds an extra layer of security to prevent unauthorized access to user management features.
+
+All staff users:
+- Use the same `/auth/login` endpoint.
+- Get the same `vendor` object in the response.
+- Can perform all billing actions (items, bills, dashboard, etc.).
+- **Cannot** manage other users or access Django Admin.
+
+#### Security PIN Management
+
+Before using staff management endpoints, the owner must set a security PIN:
+
+**1. Set Security PIN**
+
+**POST** `/auth/vendor/security-pin/set`
+
+**Requires authentication** (vendor owner only)
+
+Set or change the security PIN. PIN must be at least 4 characters.
+
+**Headers:**
+
+```
+Authorization: Token <owner_token>
+Content-Type: application/json
+```
+
+**Request Body (First Time - Set PIN):**
+
+```json
+{
+  "pin": "1234",
+  "pin_confirm": "1234"
+}
+```
+
+**Request Body (Change Existing PIN):**
+
+```json
+{
+  "old_pin": "1234",
+  "pin": "5678",
+  "pin_confirm": "5678"
+}
+```
+
+**Success Response (200):**
+
+```json
+{
+  "message": "Security PIN set successfully"
+}
+```
+
+**Error Responses:**
+
+- PIN too short (400): `{"error": "PIN must be at least 4 digits"}`
+- PINs don't match (400): `{"error": "PIN and confirmation do not match"}`
+- Invalid old PIN (403): `{"error": "Invalid old PIN"}` (when changing existing PIN)
+
+**2. Verify Security PIN**
+
+**POST** `/auth/vendor/security-pin/verify`
+
+**Requires authentication** (vendor owner only)
+
+Verify the security PIN (for frontend to check before showing sensitive UI). This does not unlock anything permanently - it's just for UI validation.
+
+**Headers:**
+
+```
+Authorization: Token <owner_token>
+Content-Type: application/json
+```
+
+**Request Body:**
+
+```json
+{
+  "pin": "1234"
+}
+```
+
+**Success Response (200):**
+
+```json
+{
+  "message": "Security PIN verified successfully",
+  "verified": true
+}
+```
+
+**Error Response (403):**
+
+```json
+{
+  "error": "Invalid security PIN",
+  "verified": false
+}
+```
+
+**3. Check PIN Status**
+
+**GET** `/auth/vendor/security-pin/status`
+
+**Requires authentication** (vendor owner only)
+
+Check if a security PIN is set (does not reveal the PIN).
+
+**Headers:**
+
+```
+Authorization: Token <owner_token>
+```
+
+**Success Response (200):**
+
+```json
+{
+  "has_pin": true
+}
+```
+
+---
+
+#### 1. Create Staff User
+
+**POST** `/auth/vendor/users/create`
+
+**Requires authentication** (vendor owner only) + **Security PIN**
+
+Creates a new staff user under the current vendor. The staff user can login and do billing, but cannot manage users.
+
+**Headers:**
+
+```
+Authorization: Token <owner_token>
+Content-Type: application/json
+```
+
+**Request Body:**
+
+```json
+{
+  "username": "cashier1",
+  "password": "cashier123",
+  "email": "cashier1@example.com",
+  "security_pin": "1234"
+}
+```
+
+**Field Descriptions:**
+- `username` (required, unique): Username for the staff user.
+- `password` (required, min length 6): Initial password for the staff user.
+- `email` (optional): Contact email for the staff user.
+- `security_pin` (required): Security PIN to authorize this operation.
+
+**Success Response (201):**
+
+```json
+{
+  "message": "Staff user created successfully",
+  "user": {
+    "id": 7,
+    "username": "cashier1",
+    "email": "cashier1@example.com",
+    "role": "staff",
+    "created_at": "2026-01-27T12:00:00Z"
+  }
+}
+```
+
+**Error Responses:**
+
+- Missing fields (400): `{"error": "Username and password are required"}`
+- Username already exists (400): `{"error": "Username already exists"}`
+- Not owner (403): `{"error": "Only vendor owner can create staff users"}`
+- PIN required (400): `{"error": "Security PIN is required for this operation"}`
+- Invalid PIN (403): `{"error": "Invalid security PIN"}`
+
+#### 2. List Vendor Users (Owner + Staff)
+
+**GET** `/auth/vendor/users`
+
+**Requires authentication** (any vendor user)
+
+Lists all active users (owner + staff) for the current vendor.
+
+**Headers:**
+
+```
+Authorization: Token <vendor_token>
+```
+
+**Success Response (200):**
+
+```json
+{
+  "users": [
+    {
+      "id": 3,
+      "username": "vendor1",
+      "email": "vendor1@example.com",
+      "role": "owner",
+      "created_at": "2026-01-01T10:00:00Z",
+      "created_by": null
+    },
+    {
+      "id": 7,
+      "username": "cashier1",
+      "email": "cashier1@example.com",
+      "role": "staff",
+      "created_at": "2026-01-27T12:00:00Z",
+      "created_by": "vendor1"
+    }
+  ]
+}
+```
+
+#### 3. Reset Staff Password (Owner Only)
+
+**POST** `/auth/vendor/users/<user_id>/reset-password`
+
+**Requires authentication** (vendor owner only) + **Security PIN**
+
+Resets the password for a staff user. Staff cannot use forgot-password; only the owner can reset.
+
+**Headers:**
+
+```
+Authorization: Token <owner_token>
+Content-Type: application/json
+```
+
+**Request Body:**
+
+```json
+{
+  "new_password": "newstaff123",
+  "security_pin": "1234"
+}
+```
+
+**Field Descriptions:**
+- `new_password` (required): New password for the staff user.
+- `security_pin` (required): Security PIN to authorize this operation.
+
+**Success Response (200):**
+
+```json
+{
+  "message": "Staff user password reset successfully"
+}
+```
+
+**Error Responses:**
+
+- Not owner (403): `{"error": "Only vendor owner can reset staff passwords"}`
+- User not in this vendor (404): `{"error": "User not found in this vendor"}`
+- Trying to reset owner password (400): `{"error": "Owner password must be reset via GST-based forgot-password flow."}`
+- PIN required (400): `{"error": "Security PIN is required for this operation"}`
+- Invalid PIN (403): `{"error": "Invalid security PIN"}`
+
+#### 4. Remove (Deactivate) Staff User (Owner Only)
+
+**DELETE** `/auth/vendor/users/<user_id>`
+
+**Requires authentication** (vendor owner only) + **Security PIN**
+
+Deactivates a staff user. Marks both the `VendorUser` link and the underlying Django `User` as inactive and invalidates tokens.
+
+**Headers:**
+
+```
+Authorization: Token <owner_token>
+```
+
+**Query Parameter or Request Body:**
+
+**Option 1: Query Parameter (Recommended for DELETE):**
+```
+DELETE /auth/vendor/users/<user_id>?security_pin=1234
+```
+
+**Option 2: Request Body (JSON):**
+```json
+{
+  "security_pin": "1234"
+}
+```
+
+**Field Descriptions:**
+- `security_pin` (required): Security PIN to authorize this operation. Can be provided via query parameter or request body.
+
+**Success Response (200):**
+
+```json
+{
+  "message": "Staff user removed successfully"
+}
+```
+
+**Error Responses:**
+
+- Not owner (403): `{"error": "Only vendor owner can remove staff users"}`
+- User not in this vendor (404): `{"error": "User not found in this vendor"}`
+- Attempt to remove owner (400): `{"error": "Cannot remove owner account"}`
+- PIN required (400): `{"error": "Security PIN is required for this operation"}`
+- Invalid PIN (403): `{"error": "Invalid security PIN"}`
 
 ---
 

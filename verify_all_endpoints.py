@@ -298,7 +298,12 @@ def test_serializers():
     print_section("7. Testing Serializers")
     
     try:
-        from auth_app.serializers import RegisterSerializer, LoginSerializer, ForgotPasswordSerializer, ResetPasswordSerializer
+        from auth_app.serializers import (
+            RegisterSerializer,
+            LoginSerializer,
+            ForgotPasswordSerializer,
+            ResetPasswordSerializer,
+        )
         from items.serializers import ItemSerializer, CategorySerializer, ItemListSerializer
         from sales.serializers import BillSerializer, BillItemSerializer, BillListSerializer, SalesBackupSerializer
         from settings.serializers import AppSettingsSerializer
@@ -431,6 +436,14 @@ def test_api_endpoints():
     vendor.is_approved = True
     vendor.gst_no = 'TESTGST123456'  # Ensure GST number is set
     vendor.save()
+
+    # Ensure VendorUser link exists for owner (multi-user support)
+    from auth_app.models import VendorUser
+    VendorUser.objects.get_or_create(
+        vendor=vendor,
+        user=test_user,
+        defaults={'is_owner': True, 'is_active': True},
+    )
     test_user.is_active = True
     test_user.save()
     
@@ -513,7 +526,129 @@ def test_api_endpoints():
         print(f"✗ POST /auth/login - Error: {e}")
         results.append(False)
     
-    # Test 3a: Update Item with Image (PATCH with multipart) - Test image upload on update
+    # Test 3a: Vendor staff user management (create/list/reset/remove) with security PIN
+    try:
+        print("\n- Test 3a: Vendor staff user management (create/list/reset/remove) with security PIN")
+
+        # Ensure owner client is authenticated
+        client.credentials(HTTP_AUTHORIZATION=f'Token {token.key}')
+
+        # 3a.0 Set security PIN first
+        set_pin_resp = client.post(
+            '/auth/vendor/security-pin/set',
+            {'pin': '1234', 'pin_confirm': '1234'},
+            format='json',
+        )
+        print(f"  • POST /auth/vendor/security-pin/set -> {set_pin_resp.status_code}")
+        if set_pin_resp.status_code != 200:
+            print(f"    Error: {set_pin_resp.json()}")
+        assert set_pin_resp.status_code == 200, f"Set security PIN should succeed: {set_pin_resp.json()}"
+
+        # Refresh vendor from DB to get updated PIN
+        vendor.refresh_from_db()
+
+        # 3a.0.1 Verify PIN status
+        pin_status_resp = client.get('/auth/vendor/security-pin/status')
+        print(f"  • GET /auth/vendor/security-pin/status -> {pin_status_resp.status_code}")
+        assert pin_status_resp.status_code == 200, "Get PIN status should succeed"
+        assert pin_status_resp.json().get('has_pin') == True, "PIN should be set"
+
+        # 3a.0.2 Verify PIN
+        verify_pin_resp = client.post(
+            '/auth/vendor/security-pin/verify',
+            {'pin': '1234'},
+            format='json',
+        )
+        print(f"  • POST /auth/vendor/security-pin/verify -> {verify_pin_resp.status_code}")
+        if verify_pin_resp.status_code != 200:
+            print(f"    Error: {verify_pin_resp.json()}")
+        assert verify_pin_resp.status_code == 200, f"Verify PIN should succeed: {verify_pin_resp.json()}"
+
+        # 3a.1 Create staff user (with PIN)
+        staff_username = 'test_staff_user_' + str(int(time.time()))
+        staff_password = 'staffpass123'
+
+        create_staff_resp = client.post(
+            '/auth/vendor/users/create',
+            {
+                'username': staff_username,
+                'password': staff_password,
+                'email': 'staff@example.com',
+                'security_pin': '1234',
+            },
+            format='json',
+        )
+        print(f"  • POST /auth/vendor/users/create (with PIN) -> {create_staff_resp.status_code}")
+        if create_staff_resp.status_code not in (200, 201):
+            print(f"    Error: {create_staff_resp.json()}")
+        assert create_staff_resp.status_code in (200, 201), f"Create staff user should succeed: {create_staff_resp.json()}"
+        staff_data = create_staff_resp.json().get('user', {})
+        staff_id = staff_data.get('id')
+        assert staff_id, "Staff user id should be returned"
+
+        # 3a.2 Staff can login and see same vendor
+        client.credentials()  # clear auth for staff login
+        login_staff_resp = client.post(
+            '/auth/login',
+            {'username': staff_username, 'password': staff_password},
+            format='json',
+        )
+        print(f"  • POST /auth/login (staff) -> {login_staff_resp.status_code}")
+        assert login_staff_resp.status_code == 200, "Staff login should succeed"
+        login_staff_json = login_staff_resp.json()
+        assert login_staff_json.get('vendor', {}).get('id') == str(vendor.id), "Staff should see same vendor"
+
+        # Re-authenticate as owner
+        client.credentials(HTTP_AUTHORIZATION=f'Token {token.key}')
+
+        # 3a.3 List vendor users
+        list_users_resp = client.get('/auth/vendor/users')
+        print(f"  • GET /auth/vendor/users -> {list_users_resp.status_code}")
+        assert list_users_resp.status_code == 200, "List vendor users should succeed"
+        users_list = list_users_resp.json().get('users', [])
+        assert any(u.get('username') == staff_username for u in users_list), "Staff user should appear in list"
+
+        # 3a.4 Reset staff password by owner (with PIN)
+        reset_staff_resp = client.post(
+            f'/auth/vendor/users/{staff_id}/reset-password',
+            {'new_password': 'staffpass456', 'security_pin': '1234'},
+            format='json',
+        )
+        print(f"  • POST /auth/vendor/users/{staff_id}/reset-password -> {reset_staff_resp.status_code}")
+        assert reset_staff_resp.status_code == 200, "Owner should be able to reset staff password"
+
+        # Ensure staff can login with new password
+        client.credentials()
+        login_staff_new_resp = client.post(
+            '/auth/login',
+            {'username': staff_username, 'password': 'staffpass456'},
+            format='json',
+        )
+        print(f"  • POST /auth/login (staff, new password) -> {login_staff_new_resp.status_code}")
+        assert login_staff_new_resp.status_code == 200, "Staff should login with new password"
+
+        # 3a.5 Remove staff user (with PIN via query param)
+        client.credentials(HTTP_AUTHORIZATION=f'Token {token.key}')
+        remove_staff_resp = client.delete(f'/auth/vendor/users/{staff_id}?security_pin=1234')
+        print(f"  • DELETE /auth/vendor/users/{staff_id} -> {remove_staff_resp.status_code}")
+        assert remove_staff_resp.status_code == 200, "Owner should be able to remove staff user"
+
+        # Confirm staff login now fails
+        client.credentials()
+        login_staff_removed_resp = client.post(
+            '/auth/login',
+            {'username': staff_username, 'password': 'staffpass456'},
+            format='json',
+        )
+        print(f"  • POST /auth/login (removed staff) -> {login_staff_removed_resp.status_code}")
+        assert login_staff_removed_resp.status_code in (401, 403), "Removed staff should not be able to login"
+
+        results.append(True)
+    except AssertionError as e:
+        print(f"✗ Vendor staff management tests failed: {e}")
+        results.append(False)
+
+    # Test 3b: Update Item with Image (PATCH with multipart) - Test image upload on update
     try:
         # First create an item for testing
         client.credentials(HTTP_AUTHORIZATION=f'Token {token.key}')

@@ -24,10 +24,15 @@ This document explains the authentication flow and ensures backward compatibilit
 **Flow:**
 1. User provides username and password
 2. System authenticates credentials
-3. Checks if vendor is approved and active
-4. Returns token if valid
-5. **Does NOT check GST number** - backward compatible
-6. **Returns vendor data** (for vendors)
+3. System resolves vendor:
+   - If user is **vendor owner** → `user.vendor_profile`
+   - If user is **vendor staff** → `VendorUser` link (`vendor_memberships`)
+4. If user is a vendor (owner or staff), system checks:
+   - Vendor is approved
+   - User account is active
+5. Returns token if valid
+6. **Does NOT check GST number** - backward compatible
+7. **Returns vendor data** (for both owner and staff users)
 
 **Login Response (for vendors):**
 ```json
@@ -80,21 +85,21 @@ This document explains the authentication flow and ensures backward compatibilit
 
 ---
 
-## Password Reset Flow (GST Required)
+## Password Reset Flow (GST Required, Owner Only)
 
 **Step 1:** `POST /auth/forgot-password`
-- Requires: `username` + `gst_no`
-- Verifies both match the same vendor account
+- Requires: `username` (vendor owner) + `gst_no`
+- Verifies both match the **vendor owner** account (must have GST)
 - Returns confirmation if valid
 
 **Step 2:** `POST /auth/reset-password`
-- Requires: `username` + `gst_no` + `new_password` + `new_password_confirm`
-- Resets password and invalidates all tokens
+- Requires: `username` (vendor owner) + `gst_no` + `new_password` + `new_password_confirm`
+- Resets password and invalidates all tokens for the owner
 
-**Note:** 
-- Vendors without GST cannot use password reset
-- They must contact admin to add GST number first
-- This is intentional - ensures security
+**Notes:** 
+- Vendors without GST cannot use password reset.
+- Password reset is **only** for the vendor owner account.
+- Staff users never go through this flow; their passwords are reset by the owner via a protected API.
 
 ---
 
@@ -116,7 +121,14 @@ This document explains the authentication flow and ensures backward compatibilit
 
 ✅ **Can Login:** Yes - they're not vendors
 ✅ **Can Use Admin/Sales Rep Interface:** Yes
-❌ **Cannot Use Password Reset:** Password reset is vendor-only
+❌ **Cannot Use Password Reset:** Password reset is vendor-owner-only
+
+### Vendor Staff Users (Created by Owner)
+
+✅ **Can Login:** Yes - via `POST /auth/login`  
+✅ **Can Use API:** Yes - all billing endpoints (items, bills, dashboard, etc.)  
+❌ **Cannot Use Password Reset:** Must ask vendor owner to reset password via API  
+❌ **Cannot Access Django Admin:** `is_staff=False`, `is_superuser=False`
 
 ---
 
@@ -157,7 +169,7 @@ If you have existing vendors without GST numbers:
 ### Password Reset Workflow (Protected)
 - ✅ Requires GST number (security feature)
 - ✅ Validates username + GST match
-- ✅ Only works for vendors with GST
+- ✅ Only works for **vendor owner** accounts with GST
 - ✅ Clear error if vendor doesn't have GST
 
 ---

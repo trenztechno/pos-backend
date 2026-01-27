@@ -347,6 +347,8 @@ def create_staff_user(request):
 
     Vendor owner can create staff users (username + password) who can perform all
     billing actions but cannot manage other users or access Django admin.
+    
+    Requires security PIN verification.
     """
     vendor = get_vendor_from_request(request)
     if not vendor:
@@ -355,6 +357,20 @@ def create_staff_user(request):
     if not is_vendor_owner(request, vendor):
         return Response(
             {'error': 'Only vendor owner can create staff users'},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
+    # Verify security PIN
+    security_pin = request.data.get('security_pin')
+    if not security_pin:
+        return Response(
+            {'error': 'Security PIN is required for this operation'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    if not vendor.check_security_pin(security_pin):
+        return Response(
+            {'error': 'Invalid security PIN'},
             status=status.HTTP_403_FORBIDDEN,
         )
 
@@ -447,6 +463,8 @@ def reset_staff_password(request, user_id):
 
     Vendor owner can reset password for a staff user.
     Staff users do NOT have public forgot-password flow.
+    
+    Requires security PIN verification.
     """
     vendor = get_vendor_from_request(request)
     if not vendor:
@@ -455,6 +473,20 @@ def reset_staff_password(request, user_id):
     if not is_vendor_owner(request, vendor):
         return Response(
             {'error': 'Only vendor owner can reset staff passwords'},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
+    # Verify security PIN
+    security_pin = request.data.get('security_pin')
+    if not security_pin:
+        return Response(
+            {'error': 'Security PIN is required for this operation'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    if not vendor.check_security_pin(security_pin):
+        return Response(
+            {'error': 'Invalid security PIN'},
             status=status.HTTP_403_FORBIDDEN,
         )
 
@@ -500,6 +532,9 @@ def remove_staff_user(request, user_id):
     DELETE /auth/vendor/users/<user_id>
 
     Vendor owner can deactivate a staff user (cannot remove owner).
+    
+    Requires security PIN verification.
+    PIN can be provided via query parameter: ?security_pin=1234
     """
     vendor = get_vendor_from_request(request)
     if not vendor:
@@ -508,6 +543,20 @@ def remove_staff_user(request, user_id):
     if not is_vendor_owner(request, vendor):
         return Response(
             {'error': 'Only vendor owner can remove staff users'},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
+    # Verify security PIN (from query params or request body)
+    security_pin = request.query_params.get('security_pin') or request.data.get('security_pin')
+    if not security_pin:
+        return Response(
+            {'error': 'Security PIN is required for this operation. Provide via query parameter: ?security_pin=1234'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    if not vendor.check_security_pin(security_pin):
+        return Response(
+            {'error': 'Invalid security PIN'},
             status=status.HTTP_403_FORBIDDEN,
         )
 
@@ -536,5 +585,135 @@ def remove_staff_user(request, user_id):
 
     return Response(
         {'message': 'Staff user removed successfully'},
+        status=status.HTTP_200_OK,
+    )
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def set_security_pin(request):
+    """
+    POST /auth/vendor/security-pin/set
+
+    Vendor owner can set or change the security PIN.
+    PIN is required for sensitive operations (create staff, reset password, remove staff).
+    """
+    vendor = get_vendor_from_request(request)
+    if not vendor:
+        return Response({'error': 'Vendor not found'}, status=status.HTTP_403_FORBIDDEN)
+
+    if not is_vendor_owner(request, vendor):
+        return Response(
+            {'error': 'Only vendor owner can set security PIN'},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
+    pin = request.data.get('pin')
+    pin_confirm = request.data.get('pin_confirm')
+
+    if not pin:
+        return Response(
+            {'error': 'PIN is required'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    if len(pin) < 4:
+        return Response(
+            {'error': 'PIN must be at least 4 digits'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    if pin_confirm and pin != pin_confirm:
+        return Response(
+            {'error': 'PIN and confirmation do not match'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    # If PIN already exists, require old PIN to change
+    if vendor.has_security_pin():
+        old_pin = request.data.get('old_pin')
+        if not old_pin:
+            return Response(
+                {'error': 'Old PIN is required to change existing PIN'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if not vendor.check_security_pin(old_pin):
+            return Response(
+                {'error': 'Invalid old PIN'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+    vendor.set_security_pin(pin)
+
+    return Response(
+        {'message': 'Security PIN set successfully'},
+        status=status.HTTP_200_OK,
+    )
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def verify_security_pin(request):
+    """
+    POST /auth/vendor/security-pin/verify
+
+    Verify security PIN (for frontend to check before showing sensitive UI).
+    Returns success if PIN is correct, does not unlock anything permanently.
+    """
+    vendor = get_vendor_from_request(request)
+    if not vendor:
+        return Response({'error': 'Vendor not found'}, status=status.HTTP_403_FORBIDDEN)
+
+    if not is_vendor_owner(request, vendor):
+        return Response(
+            {'error': 'Only vendor owner can verify security PIN'},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
+    if not vendor.has_security_pin():
+        return Response(
+            {'error': 'Security PIN not set. Please set a PIN first.'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    pin = request.data.get('pin')
+    if not pin:
+        return Response(
+            {'error': 'PIN is required'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    if vendor.check_security_pin(pin):
+        return Response(
+            {'message': 'Security PIN verified successfully', 'verified': True},
+            status=status.HTTP_200_OK,
+        )
+    else:
+        return Response(
+            {'error': 'Invalid security PIN', 'verified': False},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_security_pin_status(request):
+    """
+    GET /auth/vendor/security-pin/status
+
+    Check if security PIN is set (does not reveal PIN, just whether it exists).
+    """
+    vendor = get_vendor_from_request(request)
+    if not vendor:
+        return Response({'error': 'Vendor not found'}, status=status.HTTP_403_FORBIDDEN)
+
+    if not is_vendor_owner(request, vendor):
+        return Response(
+            {'error': 'Only vendor owner can check security PIN status'},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
+    return Response(
+        {'has_pin': vendor.has_security_pin()},
         status=status.HTTP_200_OK,
     )

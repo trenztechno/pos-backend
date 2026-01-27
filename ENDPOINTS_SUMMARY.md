@@ -25,6 +25,26 @@
 - **POST** `/auth/reset-password` - Reset password using GST number (No auth)
 - **POST** `/auth/logout` - Logout (Auth required)
 
+### Vendor Staff User Management (Owner Only, Requires Security PIN)
+- **POST** `/auth/vendor/users/create` - Create staff user (Auth + PIN required)
+  - Body: username, password, email (optional), security_pin
+- **GET** `/auth/vendor/users` - List all vendor users (owner + staff) (Auth required)
+- **POST** `/auth/vendor/users/<user_id>/reset-password` - Reset staff password (Auth + PIN required)
+  - Body: new_password, security_pin
+- **DELETE** `/auth/vendor/users/<user_id>` - Remove staff user (Auth + PIN required)
+  - Body: security_pin
+
+### Security PIN Management (Owner Only)
+- **POST** `/auth/vendor/security-pin/set` - Set or change security PIN (Auth required)
+  - Body: pin, pin_confirm (old_pin required if changing existing PIN)
+- **POST** `/auth/vendor/security-pin/verify` - Verify security PIN (Auth required)
+  - Body: pin (for frontend validation before showing sensitive UI)
+- **GET** `/auth/vendor/security-pin/status` - Check if PIN is set (Auth required)
+ - **POST** `/auth/vendor/users/create` - Create staff user under current vendor (Owner only, Auth required)
+ - **GET** `/auth/vendor/users` - List all vendor users (owner + staff) (Auth required)
+ - **POST** `/auth/vendor/users/<int:user_id>/reset-password` - Reset staff password (Owner only, Auth required)
+ - **DELETE** `/auth/vendor/users/<int:user_id>` - Deactivate staff user (Owner only, Auth required)
+
 ### Categories (Products)
 - **GET** `/items/categories/` - List all categories (Auth required)
 - **POST** `/items/categories/` - Create category (Auth required)
@@ -131,9 +151,9 @@
 
 ## 📊 Endpoint Statistics
 
-- **Total Endpoints:** 38
+- **Total Endpoints:** 42
 - **No Auth Required:** 6 (health, unit-types, register, login, forgot-password, reset-password)
-- **Token Auth Required:** 31 (includes 2 profile endpoints + 7 dashboard endpoints)
+- **Token Auth Required:** 35 (includes 2 profile endpoints + 7 dashboard endpoints + 4 vendor user management endpoints)
 - **Session Auth Required:** 5 (sales rep interface)
 - **Admin Auth Required:** 1 (admin panel)
 

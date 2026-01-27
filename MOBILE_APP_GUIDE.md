@@ -731,6 +731,10 @@ async function syncBillToServer(billPayload) {
 - `POST /auth/register` - Register new vendor (requires: username, email, password, business_name, phone, gst_no, address)
 - `POST /auth/forgot-password` - Verify GST number to initiate password reset
 - `POST /auth/reset-password` - Reset password using GST number
+ - `POST /auth/vendor/users/create` - Vendor owner creates staff users (same vendor, same access to billing)
+ - `GET /auth/vendor/users` - List all vendor users (owner + staff)
+ - `POST /auth/vendor/users/<user_id>/reset-password` - Owner resets staff password (staff have no forgot-password)
+ - `DELETE /auth/vendor/users/<user_id>` - Owner deactivates staff user
 
 ### Categories
 - `GET /items/categories/` - Get all categories (initial sync)

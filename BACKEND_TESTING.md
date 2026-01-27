@@ -167,6 +167,10 @@ All functionality verified successfully!
 - **POST /auth/reset-password** - Reset password (non-matching passwords)
 - **POST /auth/reset-password** - Reset password (invalid GST)
 - **POST /auth/logout** - Logout (deletes token)
+ - **POST /auth/vendor/users/create** - Vendor owner creates staff user
+ - **GET /auth/vendor/users** - List owner + staff users for vendor
+ - **POST /auth/vendor/users/<user_id>/reset-password** - Owner resets staff password
+ - **DELETE /auth/vendor/users/<user_id>** - Owner deactivates staff user
 
 #### Category Tests
 - **GET /items/categories/** - Get categories
