@@ -1943,7 +1943,44 @@ def test_api_endpoints():
         print(f"✗ GET /dashboard/sales?billing_mode=gst - Error: {e}")
         results.append(False)
     
-    # Test 39: Dashboard Items
+    # Test 38a: Dashboard Sales with non_gst filter
+    try:
+        if not client._credentials:
+            token, _ = Token.objects.get_or_create(user=test_user)
+            client.credentials(HTTP_AUTHORIZATION=f'Token {token.key}')
+        
+        response = client.get('/dashboard/sales?billing_mode=non_gst')
+        if response.status_code == 200:
+            print("✓ GET /dashboard/sales?billing_mode=non_gst - Working")
+            results.append(True)
+        else:
+            print(f"✗ GET /dashboard/sales?billing_mode=non_gst - Status: {response.status_code}")
+            results.append(False)
+    except Exception as e:
+        print(f"✗ GET /dashboard/sales?billing_mode=non_gst - Error: {e}")
+        results.append(False)
+    
+    # Test 38b: Dashboard Sales with date range
+    try:
+        if not client._credentials:
+            token, _ = Token.objects.get_or_create(user=test_user)
+            client.credentials(HTTP_AUTHORIZATION=f'Token {token.key}')
+        
+        from datetime import datetime, timedelta
+        today = datetime.now().date()
+        week_ago = today - timedelta(days=7)
+        response = client.get(f'/dashboard/sales?start_date={week_ago}&end_date={today}')
+        if response.status_code == 200:
+            print("✓ GET /dashboard/sales?start_date&end_date - Working")
+            results.append(True)
+        else:
+            print(f"✗ GET /dashboard/sales?start_date&end_date - Status: {response.status_code}")
+            results.append(False)
+    except Exception as e:
+        print(f"✗ GET /dashboard/sales?start_date&end_date - Error: {e}")
+        results.append(False)
+    
+    # Test 39: Dashboard Items (most_sold)
     try:
         if not client._credentials:
             token, _ = Token.objects.get_or_create(user=test_user)
@@ -1951,13 +1988,50 @@ def test_api_endpoints():
         
         response = client.get('/dashboard/items?sort=most_sold')
         if response.status_code == 200:
-            print("✓ GET /dashboard/items - Working")
+            print("✓ GET /dashboard/items?sort=most_sold - Working")
             results.append(True)
         else:
-            print(f"✗ GET /dashboard/items - Status: {response.status_code}")
+            print(f"✗ GET /dashboard/items?sort=most_sold - Status: {response.status_code}")
             results.append(False)
     except Exception as e:
-        print(f"✗ GET /dashboard/items - Error: {e}")
+        print(f"✗ GET /dashboard/items?sort=most_sold - Error: {e}")
+        results.append(False)
+    
+    # Test 39a: Dashboard Items (least_sold)
+    try:
+        if not client._credentials:
+            token, _ = Token.objects.get_or_create(user=test_user)
+            client.credentials(HTTP_AUTHORIZATION=f'Token {token.key}')
+        
+        response = client.get('/dashboard/items?sort=least_sold')
+        if response.status_code == 200:
+            print("✓ GET /dashboard/items?sort=least_sold - Working")
+            results.append(True)
+        else:
+            print(f"✗ GET /dashboard/items?sort=least_sold - Status: {response.status_code}")
+            results.append(False)
+    except Exception as e:
+        print(f"✗ GET /dashboard/items?sort=least_sold - Error: {e}")
+        results.append(False)
+    
+    # Test 39b: Dashboard Items with date range and limit
+    try:
+        if not client._credentials:
+            token, _ = Token.objects.get_or_create(user=test_user)
+            client.credentials(HTTP_AUTHORIZATION=f'Token {token.key}')
+        
+        from datetime import datetime, timedelta
+        today = datetime.now().date()
+        week_ago = today - timedelta(days=7)
+        response = client.get(f'/dashboard/items?start_date={week_ago}&end_date={today}&limit=5')
+        if response.status_code == 200:
+            print("✓ GET /dashboard/items?start_date&end_date&limit - Working")
+            results.append(True)
+        else:
+            print(f"✗ GET /dashboard/items?start_date&end_date&limit - Status: {response.status_code}")
+            results.append(False)
+    except Exception as e:
+        print(f"✗ GET /dashboard/items?start_date&end_date&limit - Error: {e}")
         results.append(False)
     
     # Test 40: Dashboard Payments
@@ -1977,6 +2051,26 @@ def test_api_endpoints():
         print(f"✗ GET /dashboard/payments - Error: {e}")
         results.append(False)
     
+    # Test 40a: Dashboard Payments with date range
+    try:
+        if not client._credentials:
+            token, _ = Token.objects.get_or_create(user=test_user)
+            client.credentials(HTTP_AUTHORIZATION=f'Token {token.key}')
+        
+        from datetime import datetime, timedelta
+        today = datetime.now().date()
+        week_ago = today - timedelta(days=7)
+        response = client.get(f'/dashboard/payments?start_date={week_ago}&end_date={today}')
+        if response.status_code == 200:
+            print("✓ GET /dashboard/payments?start_date&end_date - Working")
+            results.append(True)
+        else:
+            print(f"✗ GET /dashboard/payments?start_date&end_date - Status: {response.status_code}")
+            results.append(False)
+    except Exception as e:
+        print(f"✗ GET /dashboard/payments?start_date&end_date - Error: {e}")
+        results.append(False)
+    
     # Test 41: Dashboard Tax
     try:
         if not client._credentials:
@@ -1994,6 +2088,26 @@ def test_api_endpoints():
         print(f"✗ GET /dashboard/tax - Error: {e}")
         results.append(False)
     
+    # Test 41a: Dashboard Tax with date range
+    try:
+        if not client._credentials:
+            token, _ = Token.objects.get_or_create(user=test_user)
+            client.credentials(HTTP_AUTHORIZATION=f'Token {token.key}')
+        
+        from datetime import datetime, timedelta
+        today = datetime.now().date()
+        week_ago = today - timedelta(days=7)
+        response = client.get(f'/dashboard/tax?start_date={week_ago}&end_date={today}')
+        if response.status_code == 200:
+            print("✓ GET /dashboard/tax?start_date&end_date - Working")
+            results.append(True)
+        else:
+            print(f"✗ GET /dashboard/tax?start_date&end_date - Status: {response.status_code}")
+            results.append(False)
+    except Exception as e:
+        print(f"✗ GET /dashboard/tax?start_date&end_date - Error: {e}")
+        results.append(False)
+    
     # Test 42: Dashboard Profit
     try:
         if not client._credentials:
@@ -2009,6 +2123,26 @@ def test_api_endpoints():
             results.append(False)
     except Exception as e:
         print(f"✗ GET /dashboard/profit - Error: {e}")
+        results.append(False)
+    
+    # Test 42a: Dashboard Profit with date range
+    try:
+        if not client._credentials:
+            token, _ = Token.objects.get_or_create(user=test_user)
+            client.credentials(HTTP_AUTHORIZATION=f'Token {token.key}')
+        
+        from datetime import datetime, timedelta
+        today = datetime.now().date()
+        week_ago = today - timedelta(days=7)
+        response = client.get(f'/dashboard/profit?start_date={week_ago}&end_date={today}')
+        if response.status_code == 200:
+            print("✓ GET /dashboard/profit?start_date&end_date - Working")
+            results.append(True)
+        else:
+            print(f"✗ GET /dashboard/profit?start_date&end_date - Status: {response.status_code}")
+            results.append(False)
+    except Exception as e:
+        print(f"✗ GET /dashboard/profit?start_date&end_date - Error: {e}")
         results.append(False)
     
     # Test 43: Dashboard Dues (Pending Payments)
@@ -2032,6 +2166,46 @@ def test_api_endpoints():
             results.append(False)
     except Exception as e:
         print(f"✗ GET /dashboard/dues - Error: {e}")
+        results.append(False)
+    
+    # Test 43a: Dashboard Dues with date range
+    try:
+        if not client._credentials:
+            token, _ = Token.objects.get_or_create(user=test_user)
+            client.credentials(HTTP_AUTHORIZATION=f'Token {token.key}')
+        
+        from datetime import datetime, timedelta
+        today = datetime.now().date()
+        week_ago = today - timedelta(days=7)
+        response = client.get(f'/dashboard/dues?start_date={week_ago}&end_date={today}')
+        if response.status_code == 200:
+            print("✓ GET /dashboard/dues?start_date&end_date - Working")
+            results.append(True)
+        else:
+            print(f"✗ GET /dashboard/dues?start_date&end_date - Status: {response.status_code}")
+            results.append(False)
+    except Exception as e:
+        print(f"✗ GET /dashboard/dues?start_date&end_date - Error: {e}")
+        results.append(False)
+    
+    # Test 43b: Dashboard Stats with date range
+    try:
+        if not client._credentials:
+            token, _ = Token.objects.get_or_create(user=test_user)
+            client.credentials(HTTP_AUTHORIZATION=f'Token {token.key}')
+        
+        from datetime import datetime, timedelta
+        today = datetime.now().date()
+        week_ago = today - timedelta(days=7)
+        response = client.get(f'/dashboard/stats?start_date={week_ago}&end_date={today}')
+        if response.status_code == 200:
+            print("✓ GET /dashboard/stats?start_date&end_date - Working")
+            results.append(True)
+        else:
+            print(f"✗ GET /dashboard/stats?start_date&end_date - Status: {response.status_code}")
+            results.append(False)
+    except Exception as e:
+        print(f"✗ GET /dashboard/stats?start_date&end_date - Error: {e}")
         results.append(False)
     
     # Cleanup test user
