@@ -19,6 +19,7 @@ from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
 from backend.views import health_check
+from sales.urls import sync_urlpatterns, bill_urlpatterns
 
 urlpatterns = [
     path('health/', health_check, name='health_check'),
@@ -26,7 +27,8 @@ urlpatterns = [
     path('auth/', include('auth_app.urls')),
     path('items/', include('items.urls')),
     path('inventory/', include('inventory_app.urls')),
-    path('backup/', include('sales.urls')),
+    path('backup/', include(sync_urlpatterns)),  # Sync endpoints: /backup/sync
+    path('bills/', include(bill_urlpatterns)),  # Bill CRUD endpoints: /bills/ and /bills/<id>/
     path('settings/', include('settings.urls')),
     path('sales-rep/', include('sales_rep.urls')),
     path('dashboard/', include('dashboard.urls')),

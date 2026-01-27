@@ -84,8 +84,32 @@
   - Actions: `set`, `add`, `subtract`
 - **DELETE** `/inventory/<uuid:id>/` - Delete inventory item (Auth required)
 
-### Sales Backup
+### Bills (Direct CRUD Operations)
+- **GET** `/bills/` - List all bills (Auth required)
+  - Query params: 
+    - `billing_mode` (`gst` or `non_gst`) - Filter by billing mode
+    - `start_date` (YYYY-MM-DD) - Filter bills from this date
+    - `end_date` (YYYY-MM-DD) - Filter bills until this date
+    - `payment_mode` (`cash`, `upi`, `card`, `credit`, `other`) - Filter by payment mode
+    - `limit` (integer, default: 100) - Maximum number of bills to return
+    - `offset` (integer, default: 0) - Number of bills to skip (for pagination)
+  - Returns: Paginated list of Bill objects
+- **POST** `/bills/` - Create a new bill (Auth required)
+  - Body: Bill object with `items_data` array
+  - Auto-generates invoice number if not provided
+  - Returns: Created Bill object with nested BillItem objects
+- **GET** `/bills/<uuid:id>/` - Get bill details (Auth required)
+  - Returns: Bill object with nested BillItem objects
+- **PATCH** `/bills/<uuid:id>/` - Update bill (Auth required)
+  - Can update bill fields, items, prices, payment mode, etc.
+  - Provide `items_data` array to replace all items
+  - Returns: Updated Bill object
+- **DELETE** `/bills/<uuid:id>/` - Delete bill (Auth required)
+  - Returns: 204 No Content
+
+### Sales Backup (Multi-Device Sync Only)
 - **GET** `/backup/sync` - Download bills from server (Auth required)
+  - **Purpose:** For syncing bills between devices (offline-first architecture)
   - Query params: 
     - `since` (ISO timestamp) - Get bills since this timestamp
     - `limit` (integer, default: 1000) - Maximum number of bills to return
@@ -94,7 +118,9 @@
     - `end_date` (YYYY-MM-DD) - Filter bills until this date
   - Returns: Array of Bill objects with nested BillItem objects
 - **POST** `/backup/sync` - Batch upload sales/bill data (Auth required)
+  - **Purpose:** For syncing bills created offline on mobile devices
   - Accepts: Single bill object or array of bills
+  - Format: `{ device_id, bill_data: {...} }` or `[{ device_id, bill_data: {...} }, ...]`
   - **Billing Modes:**
     - `"gst"` - GST bill (requires: cgst, sgst, igst, total_tax)
     - `"non_gst"` - Non-GST bill (no tax fields required)
@@ -105,6 +131,7 @@
     - `"credit"` - Credit payment (pending payment, `amount_paid` typically 0)
     - `"other"` - Other payment methods (wallet, cheque, etc.)
   - **Bill Examples:** See [API_DOCUMENTATION.md](API_DOCUMENTATION.md#complete-bill-creation-examples---all-cases) for 16 complete examples
+  - **Note:** Use `/bills/` endpoints for direct bill creation/update. Use `/backup/sync` only for syncing between devices.
 
 ### Dashboard & Analytics
 - **GET** `/dashboard/stats` - Overall dashboard statistics (Auth required)
@@ -151,9 +178,9 @@
 
 ## 📊 Endpoint Statistics
 
-- **Total Endpoints:** 42
+- **Total Endpoints:** 47
 - **No Auth Required:** 6 (health, unit-types, register, login, forgot-password, reset-password)
-- **Token Auth Required:** 35 (includes 2 profile endpoints + 7 dashboard endpoints + 4 vendor user management endpoints)
+- **Token Auth Required:** 40 (includes 2 profile endpoints + 7 dashboard endpoints + 4 vendor user management endpoints + 5 bill CRUD endpoints + 2 sync endpoints)
 - **Session Auth Required:** 5 (sales rep interface)
 - **Admin Auth Required:** 1 (admin panel)
 

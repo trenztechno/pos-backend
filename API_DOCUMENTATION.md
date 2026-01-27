@@ -43,8 +43,14 @@ Each bill can be either GST or Non-GST. The `billing_mode` field in the bill dat
 7. [Complete Sync Architecture (Bi-Directional)](#complete-sync-architecture-bi-directional)
    - [Reverse Sync Endpoints (Server → Mobile)](#reverse-sync-endpoints-server--mobile)
    - [Forward Sync Endpoints (Mobile → Server)](#forward-sync-endpoints-mobile--server)
-8. [Sales Backup (Bi-Directional Sync)](#sales-backup-bi-directional-sync)
-9. [Dashboard & Analytics](#dashboard--analytics)
+8. [Bills (Direct CRUD Operations)](#bills-direct-crud-operations)
+   - [List Bills](#list-bills)
+   - [Create Bill](#create-bill)
+   - [Get Bill Details](#get-bill-details)
+   - [Update Bill](#update-bill)
+   - [Delete Bill](#delete-bill)
+9. [Sales Backup (Multi-Device Sync Only)](#sales-backup-multi-device-sync-only)
+10. [Dashboard & Analytics](#dashboard--analytics)
    - [Dashboard Stats](#dashboard-stats)
    - [Sales Analytics](#sales-analytics)
    - [Item Analytics](#item-analytics)
@@ -3309,7 +3315,593 @@ Batch sync items for offline-first mobile apps. Supports create, update, and del
 
 ---
 
-## Sales Backup
+## Bills (Direct CRUD Operations)
+
+**Purpose:** Direct bill creation, update, and management operations. Use these endpoints when you want to create or modify bills directly on the server.
+
+**Note:** For syncing bills between devices (offline-first architecture), use `/backup/sync` endpoints instead. See [Sales Backup (Multi-Device Sync Only)](#sales-backup-multi-device-sync-only) section.
+
+### List Bills
+
+**GET** `/bills/`
+
+**Requires authentication + vendor approval**
+
+List all bills for the vendor with filtering and pagination support.
+
+**Query Parameters:**
+- `billing_mode` (optional): Filter by billing mode (`gst` or `non_gst`)
+- `start_date` (optional): Filter by bill date - YYYY-MM-DD format (e.g., `2026-01-01`)
+- `end_date` (optional): Filter by bill date - YYYY-MM-DD format (e.g., `2026-01-31`)
+- `payment_mode` (optional): Filter by payment mode (`cash`, `upi`, `card`, `credit`, `other`)
+- `limit` (optional, default=100): Maximum number of bills to return
+- `offset` (optional, default=0): Number of bills to skip (for pagination)
+
+**Success Response (200):**
+```json
+{
+  "count": 2,
+  "total": 150,
+  "offset": 0,
+  "limit": 100,
+  "bills": [
+    {
+      "id": "880e8400-e29b-41d4-a716-446655440000",
+      "invoice_number": "INV-2026-001",
+      "bill_number": "BN-001",
+      "bill_date": "2026-01-27",
+      "billing_mode": "gst",
+      "total_amount": "236.00",
+      "item_count": 1,
+      "payment_mode": "cash",
+      "vendor_name": "ABC Restaurant",
+      "created_at": "2026-01-27T10:00:00Z",
+      "synced_at": "2026-01-27T10:00:00Z"
+    }
+  ]
+}
+```
+
+**Example (cURL):**
+```bash
+# Get all bills
+curl -X GET http://localhost:8000/bills/ \
+  -H "Authorization: Token YOUR_TOKEN"
+
+# Filter by billing mode
+curl -X GET "http://localhost:8000/bills/?billing_mode=gst" \
+  -H "Authorization: Token YOUR_TOKEN"
+
+# Filter by date range
+curl -X GET "http://localhost:8000/bills/?start_date=2026-01-01&end_date=2026-01-31" \
+  -H "Authorization: Token YOUR_TOKEN"
+
+# Pagination
+curl -X GET "http://localhost:8000/bills/?limit=50&offset=100" \
+  -H "Authorization: Token YOUR_TOKEN"
+```
+
+---
+
+### Create Bill
+
+**POST** `/bills/`
+
+**Requires authentication + vendor approval**
+
+Create a new bill directly on the server. Invoice number is auto-generated if not provided.
+
+**Request Body:**
+```json
+{
+  "bill_date": "2026-01-27",
+  "billing_mode": "gst",
+  "items_data": [
+    {
+      "item_id": "item-uuid-1",
+      "item_name": "Pizza Margherita",
+      "price": "200.00",
+      "mrp_price": "200.00",
+      "price_type": "exclusive",
+      "gst_percentage": "18.00",
+      "quantity": "2",
+      "subtotal": "400.00",
+      "item_gst_amount": "72.00",
+      "veg_nonveg": "veg"
+    }
+  ],
+  "subtotal": "400.00",
+  "cgst_amount": "36.00",
+  "sgst_amount": "36.00",
+  "igst_amount": "0.00",
+  "total_tax": "72.00",
+  "total_amount": "472.00",
+  "payment_mode": "cash",
+  "amount_paid": "472.00",
+  "customer_name": "John Doe",
+  "customer_phone": "+91-9876543210"
+}
+```
+
+**Field Descriptions:**
+- `bill_date` (optional): Bill date (YYYY-MM-DD), defaults to today
+- `billing_mode` (required): `"gst"` or `"non_gst"`
+- `items_data` (required): Array of bill items
+- `invoice_number` (optional): Auto-generated if not provided
+- All other fields are optional
+
+**Success Response (201):**
+```json
+{
+  "id": "880e8400-e29b-41d4-a716-446655440000",
+  "invoice_number": "INV-2026-01-27-0001",
+  "bill_number": "INV-0001",
+  "bill_date": "2026-01-27",
+  "billing_mode": "gst",
+  "items": [
+    {
+      "id": "990e8400-e29b-41d4-a716-446655440000",
+      "item_name": "Pizza Margherita",
+      "price": "200.00",
+      "quantity": "2.00",
+      "subtotal": "400.00",
+      "item_gst_amount": "72.00"
+    }
+  ],
+  "subtotal": "400.00",
+  "total_amount": "472.00",
+  "payment_mode": "cash",
+  "created_at": "2026-01-27T10:00:00Z"
+}
+```
+
+**Example (cURL):**
+```bash
+curl -X POST http://localhost:8000/bills/ \
+  -H "Authorization: Token YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "billing_mode": "gst",
+    "bill_date": "2026-01-27",
+    "items_data": [
+      {
+        "item_name": "Pizza",
+        "price": "200.00",
+        "mrp_price": "200.00",
+        "quantity": "2",
+        "gst_percentage": "18.00"
+      }
+    ],
+    "subtotal": "400.00",
+    "total_amount": "472.00",
+    "payment_mode": "cash"
+  }'
+```
+
+---
+
+### Get Bill Details
+
+**GET** `/bills/<uuid:id>/`
+
+**Requires authentication + vendor approval**
+
+Get detailed information about a specific bill including all items.
+
+**Success Response (200):**
+```json
+{
+  "id": "880e8400-e29b-41d4-a716-446655440000",
+  "invoice_number": "INV-2026-001",
+  "bill_date": "2026-01-27",
+  "billing_mode": "gst",
+  "items": [
+    {
+      "id": "990e8400-e29b-41d4-a716-446655440000",
+      "item_name": "Pizza Margherita",
+      "price": "200.00",
+      "mrp_price": "200.00",
+      "quantity": "2.00",
+      "subtotal": "400.00",
+      "gst_percentage": "18.00",
+      "item_gst_amount": "72.00"
+    }
+  ],
+  "subtotal": "400.00",
+  "total_amount": "472.00",
+  "payment_mode": "cash",
+  "created_at": "2026-01-27T10:00:00Z"
+}
+```
+
+**Example (cURL):**
+```bash
+curl -X GET http://localhost:8000/bills/880e8400-e29b-41d4-a716-446655440000/ \
+  -H "Authorization: Token YOUR_TOKEN"
+```
+
+---
+
+### Update Bill
+
+**PATCH** `/bills/<uuid:id>/`
+
+**Requires authentication + vendor approval**
+
+Update an existing bill. Can update bill fields, items, prices, payment mode, etc.
+
+**Request Body (all fields optional):**
+```json
+{
+  "items_data": [
+    {
+      "item_name": "Updated Pizza",
+      "price": "250.00",
+      "mrp_price": "250.00",
+      "quantity": "3",
+      "subtotal": "750.00"
+    }
+  ],
+  "payment_mode": "upi",
+  "payment_reference": "UPI123456789",
+  "amount_paid": "500.00",
+  "customer_name": "Updated Customer",
+  "subtotal": "750.00",
+  "total_amount": "885.00"
+}
+```
+
+**Note:** If `items_data` is provided, it replaces all existing items.
+
+**Success Response (200):**
+```json
+{
+  "id": "880e8400-e29b-41d4-a716-446655440000",
+  "invoice_number": "INV-2026-001",
+  "items": [
+    {
+      "item_name": "Updated Pizza",
+      "quantity": "3.00",
+      "subtotal": "750.00"
+    }
+  ],
+  "payment_mode": "upi",
+  "payment_reference": "UPI123456789",
+  "total_amount": "885.00",
+  "updated_at": "2026-01-27T11:00:00Z"
+}
+```
+
+**Example (cURL):**
+```bash
+curl -X PATCH http://localhost:8000/bills/880e8400-e29b-41d4-a716-446655440000/ \
+  -H "Authorization: Token YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "payment_mode": "upi",
+    "payment_reference": "UPI123456789",
+    "customer_name": "Updated Customer"
+  }'
+```
+
+---
+
+### Delete Bill
+
+**DELETE** `/bills/<uuid:id>/`
+
+**Requires authentication + vendor approval**
+
+Delete a bill permanently.
+
+**Success Response (204):**
+```
+No content
+```
+
+**Example (cURL):**
+```bash
+curl -X DELETE http://localhost:8000/bills/880e8400-e29b-41d4-a716-446655440000/ \
+  -H "Authorization: Token YOUR_TOKEN"
+```
+
+---
+
+## Bills (Direct CRUD Operations)
+
+**Purpose:** Direct bill creation, update, and management operations. Use these endpoints when you want to create or modify bills directly on the server.
+
+**Note:** For syncing bills between devices (offline-first architecture), use `/backup/sync` endpoints instead. See [Sales Backup (Multi-Device Sync Only)](#sales-backup-multi-device-sync-only) section.
+
+### List Bills
+
+**GET** `/bills/`
+
+**Requires authentication + vendor approval**
+
+List all bills for the vendor with filtering and pagination support.
+
+**Query Parameters:**
+- `billing_mode` (optional): Filter by billing mode (`gst` or `non_gst`)
+- `start_date` (optional): Filter by bill date - YYYY-MM-DD format (e.g., `2026-01-01`)
+- `end_date` (optional): Filter by bill date - YYYY-MM-DD format (e.g., `2026-01-31`)
+- `payment_mode` (optional): Filter by payment mode (`cash`, `upi`, `card`, `credit`, `other`)
+- `limit` (optional, default=100): Maximum number of bills to return
+- `offset` (optional, default=0): Number of bills to skip (for pagination)
+
+**Success Response (200):**
+```json
+{
+  "count": 2,
+  "total": 150,
+  "offset": 0,
+  "limit": 100,
+  "bills": [
+    {
+      "id": "880e8400-e29b-41d4-a716-446655440000",
+      "invoice_number": "INV-2026-001",
+      "bill_number": "BN-001",
+      "bill_date": "2026-01-27",
+      "billing_mode": "gst",
+      "total_amount": "236.00",
+      "item_count": 1,
+      "payment_mode": "cash",
+      "vendor_name": "ABC Restaurant",
+      "created_at": "2026-01-27T10:00:00Z",
+      "synced_at": "2026-01-27T10:00:00Z"
+    }
+  ]
+}
+```
+
+**Example (cURL):**
+```bash
+# Get all bills
+curl -X GET http://localhost:8000/bills/ \
+  -H "Authorization: Token YOUR_TOKEN"
+
+# Filter by billing mode
+curl -X GET "http://localhost:8000/bills/?billing_mode=gst" \
+  -H "Authorization: Token YOUR_TOKEN"
+
+# Filter by date range
+curl -X GET "http://localhost:8000/bills/?start_date=2026-01-01&end_date=2026-01-31" \
+  -H "Authorization: Token YOUR_TOKEN"
+
+# Pagination
+curl -X GET "http://localhost:8000/bills/?limit=50&offset=100" \
+  -H "Authorization: Token YOUR_TOKEN"
+```
+
+---
+
+### Create Bill
+
+**POST** `/bills/`
+
+**Requires authentication + vendor approval**
+
+Create a new bill directly on the server. Invoice number is auto-generated if not provided.
+
+**Request Body:**
+```json
+{
+  "bill_date": "2026-01-27",
+  "billing_mode": "gst",
+  "items_data": [
+    {
+      "item_id": "item-uuid-1",
+      "item_name": "Pizza Margherita",
+      "price": "200.00",
+      "mrp_price": "200.00",
+      "price_type": "exclusive",
+      "gst_percentage": "18.00",
+      "quantity": "2",
+      "subtotal": "400.00",
+      "item_gst_amount": "72.00",
+      "veg_nonveg": "veg"
+    }
+  ],
+  "subtotal": "400.00",
+  "cgst_amount": "36.00",
+  "sgst_amount": "36.00",
+  "igst_amount": "0.00",
+  "total_tax": "72.00",
+  "total_amount": "472.00",
+  "payment_mode": "cash",
+  "amount_paid": "472.00",
+  "customer_name": "John Doe",
+  "customer_phone": "+91-9876543210"
+}
+```
+
+**Field Descriptions:**
+- `bill_date` (optional): Bill date (YYYY-MM-DD), defaults to today
+- `billing_mode` (required): `"gst"` or `"non_gst"`
+- `items_data` (required): Array of bill items
+- `invoice_number` (optional): Auto-generated if not provided
+- All other fields are optional
+
+**Success Response (201):**
+```json
+{
+  "id": "880e8400-e29b-41d4-a716-446655440000",
+  "invoice_number": "INV-2026-01-27-0001",
+  "bill_number": "INV-0001",
+  "bill_date": "2026-01-27",
+  "billing_mode": "gst",
+  "items": [
+    {
+      "id": "990e8400-e29b-41d4-a716-446655440000",
+      "item_name": "Pizza Margherita",
+      "price": "200.00",
+      "quantity": "2.00",
+      "subtotal": "400.00",
+      "item_gst_amount": "72.00"
+    }
+  ],
+  "subtotal": "400.00",
+  "total_amount": "472.00",
+  "payment_mode": "cash",
+  "created_at": "2026-01-27T10:00:00Z"
+}
+```
+
+**Example (cURL):**
+```bash
+curl -X POST http://localhost:8000/bills/ \
+  -H "Authorization: Token YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "billing_mode": "gst",
+    "bill_date": "2026-01-27",
+    "items_data": [
+      {
+        "item_name": "Pizza",
+        "price": "200.00",
+        "mrp_price": "200.00",
+        "quantity": "2",
+        "gst_percentage": "18.00"
+      }
+    ],
+    "subtotal": "400.00",
+    "total_amount": "472.00",
+    "payment_mode": "cash"
+  }'
+```
+
+---
+
+### Get Bill Details
+
+**GET** `/bills/<uuid:id>/`
+
+**Requires authentication + vendor approval**
+
+Get detailed information about a specific bill including all items.
+
+**Success Response (200):**
+```json
+{
+  "id": "880e8400-e29b-41d4-a716-446655440000",
+  "invoice_number": "INV-2026-001",
+  "bill_date": "2026-01-27",
+  "billing_mode": "gst",
+  "items": [
+    {
+      "id": "990e8400-e29b-41d4-a716-446655440000",
+      "item_name": "Pizza Margherita",
+      "price": "200.00",
+      "mrp_price": "200.00",
+      "quantity": "2.00",
+      "subtotal": "400.00",
+      "gst_percentage": "18.00",
+      "item_gst_amount": "72.00"
+    }
+  ],
+  "subtotal": "400.00",
+  "total_amount": "472.00",
+  "payment_mode": "cash",
+  "created_at": "2026-01-27T10:00:00Z"
+}
+```
+
+**Example (cURL):**
+```bash
+curl -X GET http://localhost:8000/bills/880e8400-e29b-41d4-a716-446655440000/ \
+  -H "Authorization: Token YOUR_TOKEN"
+```
+
+---
+
+### Update Bill
+
+**PATCH** `/bills/<uuid:id>/`
+
+**Requires authentication + vendor approval**
+
+Update an existing bill. Can update bill fields, items, prices, payment mode, etc.
+
+**Request Body (all fields optional):**
+```json
+{
+  "items_data": [
+    {
+      "item_name": "Updated Pizza",
+      "price": "250.00",
+      "mrp_price": "250.00",
+      "quantity": "3",
+      "subtotal": "750.00"
+    }
+  ],
+  "payment_mode": "upi",
+  "payment_reference": "UPI123456789",
+  "amount_paid": "500.00",
+  "customer_name": "Updated Customer",
+  "subtotal": "750.00",
+  "total_amount": "885.00"
+}
+```
+
+**Note:** If `items_data` is provided, it replaces all existing items.
+
+**Success Response (200):**
+```json
+{
+  "id": "880e8400-e29b-41d4-a716-446655440000",
+  "invoice_number": "INV-2026-001",
+  "items": [
+    {
+      "item_name": "Updated Pizza",
+      "quantity": "3.00",
+      "subtotal": "750.00"
+    }
+  ],
+  "payment_mode": "upi",
+  "payment_reference": "UPI123456789",
+  "total_amount": "885.00",
+  "updated_at": "2026-01-27T11:00:00Z"
+}
+```
+
+**Example (cURL):**
+```bash
+curl -X PATCH http://localhost:8000/bills/880e8400-e29b-41d4-a716-446655440000/ \
+  -H "Authorization: Token YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "payment_mode": "upi",
+    "payment_reference": "UPI123456789",
+    "customer_name": "Updated Customer"
+  }'
+```
+
+---
+
+### Delete Bill
+
+**DELETE** `/bills/<uuid:id>/`
+
+**Requires authentication + vendor approval**
+
+Delete a bill permanently.
+
+**Success Response (204):**
+```
+No content
+```
+
+**Example (cURL):**
+```bash
+curl -X DELETE http://localhost:8000/bills/880e8400-e29b-41d4-a716-446655440000/ \
+  -H "Authorization: Token YOUR_TOKEN"
+```
+
+---
+
+## Sales Backup (Multi-Device Sync Only)
+
+**Purpose:** These endpoints are specifically for syncing bills between devices in an offline-first architecture. Use `/bills/` endpoints for direct bill creation/update operations. (Multi-Device Sync Only)
 
 ### Download Sales Data (GET)
 
