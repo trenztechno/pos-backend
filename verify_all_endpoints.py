@@ -967,7 +967,7 @@ def test_api_endpoints():
         print(f"✗ POST /items/categories/sync - Error: {e}")
         results.append(False)
     
-    # Test 16: Item Sync (with GST fields)
+    # Test 16: Item Sync (Forward Sync - Mobile → Server)
     try:
         import uuid
         from django.utils import timezone
@@ -987,13 +987,27 @@ def test_api_endpoints():
             'timestamp': timezone.now().isoformat()
         }], format='json')
         if response.status_code in [200, 201]:
-            print("✓ POST /items/sync - Working")
+            print("✓ POST /items/sync - Forward sync (upload items) - Working")
             results.append(True)
         else:
             print(f"✗ POST /items/sync - Status: {response.status_code}")
             results.append(False)
     except Exception as e:
         print(f"✗ POST /items/sync - Error: {e}")
+        results.append(False)
+    
+    # Test 16a: GET /items/ - Reverse Sync (Server → Mobile) - Already tested in Test 9, but adding explicit test
+    try:
+        response = client.get('/items/')
+        if response.status_code == 200:
+            items = response.data if isinstance(response.data, list) else []
+            print(f"✓ GET /items/ - Reverse sync (download items) - Working ({len(items)} items)")
+            results.append(True)
+        else:
+            print(f"✗ GET /items/ - Status: {response.status_code}")
+            results.append(False)
+    except Exception as e:
+        print(f"✗ GET /items/ - Error: {e}")
         results.append(False)
     
     # Test 17: Get Unit Types (Inventory)
@@ -1383,12 +1397,12 @@ def test_api_endpoints():
         print(f"✗ POST /backup/sync (Batch - GST + Non-GST) - Error: {e}")
         results.append(False)
     
-    # Test 25f: GET /backup/sync - Download bills from server
+    # Test 25f: GET /backup/sync - Reverse sync (Download bills from server)
     try:
         response = client.get('/backup/sync')
         if response.status_code == 200:
             if 'bills' in response.data and 'count' in response.data:
-                print("✓ GET /backup/sync (Download bills) - Working")
+                print("✓ GET /backup/sync - Reverse sync (download bills) - Working")
                 results.append(True)
             else:
                 print("⚠ GET /backup/sync - Response structure may be incorrect")
@@ -1398,6 +1412,21 @@ def test_api_endpoints():
             results.append(False)
     except Exception as e:
         print(f"✗ GET /backup/sync - Error: {e}")
+        results.append(False)
+    
+    # Test 25f1: GET /backup/sync - Incremental sync with since parameter
+    try:
+        from datetime import timedelta
+        since_time = (timezone.now() - timedelta(hours=1)).isoformat()
+        response = client.get(f'/backup/sync?since={since_time}')
+        if response.status_code == 200:
+            print("✓ GET /backup/sync?since=<timestamp> - Incremental sync - Working")
+            results.append(True)
+        else:
+            print(f"✗ GET /backup/sync?since=<timestamp> - Status: {response.status_code}")
+            results.append(False)
+    except Exception as e:
+        print(f"✗ GET /backup/sync?since=<timestamp> - Error: {e}")
         results.append(False)
     
     # Test 25g: GET /backup/sync with filters

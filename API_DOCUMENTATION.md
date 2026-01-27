@@ -40,8 +40,10 @@ Each bill can be either GST or Non-GST. The `billing_mode` field in the bill dat
    - [Get Item Details](#get-item-details)
    - [Update Item](#update-item)
 6. [Inventory Management](#inventory-management)
-7. [Offline Sync (Categories & Items)](#offline-sync-categories--items)
-8. [Sales Backup](#sales-backup)
+7. [Complete Sync Architecture (Bi-Directional)](#complete-sync-architecture-bi-directional)
+   - [Reverse Sync Endpoints (Server → Mobile)](#reverse-sync-endpoints-server--mobile)
+   - [Forward Sync Endpoints (Mobile → Server)](#forward-sync-endpoints-mobile--server)
+8. [Sales Backup (Bi-Directional Sync)](#sales-backup-bi-directional-sync)
 9. [Dashboard & Analytics](#dashboard--analytics)
    - [Dashboard Stats](#dashboard-stats)
    - [Sales Analytics](#sales-analytics)
@@ -2667,7 +2669,521 @@ No content
 
 ---
 
-## Offline Sync (Categories & Items)
+## Complete Sync Architecture (Bi-Directional)
+
+### Overview
+
+The system supports **bi-directional sync** for offline-first mobile apps with multiple users and multiple devices per vendor:
+
+- **Reverse Sync (Server → Mobile):** Download existing data from server
+- **Forward Sync (Mobile → Server):** Upload changes made offline to server
+- **Multi-User Support:** Owner + Staff users all sync same vendor data
+- **Multi-Device Support:** Multiple devices per user can sync simultaneously
+
+### Sync Flow Diagram
+
+```mermaid
+graph TB
+    subgraph "Mobile Device 1 (Owner)"
+        MD1[Mobile App]
+        LDB1[(Local SQLite)]
+        MD1 -->|1. Save Locally| LDB1
+        LDB1 -->|2. Queue Changes| MD1
+    end
+    
+    subgraph "Mobile Device 2 (Staff)"
+        MD2[Mobile App]
+        LDB2[(Local SQLite)]
+        MD2 -->|1. Save Locally| LDB2
+        LDB2 -->|2. Queue Changes| MD2
+    end
+    
+    subgraph "Backend Server"
+        API[API Endpoints]
+        SDB[(PostgreSQL)]
+        API -->|Store| SDB
+        SDB -->|Query| API
+    end
+    
+    MD1 -->|Reverse Sync: GET| API
+    MD2 -->|Reverse Sync: GET| API
+    API -->|Download Data| MD1
+    API -->|Download Data| MD2
+    
+    MD1 -->|Forward Sync: POST| API
+    MD2 -->|Forward Sync: POST| API
+    API -->|Store Changes| SDB
+    
+    style MD1 fill:#e1f5ff
+    style MD2 fill:#e1f5ff
+    style LDB1 fill:#e1f5ff
+    style LDB2 fill:#e1f5ff
+    style API fill:#fff4e1
+    style SDB fill:#e8f5e9
+```
+
+### Reverse Sync (Server → Mobile) - Download Data
+
+**Purpose:** Mobile app downloads existing data from server (initial sync, new device, refresh)
+
+**Endpoints:**
+- `GET /items/categories/` - Download all categories
+- `GET /items/` - Download all items
+- `GET /backup/sync` - Download all bills (with incremental support)
+
+**When to Use:**
+- App startup (initial sync)
+- New device login
+- App needs fresh data
+- After forward sync (to get updates from other devices)
+
+**Multi-User Support:**
+- ✅ Owner user can download vendor data
+- ✅ Staff users can download **same vendor data** (all users under same vendor see same items/categories/bills)
+- ✅ Multiple devices per user can all sync simultaneously
+
+**Example Flow:**
+```mermaid
+sequenceDiagram
+    participant Device1 as Device 1 (Owner)
+    participant Device2 as Device 2 (Staff)
+    participant Server as Backend Server
+    participant DB as PostgreSQL
+    
+    Note over Device1,Device2: Both users under same vendor
+    
+    Device1->>Server: GET /items/categories/
+    Server->>DB: Query categories
+    DB-->>Server: All categories
+    Server-->>Device1: 10 categories
+    
+    Device2->>Server: GET /items/categories/
+    Server->>DB: Query categories
+    DB-->>Server: All categories
+    Server-->>Device2: 10 categories (SAME)
+    
+    Device1->>Server: GET /items/
+    Server->>DB: Query items
+    DB-->>Server: All items
+    Server-->>Device1: 50 items
+    
+    Device2->>Server: GET /items/
+    Server->>DB: Query items
+    DB-->>Server: All items
+    Server-->>Device2: 50 items (SAME)
+    
+    Device1->>Server: GET /backup/sync
+    Server->>DB: Query bills
+    DB-->>Server: All bills
+    Server-->>Device1: 100 bills
+    
+    Device2->>Server: GET /backup/sync
+    Server->>DB: Query bills
+    DB-->>Server: All bills
+    Server-->>Device2: 100 bills (SAME)
+```
+
+### Forward Sync (Mobile → Server) - Upload Changes
+
+**Purpose:** Mobile app uploads changes made offline to server
+
+**Endpoints:**
+- `POST /items/categories/sync` - Upload category changes (create/update/delete)
+- `POST /items/sync` - Upload item changes (create/update/delete)
+- `POST /backup/sync` - Upload bills created offline
+
+**When to Use:**
+- After offline operations (create/edit/delete items, bills)
+- Background sync when online
+- User made changes while offline
+
+**Conflict Resolution:**
+- **Last-Write-Wins:** If server version is newer (by timestamp), server wins
+- **Duplicate Bills:** Skipped automatically (by `invoice_number`)
+- **Multiple Devices:** All devices can sync simultaneously (server handles it)
+
+**Example Flow:**
+```mermaid
+sequenceDiagram
+    participant Device1 as Device 1 (Owner)
+    participant Device2 as Device 2 (Staff)
+    participant Server as Backend Server
+    participant DB as PostgreSQL
+    
+    Note over Device1: Offline: Creates 3 items
+    Device1->>Device1: Save to local SQLite
+    Device1->>Device1: Queue for sync
+    
+    Note over Device2: Offline: Creates 2 bills
+    Device2->>Device2: Save to local SQLite
+    Device2->>Device2: Queue for sync
+    
+    Note over Device1,Device2: Both come online
+    
+    Device1->>Server: POST /items/sync [3 items]
+    Server->>DB: Save items
+    DB-->>Server: Items saved
+    Server-->>Device1: Confirmation
+    
+    Device2->>Server: POST /backup/sync [2 bills]
+    Server->>DB: Save bills
+    DB-->>Server: Bills saved
+    Server-->>Device2: Confirmation
+    
+    Note over Device1,Device2: Both devices now have all data
+    Device1->>Server: GET /backup/sync (get Device2's bills)
+    Server-->>Device1: 2 new bills
+    
+    Device2->>Server: GET /items/ (get Device1's items)
+    Server-->>Device2: 3 new items
+```
+
+### Complete Sync Scenarios
+
+#### Scenario 1: Initial Sync (New Device)
+
+```mermaid
+graph LR
+    A[App Starts] --> B[Login]
+    B --> C[GET /items/categories/]
+    C --> D[GET /items/]
+    D --> E[GET /backup/sync]
+    E --> F[Save to Local DB]
+    F --> G[App Ready]
+    
+    style A fill:#e1f5ff
+    style G fill:#c8e6c9
+```
+
+**Steps:**
+1. User logs in → Get token
+2. `GET /items/categories/` → Download all categories
+3. `GET /items/` → Download all items (with category links)
+4. `GET /backup/sync` → Download all bills
+5. Save everything to local SQLite
+6. App is ready to use
+
+#### Scenario 2: Offline Operations + Sync
+
+```mermaid
+graph LR
+    A[User Offline] --> B[Create Items]
+    B --> C[Create Bills]
+    C --> D[Save Locally]
+    D --> E[Queue for Sync]
+    E --> F[App Online]
+    F --> G[POST /items/sync]
+    G --> H[POST /backup/sync]
+    H --> I[Mark as Synced]
+    
+    style A fill:#fff3e0
+    style F fill:#e1f5ff
+    style I fill:#c8e6c9
+```
+
+#### Scenario 3: Multiple Devices, Same User
+
+```mermaid
+graph TB
+    subgraph "User: vendor1"
+        D1[Device 1: Phone]
+        D2[Device 2: Tablet]
+    end
+    
+    D1 -->|Creates Item| S[Server]
+    D2 -->|Downloads Item| S
+    S -->|Syncs| D2
+    
+    D2 -->|Creates Bill| S
+    D1 -->|Downloads Bill| S
+    S -->|Syncs| D1
+    
+    style D1 fill:#e1f5ff
+    style D2 fill:#e1f5ff
+    style S fill:#fff4e1
+```
+
+#### Scenario 4: Multiple Users, Same Vendor
+
+```mermaid
+graph TB
+    subgraph "Vendor: ABC Restaurant"
+        U1[Owner: vendor1]
+        U2[Staff: cashier1]
+        U3[Staff: waiter1]
+    end
+    
+    U1 -->|Creates Item| S[Server]
+    U2 -->|Downloads Item| S
+    U3 -->|Downloads Item| S
+    
+    U2 -->|Creates Bill| S
+    U1 -->|Downloads Bill| S
+    U3 -->|Downloads Bill| S
+    
+    style U1 fill:#e1f5ff
+    style U2 fill:#e1f5ff
+    style U3 fill:#e1f5ff
+    style S fill:#fff4e1
+```
+
+---
+
+## Reverse Sync Endpoints (Server → Mobile)
+
+### Download All Categories
+
+**GET** `/items/categories/`
+
+**Requires authentication + vendor approval**
+
+Downloads all categories for the vendor (vendor-specific + global categories). Used for initial sync and refreshing category list.
+
+**Works for:** Owner + Staff users (all users under same vendor see same categories)
+
+**Success Response (200):**
+```json
+[
+  {
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "name": "Breakfast",
+    "description": "Morning meals",
+    "is_active": true,
+    "sort_order": 1,
+    "item_count": 15,
+    "created_at": "2026-01-01T10:00:00Z",
+    "updated_at": "2026-01-27T12:00:00Z"
+  },
+  {
+    "id": "660e8400-e29b-41d4-a716-446655440001",
+    "name": "Lunch",
+    "description": "Afternoon meals",
+    "is_active": true,
+    "sort_order": 2,
+    "item_count": 20,
+    "created_at": "2026-01-01T10:00:00Z",
+    "updated_at": "2026-01-27T12:00:00Z"
+  }
+]
+```
+
+**Request Example (cURL):**
+```bash
+curl -X GET http://localhost:8000/items/categories/ \
+  -H "Authorization: Token YOUR_TOKEN"
+```
+
+**Request Example (JavaScript/Fetch):**
+```javascript
+const response = await fetch('http://localhost:8000/items/categories/', {
+  headers: {
+    'Authorization': `Token ${token}`
+  }
+});
+
+const categories = await response.json();
+console.log(`Downloaded ${categories.length} categories`);
+// Save to local SQLite database
+await saveCategoriesToLocalDB(categories);
+```
+
+**Note:** 
+- Returns all active categories (vendor-specific + global)
+- Categories are needed before creating items (items reference categories by UUID)
+- All users (owner + staff) under same vendor get same categories
+
+---
+
+### Download All Items
+
+**GET** `/items/`
+
+**Requires authentication + vendor approval**
+
+Downloads all items for the vendor. Used for initial sync and refreshing item list.
+
+**Works for:** Owner + Staff users (all users under same vendor see same items)
+
+**Query Parameters:**
+- `category=<uuid>` (optional) - Filter items by category
+- `search=<term>` (optional) - Search items by name, description, SKU, barcode
+- `is_active=<true|false>` (optional) - Filter by active status
+
+**Success Response (200):**
+```json
+[
+  {
+    "id": "770e8400-e29b-41d4-a716-446655440000",
+    "name": "Pizza Margherita",
+    "description": "Classic pizza",
+    "price": "200.00",
+    "mrp_price": "236.00",
+    "price_type": "exclusive",
+    "gst_percentage": "18.00",
+    "veg_nonveg": "veg",
+    "categories": ["550e8400-e29b-41d4-a716-446655440000"],
+    "category_ids": ["550e8400-e29b-41d4-a716-446655440000"],
+    "categories_list": [
+      {"id": "550e8400-e29b-41d4-a716-446655440000", "name": "Lunch"}
+    ],
+    "image_url": "https://bucket.s3.region.amazonaws.com/items/.../image.jpg?X-Amz-Algorithm=...",
+    "stock_quantity": 50,
+    "is_active": true,
+    "created_at": "2026-01-01T10:00:00Z",
+    "last_updated": "2026-01-27T12:00:00Z"
+  }
+]
+```
+
+**Request Example (cURL):**
+```bash
+# Download all items
+curl -X GET http://localhost:8000/items/ \
+  -H "Authorization: Token YOUR_TOKEN"
+
+# Filter by category
+curl -X GET "http://localhost:8000/items/?category=550e8400-e29b-41d4-a716-446655440000" \
+  -H "Authorization: Token YOUR_TOKEN"
+
+# Search items
+curl -X GET "http://localhost:8000/items/?search=pizza" \
+  -H "Authorization: Token YOUR_TOKEN"
+```
+
+**Request Example (JavaScript/Fetch):**
+```javascript
+// Download all items
+const response = await fetch('http://localhost:8000/items/', {
+  headers: {
+    'Authorization': `Token ${token}`
+  }
+});
+
+const items = await response.json();
+console.log(`Downloaded ${items.length} items`);
+
+// Save to local SQLite database
+await saveItemsToLocalDB(items);
+
+// Download item images (pre-signed URLs expire after 1 hour!)
+for (const item of items) {
+  if (item.image_url) {
+    await downloadAndCacheImage(item.image_url, item.id);
+  }
+}
+```
+
+**Important Notes:**
+- Items include `category_ids` array (UUIDs of categories)
+- Items include `categories_list` array (category names for display)
+- `image_url` is pre-signed URL (expires after 1 hour) - download and cache immediately!
+- All users (owner + staff) under same vendor get same items
+
+---
+
+### Download All Bills
+
+**GET** `/backup/sync`
+
+**Requires authentication + vendor approval**
+
+Downloads bills from server. Supports incremental sync with `since` parameter.
+
+**Works for:** Owner + Staff users (all users under same vendor see same bills)
+
+**Query Parameters:**
+- `since` (optional): ISO timestamp - Only get bills synced after this time (e.g., `2026-01-27T10:00:00Z`)
+- `limit` (optional, default=1000): Maximum number of bills to return
+- `billing_mode` (optional): Filter by billing mode (`gst` or `non_gst`)
+- `start_date` (optional): Filter by bill date - YYYY-MM-DD format (e.g., `2026-01-01`)
+- `end_date` (optional): Filter by bill date - YYYY-MM-DD format (e.g., `2026-01-31`)
+
+**Success Response (200):**
+```json
+{
+  "count": 2,
+  "bills": [
+    {
+      "id": "880e8400-e29b-41d4-a716-446655440000",
+      "invoice_number": "INV-2026-001",
+      "bill_number": "BN-001",
+      "bill_date": "2026-01-27",
+      "billing_mode": "gst",
+      "items": [
+        {
+          "id": "990e8400-e29b-41d4-a716-446655440000",
+          "item_name": "Pizza",
+          "price": "200.00",
+          "quantity": "2.00",
+          "subtotal": "400.00",
+          "gst_percentage": "18.00",
+          "item_gst_amount": "72.00"
+        }
+      ],
+      "subtotal": "400.00",
+      "cgst_amount": "36.00",
+      "sgst_amount": "36.00",
+      "total_tax": "72.00",
+      "total_amount": "472.00",
+      "payment_mode": "cash",
+      "created_at": "2026-01-27T10:00:00Z"
+    }
+  ],
+  "vendor_id": "aa0e8400-e29b-41d4-a716-446655440000",
+  "vendor_name": "ABC Restaurant"
+}
+```
+
+**Request Example (cURL - Full Sync):**
+```bash
+# Download all bills
+curl -X GET http://localhost:8000/backup/sync \
+  -H "Authorization: Token YOUR_TOKEN"
+```
+
+**Request Example (cURL - Incremental Sync):**
+```bash
+# Download only bills synced after timestamp (efficient for multiple devices)
+curl -X GET "http://localhost:8000/backup/sync?since=2026-01-27T10:00:00Z" \
+  -H "Authorization: Token YOUR_TOKEN"
+```
+
+**Request Example (JavaScript/Fetch - Incremental Sync):**
+```javascript
+// Get last sync timestamp from local DB
+const lastSyncTime = await getLastSyncTimestamp();
+
+// Download only new bills since last sync
+const response = await fetch(
+  `http://localhost:8000/backup/sync?since=${lastSyncTime}`,
+  {
+    headers: {
+      'Authorization': `Token ${token}`
+    }
+  }
+);
+
+const data = await response.json();
+const bills = data.bills || [];
+
+console.log(`Downloaded ${bills.length} new bills`);
+
+// Save to local SQLite
+await saveBillsToLocalDB(bills);
+
+// Update last sync timestamp
+await updateLastSyncTimestamp(new Date().toISOString());
+```
+
+**Important Notes:**
+- Use `since` parameter for incremental sync (only get new bills)
+- Without `since`, downloads all bills (use for initial sync only)
+- All users (owner + staff) under same vendor get same bills
+- Bills include nested `items` array with all bill items
+
+---
+
+## Forward Sync Endpoints (Mobile → Server)
 
 ### Sync Categories
 

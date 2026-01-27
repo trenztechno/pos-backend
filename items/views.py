@@ -13,9 +13,8 @@ from backend.audit_log import log_item_change, log_category_change
 class CategoryListView(APIView):
     """GET /items/categories - Get all categories for the vendor"""
     def get(self, request):
-        try:
-            vendor = request.user.vendor_profile
-        except Vendor.DoesNotExist:
+        vendor = Vendor.get_vendor_for_user(request.user)
+        if not vendor:
             return Response({'error': 'Vendor profile not found'}, status=status.HTTP_403_FORBIDDEN)
         
         # Check if vendor is approved
@@ -34,9 +33,8 @@ class CategoryListView(APIView):
     
     """POST /items/categories - Create new category"""
     def post(self, request):
-        try:
-            vendor = request.user.vendor_profile
-        except Vendor.DoesNotExist:
+        vendor = Vendor.get_vendor_for_user(request.user)
+        if not vendor:
             return Response({'error': 'Vendor profile not found'}, status=status.HTTP_403_FORBIDDEN)
         
         # Check if vendor is approved
@@ -54,10 +52,9 @@ class CategoryListView(APIView):
 class CategoryDetailView(APIView):
     """GET/PATCH/DELETE /items/categories/:id - Category operations"""
     def _check_vendor_approved(self, request):
-        """Helper method to check vendor approval"""
-        try:
-            vendor = request.user.vendor_profile
-        except Vendor.DoesNotExist:
+        """Helper method to check vendor approval (works for owner + staff users)"""
+        vendor = Vendor.get_vendor_for_user(request.user)
+        if not vendor:
             return None, Response({'error': 'Vendor profile not found'}, status=status.HTTP_403_FORBIDDEN)
         
         if not vendor.is_approved or not request.user.is_active:
@@ -130,10 +127,9 @@ class CategoryDetailView(APIView):
 class ItemListView(APIView):
     """GET /items/ - Sync all items for the vendor (optionally filtered by category)"""
     def _check_vendor_approved(self, request):
-        """Helper method to check vendor approval"""
-        try:
-            vendor = request.user.vendor_profile
-        except Vendor.DoesNotExist:
+        """Helper method to check vendor approval (works for owner + staff users)"""
+        vendor = Vendor.get_vendor_for_user(request.user)
+        if not vendor:
             return None, Response({'error': 'Vendor profile not found'}, status=status.HTTP_403_FORBIDDEN)
         
         if not vendor.is_approved or not request.user.is_active:
@@ -211,10 +207,9 @@ class ItemListView(APIView):
 class ItemDetailView(APIView):
     """GET/PATCH/DELETE /items/:id - Item operations"""
     def _check_vendor_approved(self, request):
-        """Helper method to check vendor approval"""
-        try:
-            vendor = request.user.vendor_profile
-        except Vendor.DoesNotExist:
+        """Helper method to check vendor approval (works for owner + staff users)"""
+        vendor = Vendor.get_vendor_for_user(request.user)
+        if not vendor:
             return None, Response({'error': 'Vendor profile not found'}, status=status.HTTP_403_FORBIDDEN)
         
         if not vendor.is_approved or not request.user.is_active:
@@ -329,10 +324,9 @@ class ItemStatusView(APIView):
 class CategorySyncView(APIView):
     """POST /items/categories/sync - Batch sync categories from mobile"""
     def _check_vendor_approved(self, request):
-        """Helper method to check vendor approval"""
-        try:
-            vendor = request.user.vendor_profile
-        except Vendor.DoesNotExist:
+        """Helper method to check vendor approval (works for owner + staff users)"""
+        vendor = Vendor.get_vendor_for_user(request.user)
+        if not vendor:
             return None, Response({'error': 'Vendor profile not found'}, status=status.HTTP_403_FORBIDDEN)
         
         if not vendor.is_approved or not request.user.is_active:
@@ -460,10 +454,9 @@ class CategorySyncView(APIView):
 class ItemSyncView(APIView):
     """POST /items/sync - Batch sync items from mobile"""
     def _check_vendor_approved(self, request):
-        """Helper method to check vendor approval"""
-        try:
-            vendor = request.user.vendor_profile
-        except Vendor.DoesNotExist:
+        """Helper method to check vendor approval (works for owner + staff users)"""
+        vendor = Vendor.get_vendor_for_user(request.user)
+        if not vendor:
             return None, Response({'error': 'Vendor profile not found'}, status=status.HTTP_403_FORBIDDEN)
         
         if not vendor.is_approved or not request.user.is_active:

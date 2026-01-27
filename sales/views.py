@@ -28,9 +28,8 @@ class SalesSyncView(APIView):
         - start_date: YYYY-MM-DD (optional) - Filter by bill date
         - end_date: YYYY-MM-DD (optional) - Filter by bill date
         """
-        try:
-            vendor = request.user.vendor_profile
-        except Vendor.DoesNotExist:
+        vendor = Vendor.get_vendor_for_user(request.user)
+        if not vendor:
             return Response({'error': 'Vendor profile not found'}, status=status.HTTP_403_FORBIDDEN)
         
         if not vendor.is_approved or not request.user.is_active:
@@ -133,9 +132,8 @@ class SalesSyncView(APIView):
             "timestamp": "2024-01-22T10:00:00Z"
         }
         """
-        try:
-            vendor = request.user.vendor_profile
-        except Vendor.DoesNotExist:
+        vendor = Vendor.get_vendor_for_user(request.user)
+        if not vendor:
             return Response({'error': 'Vendor profile not found'}, status=status.HTTP_403_FORBIDDEN)
         
         if not vendor.is_approved or not request.user.is_active:

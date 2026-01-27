@@ -263,31 +263,116 @@ erDiagram
     }
 ```
 
-### Sync Flow Architecture
+### Complete Sync Architecture (Bi-Directional)
+
+The system supports **bi-directional sync** for offline-first mobile apps with multiple users and multiple devices:
+
+**Reverse Sync (Server → Mobile):** Download existing data
+- `GET /items/categories/` - Download all categories
+- `GET /items/` - Download all items
+- `GET /backup/sync` - Download all bills (with incremental support via `?since=<timestamp>`)
+
+**Forward Sync (Mobile → Server):** Upload offline changes
+- `POST /items/categories/sync` - Upload category changes (create/update/delete)
+- `POST /items/sync` - Upload item changes (create/update/delete)
+- `POST /backup/sync` - Upload bills created offline
+
+**Multi-User Support:**
+- ✅ Owner + Staff users all sync **same vendor data**
+- ✅ All users under same vendor see same items/categories/bills
+- ✅ Multiple devices per user can sync simultaneously
+
+**Sync Flow Diagram:**
 
 ```mermaid
-graph LR
-    subgraph "Mobile Device (Source of Truth for Sales)"
-        MD[Mobile App]
-        LDB[(Local SQLite)]
-        MD -->|1. Save| LDB
-        LDB -->|2. Queue| MD
+graph TB
+    subgraph "Mobile Device 1 (Owner)"
+        MD1[Mobile App]
+        LDB1[(Local SQLite)]
+        MD1 -->|Save Locally| LDB1
+        LDB1 -->|Queue Changes| MD1
     end
     
-    subgraph "Backend Server (Passive Receiver)"
-        API[API Endpoint]
+    subgraph "Mobile Device 2 (Staff)"
+        MD2[Mobile App]
+        LDB2[(Local SQLite)]
+        MD2 -->|Save Locally| LDB2
+        LDB2 -->|Queue Changes| MD2
+    end
+    
+    subgraph "Backend Server"
+        API[API Endpoints]
         SDB[(PostgreSQL)]
-        API -->|3. Store| SDB
-        SDB -->|4. Query| API
+        API -->|Store| SDB
+        SDB -->|Query| API
     end
     
-    MD -->|Upload: POST /backup/sync| API
-    API -->|Download: GET /backup/sync| MD
+    MD1 -->|Reverse: GET| API
+    MD2 -->|Reverse: GET| API
+    API -->|Download| MD1
+    API -->|Download| MD2
     
-    style MD fill:#e1f5ff
-    style LDB fill:#e1f5ff
+    MD1 -->|Forward: POST| API
+    MD2 -->|Forward: POST| API
+    API -->|Store| SDB
+    
+    style MD1 fill:#e1f5ff
+    style MD2 fill:#e1f5ff
+    style LDB1 fill:#e1f5ff
+    style LDB2 fill:#e1f5ff
     style API fill:#fff4e1
     style SDB fill:#e8f5e9
+```
+
+**Complete Sync Flow:**
+
+```mermaid
+sequenceDiagram
+    participant D1 as Device 1 (Owner)
+    participant D2 as Device 2 (Staff)
+    participant S as Server
+    participant DB as Database
+    
+    Note over D1,D2: Initial Sync (App Startup)
+    D1->>S: GET /items/categories/
+    S->>DB: Query
+    DB-->>S: All categories
+    S-->>D1: Categories
+    
+    D1->>S: GET /items/
+    S->>DB: Query
+    DB-->>S: All items
+    S-->>D1: Items
+    
+    D1->>S: GET /backup/sync
+    S->>DB: Query
+    DB-->>S: All bills
+    S-->>D1: Bills
+    
+    Note over D1: Offline: Creates 3 items
+    D1->>D1: Save to local DB
+    
+    Note over D2: Offline: Creates 2 bills
+    D2->>D2: Save to local DB
+    
+    Note over D1,D2: Both come online
+    
+    D1->>S: POST /items/sync [3 items]
+    S->>DB: Save
+    DB-->>S: Saved
+    S-->>D1: Confirmation
+    
+    D2->>S: POST /backup/sync [2 bills]
+    S->>DB: Save
+    DB-->>S: Saved
+    S-->>D2: Confirmation
+    
+    Note over D1,D2: Get updates from other device
+    D2->>S: GET /items/ (get D1's items)
+    S-->>D2: 3 new items
+    
+    D1->>S: GET /backup/sync (get D2's bills)
+    S-->>D1: 2 new bills
 ```
 
 ---

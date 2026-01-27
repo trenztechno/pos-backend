@@ -5,7 +5,7 @@ from items.models import Item
 class BillItemSerializer(serializers.ModelSerializer):
     """Serializer for individual bill items"""
     item_name = serializers.CharField(required=True)
-    original_item_id = serializers.UUIDField(required=False, allow_null=True, source='original_item_id')
+    original_item_id = serializers.UUIDField(required=False, allow_null=True)
     item_id = serializers.UUIDField(required=False, allow_null=True, source='original_item_id', help_text="Alias for original_item_id (for mobile compatibility)")
     
     class Meta:
