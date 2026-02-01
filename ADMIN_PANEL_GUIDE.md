@@ -30,8 +30,9 @@
 - Created Date
 
 **Actions Available:**
-- ✅ **Approve selected vendors** - Bulk approve vendors
-- ❌ **Reject/Deactivate selected vendors** - Bulk reject vendors
+- ✅ **Approve selected vendors** - Bulk approve vendors (sets `is_approved = True`)
+- ❌ **Reject selected vendors** - Bulk reject vendors (sets `is_approved = False`)
+- ⚠️ **Note:** Approval and Activation are separate. Use Django admin to also control `user.is_active` for activation/deactivation.
 
 **Edit Vendor Page Includes:**
 
@@ -67,7 +68,12 @@
 3. Click "Save"
 
 #### Approval Status
-- Is Approved checkbox
+- Is Approved checkbox (controls `is_approved` - approval status)
+
+#### User Active Status
+- User → Is Active checkbox (controls `user.is_active` - activation status)
+- **Important:** Both approval AND activation must be true for vendor to use the system
+- Approval and Activation are separate controls
 
 #### Staff Users (Inline Table)
 - **Add/Edit/Delete staff users directly from vendor page!**
@@ -120,19 +126,29 @@
 
 ## 🎯 Common Admin Tasks
 
-### Task 1: Approve a New Vendor
+### Task 1: Approve and Activate a New Vendor
 
+**To Approve:**
 1. Go to `/admin/auth_app/vendor/`
 2. Find vendor in list (pending vendors show ⏳)
 3. Click vendor name to edit
 4. Check "Is approved" checkbox
 5. Click "Save"
-6. Vendor can now login!
+
+**To Activate (Allow Login):**
+1. In the same vendor edit page, scroll to "Owner User" section
+2. Click the user link to edit the User
+3. Check "Active" checkbox
+4. Click "Save"
+5. Vendor can now login!
 
 **OR use bulk action:**
 1. Select vendor(s) from list
 2. Choose "✓ Approve selected vendors" from Actions dropdown
 3. Click "Go"
+4. Then activate the user separately (see above)
+
+**Note:** Approval and Activation are separate. A vendor can be approved but inactive (cannot login), or active but not approved (cannot use API). Both must be true for full access.
 
 ---
 

@@ -52,11 +52,17 @@
 
 ### Categories (Products)
 - **GET** `/items/categories/` - List all categories (Auth required)
+  - Returns only vendor's own categories (vendor-specific, isolated)
 - **POST** `/items/categories/` - Create category (Auth required)
+  - Creates category for the vendor (vendor-specific)
 - **GET** `/items/categories/<uuid:id>/` - Get category details (Auth required)
+  - Only returns vendor's own categories
 - **PATCH** `/items/categories/<uuid:id>/` - Update category (Auth required)
+  - Only vendor's own categories can be updated
 - **DELETE** `/items/categories/<uuid:id>/` - Delete category (Auth required)
+  - Only vendor's own categories can be deleted
 - **POST** `/items/categories/sync` - Batch sync categories (Auth required)
+  - Syncs vendor's own categories only
 
 ### Items (Products)
 - **GET** `/items/` - List all items (Auth required)
@@ -65,15 +71,18 @@
     - `search=<term>` - Search by name, description, SKU, barcode
     - `is_active=<true|false>` - Filter by active status
 - **POST** `/items/` - Create item (Auth required)
-  - Use `multipart/form-data` to upload images
+  - Use `multipart/form-data` to upload images (DO NOT set Content-Type header manually)
   - Response includes `image_url` with pre-signed URL (if S3 enabled)
+  - **Categories:** Can only use vendor's own categories (vendor-specific, isolated)
   - **GST Percentages:** `0.00`, `5.00`, `8.00`, `18.00`, or custom (0-100)
   - **Price Types:** `"exclusive"` (GST not included in MRP) or `"inclusive"` (GST included in MRP)
   - **Veg/Non-Veg:** `"veg"` or `"nonveg"` (optional)
   - **Item Examples:** See [API_DOCUMENTATION.md](API_DOCUMENTATION.md#complete-item-creation-examples---all-cases) for 12 complete examples
 - **GET** `/items/<uuid:id>/` - Get item details (Auth required)
+  - Response includes `category_ids` array for frontend use
 - **PATCH** `/items/<uuid:id>/` - Update item (Auth required)
-  - Use `multipart/form-data` to update images
+  - Use `multipart/form-data` to update images (DO NOT set Content-Type header manually)
+  - Can update categories (only vendor's own categories allowed)
 - **DELETE** `/items/<uuid:id>/` - Delete item (Auth required)
 - **PATCH** `/items/<uuid:id>/status/` - Update item status (Auth required)
 - **POST** `/items/sync` - Batch sync items (Auth required)
@@ -174,9 +183,16 @@
 ### Sales Rep Interface (Web UI)
 - **GET** `/sales-rep/` - Login page (No auth)
 - **GET** `/sales-rep/vendors/` - Vendor list (Session auth)
+  - Filter by: approval status (pending/approved), active status (active/inactive), or search term
 - **GET** `/sales-rep/vendors/<uuid:vendor_id>/` - Vendor details (Session auth)
 - **POST** `/sales-rep/vendors/<uuid:vendor_id>/approve/` - Approve vendor (Session auth)
+  - Sets `is_approved = True` (approval status only)
 - **POST** `/sales-rep/vendors/<uuid:vendor_id>/reject/` - Reject vendor (Session auth)
+  - Sets `is_approved = False` (approval status only)
+- **POST** `/sales-rep/vendors/<uuid:vendor_id>/activate/` - Activate vendor (Session auth)
+  - Sets `user.is_active = True` (active status only - allows login)
+- **POST** `/sales-rep/vendors/<uuid:vendor_id>/deactivate/` - Deactivate vendor (Session auth)
+  - Sets `user.is_active = False` (active status only - prevents login)
 - **POST** `/sales-rep/vendors/bulk-approve/` - Bulk approve vendors (Session auth)
 
 ### Admin Panel

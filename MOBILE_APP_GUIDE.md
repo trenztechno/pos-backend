@@ -769,10 +769,17 @@ async function syncBillToServer(billPayload) {
 
 ### Categories
 - `GET /items/categories/` - Get all categories (initial sync)
+  - Returns only vendor's own categories (vendor-specific, isolated)
 - `POST /items/categories/` - Create category (instant add)
+  - Creates category for the vendor (vendor-specific)
 - `PATCH /items/categories/<uuid>` - Update category
+  - Only vendor's own categories can be updated
 - `DELETE /items/categories/<uuid>` - Delete category
+  - Only vendor's own categories can be deleted
 - `POST /items/categories/sync` - Batch sync categories (offline sync)
+  - Syncs vendor's own categories only
+
+**Important:** Each vendor can only create and use their own categories. Categories are vendor-specific and isolated - vendors cannot see or use categories from other vendors.
 
 ### Items
 - `GET /items/` - Get all items (initial sync)
@@ -961,7 +968,7 @@ await downloadBillsFromServer(loginData.token);
 
 - [ ] **Login with approved vendor** → Get token ✅
 - [ ] **Login with pending vendor** → Get "pending approval" error ✅
-- [ ] **Get categories** → See vendor-specific + global categories ✅
+- [ ] **Get categories** → See vendor's own categories only (vendor-specific, isolated) ✅
 - [ ] **Get items** → See items with `image_url` and `categories_list` ✅
 - [ ] **Create item locally** → Appears in UI immediately ✅
 - [ ] **Create item with categories** → Item has multiple categories ✅

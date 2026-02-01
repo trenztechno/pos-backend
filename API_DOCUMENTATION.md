@@ -429,8 +429,8 @@ Update vendor profile information including business details and logo upload.
 **Headers:**
 ```
 Authorization: Token <your_token>
-Content-Type: multipart/form-data  (when uploading logo)
 Content-Type: application/json     (when updating text fields only)
+// DO NOT set Content-Type for multipart/form-data - browser/axios will set it automatically with boundary
 ```
 
 **Request Body (JSON - update business details only):**
@@ -1430,17 +1430,28 @@ fetch('http://localhost:8000/items/', {
 **Features:**
 - ✅ Mobile-responsive design (works on phones and tablets)
 - ✅ Desktop-friendly interface
-- ✅ View all vendors with approval status
-- ✅ Approve/reject vendors individually or in bulk
-- ✅ Search and filter vendors
+- ✅ View all vendors with approval and activation status
+- ✅ **Approve/Reject vendors** - Controls approval status (`is_approved`)
+- ✅ **Activate/Deactivate vendors** - Controls active status (`user.is_active`) - separate from approval
+- ✅ Search and filter vendors (by approval status, active status, or search term)
 - ✅ View detailed vendor information
-- ✅ Statistics dashboard (pending/approved counts)
+- ✅ Statistics dashboard (pending/approved/active/inactive counts)
 
 **How to Use:**
 1. Login with sales rep credentials
-2. View pending vendors (filter by "Pending" status)
-3. Click "Approve" button on vendor card/row
-4. Or select multiple vendors and use "Bulk Approve"
+2. View vendors and their status:
+   - **Approval Status:** Pending or Approved (controls if vendor is approved)
+   - **Active Status:** Active or Inactive (controls if vendor can login)
+3. **Approve/Reject:** Click "Approve" or "Reject" to change approval status
+4. **Activate/Deactivate:** Click "Activate" or "Deactivate" to change active status (separate from approval)
+5. Filter by status: Pending Approval, Approved, Active, or Inactive
+6. Or select multiple vendors and use "Bulk Approve"
+
+**Important:**
+- **Approval** and **Activation** are separate controls
+- A vendor can be approved but inactive (cannot login)
+- A vendor can be active but not approved (cannot use API)
+- Both approval AND activation must be true for vendor to use the system
 
 ### Admin Panel - Approving Vendors
 
@@ -1457,7 +1468,7 @@ fetch('http://localhost:8000/items/', {
 
 ## Categories
 
-Categories organize items. Each vendor can create their own categories, and there are also global categories available to all vendors.
+Categories organize items. **Each vendor can only create and use their own categories.** Categories are vendor-specific and isolated - vendors cannot see or use categories from other vendors.
 
 ### Get All Categories
 
@@ -1465,7 +1476,7 @@ Categories organize items. Each vendor can create their own categories, and ther
 
 **Requires authentication + vendor approval**
 
-Returns all categories available to the vendor (vendor-specific + global categories).
+Returns all categories created by the vendor (vendor-specific only).
 
 **Response (200):**
 ```json
@@ -1715,11 +1726,12 @@ Creates a new item. Items can be assigned to multiple categories.
 - `gst_percentage`: GST percentage - 0%, 5%, 8%, 18%, or custom (optional, not compulsory for item creation)
 - `veg_nonveg`: `"veg"` or `"nonveg"` (optional)
 - `additional_discount`: Additional discount amount (optional, default: 0)
-- `category_ids`: Array of category UUIDs (breakfast, lunch, dinner, snacks, beverage, desserts, etc.)
+- `category_ids`: Array of category UUIDs (must be vendor's own categories only)
 - `image`: Item image file (optional - item name shown if no image)
 
 **Note:** 
 - `category_ids` is an array - items can belong to multiple categories!
+- **Categories must belong to the vendor** - vendors can only use their own categories (vendor-specific, isolated)
 - Image upload is optional - item names are shown clearly if no image
 - GST percentage is not compulsory during item creation
 - MRP price is MANDATORY for new items
@@ -2189,8 +2201,8 @@ formData.append('image', {
 const response = await fetch('http://localhost:8000/items/', {
   method: 'POST',
   headers: {
-    'Authorization': `Token ${token}`,
-    'Content-Type': 'multipart/form-data',
+    'Authorization': `Token ${token}`
+    // DO NOT set Content-Type manually - axios/fetch will set it with boundary automatically
   },
   body: formData,
 });
@@ -2394,6 +2406,9 @@ curl -X PATCH http://localhost:8000/items/{item_id}/ \
   -F "name=Updated Item Name" \
   -F "image=@/path/to/new_image.jpg"
 ```
+
+**Important:** 
+- ⚠️ **DO NOT manually set `Content-Type: multipart/form-data` header** - Browser/axios will automatically set it with the required boundary parameter. Setting it manually will break the upload.
 
 **JavaScript/React Native Example:**
 ```javascript
@@ -3066,7 +3081,7 @@ graph TB
 
 **Requires authentication + vendor approval**
 
-Downloads all categories for the vendor (vendor-specific + global categories). Used for initial sync and refreshing category list.
+Downloads all categories created by the vendor (vendor-specific only). Used for initial sync and refreshing category list.
 
 **Works for:** Owner + Staff users (all users under same vendor see same categories)
 
@@ -3117,9 +3132,10 @@ await saveCategoriesToLocalDB(categories);
 ```
 
 **Note:** 
-- Returns all active categories (vendor-specific + global)
+- Returns all active categories created by the vendor (vendor-specific only)
 - Categories are needed before creating items (items reference categories by UUID)
 - All users (owner + staff) under same vendor get same categories
+- Each vendor can only use their own categories when creating items
 
 ---
 
@@ -6154,8 +6170,9 @@ curl -X POST http://localhost:8000/auth/register \
 ```
 
 **Note:** 
-- All fields are required: `username`, `email`, `password`, `password_confirm`, `business_name`, `phone`, `gst_no`, and `address`.
-- Use a unique username and GST number. The test vendor `vendor1` already exists - use it for login examples below.
+- Required fields: `username`, `email`, `password`, `password_confirm`, `business_name`, `phone`, `address`
+- Optional fields: `gst_no` (can be added later via profile update)
+- Use a unique username. If providing `gst_no`, it must be unique. The test vendor `vendor1` already exists - use it for login examples below.
 
 ### 2. Sales Rep or Admin Approves Vendor
 
@@ -6413,12 +6430,15 @@ curl -X POST http://localhost:8000/items/sync \
 - Log rotation (10MB files, 5-10 backups)
 - Log files: `logs/api.log`, `logs/errors.log`, `logs/audit.log`, `logs/django.log`
 
-### ✅ Vendor Approval
+### ✅ Vendor Approval & Activation
 - New vendors must be approved by sales rep or admin before they can use the API
 - Unapproved vendors receive clear "pending approval" messages
-- **Sales Rep Interface:** Mobile-friendly web UI at `/sales-rep/` for approving vendors
+- **Sales Rep Interface:** Mobile-friendly web UI at `/sales-rep/` for managing vendors
+  - **Approve/Reject:** Controls approval status (`is_approved`)
+  - **Activate/Deactivate:** Controls active status (`user.is_active`) - separate from approval
+  - Both approval AND activation must be true for vendor to use the system
 - **Admin Panel:** Django admin at `/admin/` for advanced vendor management
-- Sales reps can approve/reject vendors individually or in bulk
+- Sales reps can approve/reject and activate/deactivate vendors individually or in bulk
 
 ### ✅ Authentication
 - Token-based authentication for all endpoints
@@ -6432,7 +6452,7 @@ curl -X POST http://localhost:8000/items/sync \
 - **Base URL:** Replace `http://localhost:8000` with your server URL
 - **UUIDs:** All IDs are UUIDs (not integers)
 - **Vendor Auto-Assignment:** Vendor is automatically set from authenticated user
-- **Categories:** Can be vendor-specific or global (vendor=null)
+- **Categories:** Vendor-specific only - each vendor can only create and use their own categories (isolated)
 - **Last-Write-Wins:** Item updates use timestamps for conflict resolution
 - **Passive Receiver:** Sales endpoint accepts any data without validation
 
