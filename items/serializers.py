@@ -15,12 +15,7 @@ class CategorySerializer(serializers.ModelSerializer):
 
 class ItemSerializer(serializers.ModelSerializer):
     categories_list = serializers.SerializerMethodField()
-    category_ids = serializers.ListField(
-        child=serializers.UUIDField(),
-        required=False,
-        allow_empty=True,
-        write_only=True
-    )
+    category_ids = serializers.SerializerMethodField()  # Read: returns IDs from categories
     vendor_name = serializers.CharField(source='vendor.business_name', read_only=True)
     image_url = serializers.SerializerMethodField()
     
@@ -34,11 +29,18 @@ class ItemSerializer(serializers.ModelSerializer):
             'is_active', 'sort_order', 'vendor_name', 'image', 'image_url',
             'last_updated', 'created_at'
         ]
-        read_only_fields = ['id', 'vendor', 'last_updated', 'created_at']
+        read_only_fields = ['id', 'vendor', 'last_updated', 'created_at', 'category_ids']
+        extra_kwargs = {
+            'categories': {'write_only': True}  # Use category_ids for writing instead
+        }
     
     def get_categories_list(self, obj):
         """Return list of category names for this item"""
         return [{'id': str(cat.id), 'name': cat.name} for cat in obj.categories.all()]
+    
+    def get_category_ids(self, obj):
+        """Return list of category IDs for this item (for frontend)"""
+        return [str(cat.id) for cat in obj.categories.all()]
     
     def get_image_url(self, obj):
         """Return full URL to item image (works with both local and S3 storage)

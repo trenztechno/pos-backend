@@ -2,6 +2,7 @@ from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from django.utils import timezone
 from django.db.models import Q
 from datetime import datetime
@@ -109,6 +110,8 @@ class CategoryDetailView(APIView):
 
 class ItemListView(APIView):
     """GET /items/ - Sync all items for the vendor (optionally filtered by category)"""
+    parser_classes = [JSONParser, MultiPartParser, FormParser]  # Support both JSON and file uploads
+    
     def _check_vendor_approved(self, request):
         """Helper method to check vendor approval (works for owner + staff users)"""
         vendor = Vendor.get_vendor_for_user(request.user)
@@ -156,7 +159,7 @@ class ItemListView(APIView):
         serializer = ItemSerializer(data=request.data, context={'request': request})
         if serializer.is_valid():
             # Validate categories - only allow vendor's own categories
-            category_ids = request.data.get('categories', request.data.get('category_ids', []))
+            category_ids = request.data.get('categories', request.data.get('category_ids', request.data.get('category_ids_write', [])))
             validated_categories = None
             if category_ids:
                 # Handle single category ID or list
@@ -189,6 +192,8 @@ class ItemListView(APIView):
 
 class ItemDetailView(APIView):
     """GET/PATCH/DELETE /items/:id - Item operations"""
+    parser_classes = [JSONParser, MultiPartParser, FormParser]  # Support both JSON and file uploads
+    
     def _check_vendor_approved(self, request):
         """Helper method to check vendor approval (works for owner + staff users)"""
         vendor = Vendor.get_vendor_for_user(request.user)
