@@ -10,11 +10,15 @@
     </div>
     <div class="stat-card">
         <h3>{{ approved_count }}</h3>
-        <p>Approved Vendors</p>
+        <p>Approved</p>
     </div>
     <div class="stat-card">
-        <h3>{{ vendors|length }}</h3>
-        <p>Total Vendors</p>
+        <h3>{{ active_count }}</h3>
+        <p>Active</p>
+    </div>
+    <div class="stat-card">
+        <h3>{{ inactive_count }}</h3>
+        <p>Inactive</p>
     </div>
 </div>
 
@@ -25,8 +29,10 @@
         <input type="text" name="search" placeholder="Search by name, email, business..." value="{{ search_query }}">
         <select name="status">
             <option value="all" {% if status_filter == 'all' %}selected{% endif %}>All Status</option>
-            <option value="pending" {% if status_filter == 'pending' %}selected{% endif %}>Pending</option>
+            <option value="pending" {% if status_filter == 'pending' %}selected{% endif %}>Pending Approval</option>
             <option value="approved" {% if status_filter == 'approved' %}selected{% endif %}>Approved</option>
+            <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Active</option>
+            <option value="inactive" {% if status_filter == 'inactive' %}selected{% endif %}>Inactive</option>
         </select>
         <button type="submit" class="btn btn-primary">Filter</button>
         <a href="{% url 'sales_rep:vendor_list' %}" class="btn btn-secondary">Clear</a>
@@ -59,10 +65,16 @@
                         <td>{{ vendor.user.email }}</td>
                         <td>{{ vendor.phone|default:"N/A" }}</td>
                         <td>
-                            {% if vendor.is_approved and vendor.user.is_active %}
+                            {% if vendor.is_approved %}
                                 <span class="badge badge-approved">✓ Approved</span>
                             {% else %}
                                 <span class="badge badge-pending">⏳ Pending</span>
+                            {% endif %}
+                            <br>
+                            {% if vendor.user.is_active %}
+                                <span class="badge badge-approved" style="margin-top: 5px;">Active</span>
+                            {% else %}
+                                <span class="badge badge-pending" style="margin-top: 5px;">Inactive</span>
                             {% endif %}
                         </td>
                         <td>{{ vendor.created_at|date:"M d, Y" }}</td>
@@ -72,6 +84,11 @@
                                 <button type="button" onclick="approveVendor('{{ vendor.id }}')" class="btn btn-success" style="padding: 5px 10px; font-size: 0.8rem;">Approve</button>
                             {% else %}
                                 <button type="button" onclick="rejectVendor('{{ vendor.id }}')" class="btn btn-danger" style="padding: 5px 10px; font-size: 0.8rem;">Reject</button>
+                            {% endif %}
+                            {% if vendor.user.is_active %}
+                                <button type="button" onclick="deactivateVendor('{{ vendor.id }}')" class="btn btn-warning" style="padding: 5px 10px; font-size: 0.8rem;">Deactivate</button>
+                            {% else %}
+                                <button type="button" onclick="activateVendor('{{ vendor.id }}')" class="btn btn-success" style="padding: 5px 10px; font-size: 0.8rem;">Activate</button>
                             {% endif %}
                         </td>
                     </tr>
@@ -101,11 +118,18 @@
             <div class="mobile-card-body">
                 <div><strong>Username:</strong> {{ vendor.user.username }}</div>
                 <div><strong>Phone:</strong> {{ vendor.phone|default:"N/A" }}</div>
-                <div><strong>Status:</strong> 
-                    {% if vendor.is_approved and vendor.user.is_active %}
+                <div><strong>Approval:</strong> 
+                    {% if vendor.is_approved %}
                         <span class="badge badge-approved">✓ Approved</span>
                     {% else %}
                         <span class="badge badge-pending">⏳ Pending</span>
+                    {% endif %}
+                </div>
+                <div><strong>Status:</strong> 
+                    {% if vendor.user.is_active %}
+                        <span class="badge badge-approved">Active</span>
+                    {% else %}
+                        <span class="badge badge-pending">Inactive</span>
                     {% endif %}
                 </div>
                 <div><strong>Created:</strong> {{ vendor.created_at|date:"M d, Y" }}</div>
@@ -116,6 +140,11 @@
                     <button type="button" onclick="approveVendor('{{ vendor.id }}')" class="btn btn-success">Approve</button>
                 {% else %}
                     <button type="button" onclick="rejectVendor('{{ vendor.id }}')" class="btn btn-danger">Reject</button>
+                {% endif %}
+                {% if vendor.user.is_active %}
+                    <button type="button" onclick="deactivateVendor('{{ vendor.id }}')" class="btn btn-warning">Deactivate</button>
+                {% else %}
+                    <button type="button" onclick="activateVendor('{{ vendor.id }}')" class="btn btn-success">Activate</button>
                 {% endif %}
             </div>
         </div>
@@ -165,8 +194,56 @@
     }
     
     function rejectVendor(vendorId) {
-        if (confirm('Are you sure you want to reject/deactivate this vendor?')) {
+        if (confirm('Are you sure you want to reject this vendor?')) {
             fetch(`/sales-rep/vendors/${vendorId}/reject/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred. Please try again.');
+            });
+        }
+    }
+    
+    function activateVendor(vendorId) {
+        if (confirm('Are you sure you want to activate this vendor? They will be able to login.')) {
+            fetch(`/sales-rep/vendors/${vendorId}/activate/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred. Please try again.');
+            });
+        }
+    }
+    
+    function deactivateVendor(vendorId) {
+        if (confirm('Are you sure you want to deactivate this vendor? They will not be able to login.')) {
+            fetch(`/sales-rep/vendors/${vendorId}/deactivate/`, {
                 method: 'POST',
                 headers: {
                     'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,

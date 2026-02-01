@@ -24,7 +24,7 @@ def vendor_list(request):
             return redirect('sales_rep:login')
     
     # Get filter parameters
-    status_filter = request.GET.get('status', 'all')  # all, pending, approved
+    status_filter = request.GET.get('status', 'all')  # all, pending, approved, active, inactive
     search_query = request.GET.get('search', '')
     
     # Get vendors
@@ -32,9 +32,13 @@ def vendor_list(request):
     
     # Apply filters
     if status_filter == 'pending':
-        vendors = vendors.filter(is_approved=False, user__is_active=False)
+        vendors = vendors.filter(is_approved=False)
     elif status_filter == 'approved':
-        vendors = vendors.filter(is_approved=True, user__is_active=True)
+        vendors = vendors.filter(is_approved=True)
+    elif status_filter == 'active':
+        vendors = vendors.filter(user__is_active=True)
+    elif status_filter == 'inactive':
+        vendors = vendors.filter(user__is_active=False)
     
     if search_query:
         vendors = vendors.filter(
@@ -51,8 +55,10 @@ def vendor_list(request):
         'vendors': vendors,
         'status_filter': status_filter,
         'search_query': search_query,
-        'pending_count': Vendor.objects.filter(is_approved=False, user__is_active=False).count(),
-        'approved_count': Vendor.objects.filter(is_approved=True, user__is_active=True).count(),
+        'pending_count': Vendor.objects.filter(is_approved=False).count(),
+        'approved_count': Vendor.objects.filter(is_approved=True).count(),
+        'active_count': Vendor.objects.filter(user__is_active=True).count(),
+        'inactive_count': Vendor.objects.filter(user__is_active=False).count(),
     }
     
     return render(request, 'sales_rep/vendor_list.html', context)
@@ -60,7 +66,7 @@ def vendor_list(request):
 @login_required
 @require_http_methods(["POST"])
 def approve_vendor(request, vendor_id):
-    """Approve a vendor"""
+    """Approve a vendor (approval status only)"""
     # Check if user is a sales rep
     try:
         sales_rep = request.user.sales_rep_profile
@@ -72,11 +78,12 @@ def approve_vendor(request, vendor_id):
     
     vendor = get_object_or_404(Vendor, id=vendor_id)
     
-    # Approve vendor
+    # Approve vendor (only approval status, not activation)
     vendor.is_approved = True
-    vendor.user.is_active = True
     vendor.save()
-    vendor.user.save()
+    
+    # Log audit event
+    log_vendor_approval(vendor, request.user, action='approved')
     
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         return JsonResponse({
@@ -90,7 +97,7 @@ def approve_vendor(request, vendor_id):
 @login_required
 @require_http_methods(["POST"])
 def reject_vendor(request, vendor_id):
-    """Reject/Deactivate a vendor"""
+    """Reject a vendor (approval status only)"""
     # Check if user is a sales rep
     try:
         sales_rep = request.user.sales_rep_profile
@@ -102,11 +109,9 @@ def reject_vendor(request, vendor_id):
     
     vendor = get_object_or_404(Vendor, id=vendor_id)
     
-    # Reject vendor
+    # Reject vendor (only approval status, not activation)
     vendor.is_approved = False
-    vendor.user.is_active = False
     vendor.save()
-    vendor.user.save()
     
     # Log audit event
     log_vendor_approval(vendor, request.user, action='rejected')
@@ -114,10 +119,72 @@ def reject_vendor(request, vendor_id):
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         return JsonResponse({
             'success': True,
-            'message': f'Vendor {vendor.business_name or vendor.user.username} rejected/deactivated'
+            'message': f'Vendor {vendor.business_name or vendor.user.username} rejected'
         })
     
-    messages.success(request, f'Vendor {vendor.business_name or vendor.user.username} rejected/deactivated')
+    messages.success(request, f'Vendor {vendor.business_name or vendor.user.username} rejected')
+    return redirect('sales_rep:vendor_list')
+
+@login_required
+@require_http_methods(["POST"])
+def activate_vendor(request, vendor_id):
+    """Activate a vendor (active status only)"""
+    # Check if user is a sales rep
+    try:
+        sales_rep = request.user.sales_rep_profile
+        if not sales_rep.is_active:
+            return JsonResponse({'error': 'Sales rep account not active'}, status=403)
+    except SalesRep.DoesNotExist:
+        if not request.user.is_staff:
+            return JsonResponse({'error': 'Access denied'}, status=403)
+    
+    vendor = get_object_or_404(Vendor, id=vendor_id)
+    
+    # Activate vendor (only active status)
+    vendor.user.is_active = True
+    vendor.user.save()
+    
+    # Log audit event
+    log_vendor_approval(vendor, request.user, action='activated')
+    
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return JsonResponse({
+            'success': True,
+            'message': f'Vendor {vendor.business_name or vendor.user.username} activated successfully'
+        })
+    
+    messages.success(request, f'Vendor {vendor.business_name or vendor.user.username} activated successfully')
+    return redirect('sales_rep:vendor_list')
+
+@login_required
+@require_http_methods(["POST"])
+def deactivate_vendor(request, vendor_id):
+    """Deactivate a vendor (active status only)"""
+    # Check if user is a sales rep
+    try:
+        sales_rep = request.user.sales_rep_profile
+        if not sales_rep.is_active:
+            return JsonResponse({'error': 'Sales rep account not active'}, status=403)
+    except SalesRep.DoesNotExist:
+        if not request.user.is_staff:
+            return JsonResponse({'error': 'Access denied'}, status=403)
+    
+    vendor = get_object_or_404(Vendor, id=vendor_id)
+    
+    # Deactivate vendor (only active status)
+    vendor.user.is_active = False
+    vendor.user.save()
+    
+    # Log audit event
+    log_vendor_approval(vendor, request.user, action='deactivated')
+    
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return JsonResponse({
+            'success': True,
+            'message': f'Vendor {vendor.business_name or vendor.user.username} deactivated'
+        })
+    
+    messages.success(request, f'Vendor {vendor.business_name or vendor.user.username} deactivated')
     return redirect('sales_rep:vendor_list')
 
 @login_required
@@ -142,9 +209,7 @@ def bulk_approve(request):
     count = 0
     for vendor in vendors:
         vendor.is_approved = True
-        vendor.user.is_active = True
         vendor.save()
-        vendor.user.save()
         count += 1
     
     messages.success(request, f'{count} vendor(s) approved successfully')

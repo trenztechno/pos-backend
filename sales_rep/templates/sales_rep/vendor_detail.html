@@ -76,11 +76,25 @@
     </div>
     
     <div style="margin-top: 30px; padding-top: 20px; border-top: 2px solid #e0e0e0;">
-        {% if not vendor.is_approved %}
-            <button onclick="approveVendor('{{ vendor.id }}')" class="btn btn-success">✓ Approve Vendor</button>
-        {% else %}
-            <button onclick="rejectVendor('{{ vendor.id }}')" class="btn btn-danger">✗ Reject/Deactivate Vendor</button>
-        {% endif %}
+        <h3 style="margin-bottom: 15px; color: #2c3e50;">Actions</h3>
+        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+            <div>
+                <strong style="display: block; margin-bottom: 5px;">Approval:</strong>
+                {% if not vendor.is_approved %}
+                    <button onclick="approveVendor('{{ vendor.id }}')" class="btn btn-success">✓ Approve</button>
+                {% else %}
+                    <button onclick="rejectVendor('{{ vendor.id }}')" class="btn btn-danger">✗ Reject</button>
+                {% endif %}
+            </div>
+            <div>
+                <strong style="display: block; margin-bottom: 5px;">Activation:</strong>
+                {% if vendor.user.is_active %}
+                    <button onclick="deactivateVendor('{{ vendor.id }}')" class="btn btn-warning">Deactivate</button>
+                {% else %}
+                    <button onclick="activateVendor('{{ vendor.id }}')" class="btn btn-success">Activate</button>
+                {% endif %}
+            </div>
+        </div>
     </div>
 </div>
 
@@ -111,8 +125,58 @@
     }
     
     function rejectVendor(vendorId) {
-        if (confirm('Are you sure you want to reject/deactivate this vendor? They will not be able to login.')) {
+        if (confirm('Are you sure you want to reject this vendor?')) {
             fetch(`/sales-rep/vendors/${vendorId}/reject/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}',
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert(data.message);
+                    location.reload();
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred. Please try again.');
+            });
+        }
+    }
+    
+    function activateVendor(vendorId) {
+        if (confirm('Are you sure you want to activate this vendor? They will be able to login.')) {
+            fetch(`/sales-rep/vendors/${vendorId}/activate/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}',
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert(data.message);
+                    location.reload();
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred. Please try again.');
+            });
+        }
+    }
+    
+    function deactivateVendor(vendorId) {
+        if (confirm('Are you sure you want to deactivate this vendor? They will not be able to login.')) {
+            fetch(`/sales-rep/vendors/${vendorId}/deactivate/`, {
                 method: 'POST',
                 headers: {
                     'X-CSRFToken': '{{ csrf_token }}',
