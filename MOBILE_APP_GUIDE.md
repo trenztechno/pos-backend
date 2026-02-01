@@ -759,9 +759,9 @@ async function syncBillToServer(billPayload) {
 - `POST /auth/login` - Get token (use on app startup)
 - `GET /auth/profile` - Get vendor profile (business details, logo)
 - `PATCH /auth/profile` - Update vendor profile (upload logo, update business details)
-- `POST /auth/register` - Register new vendor (requires: username, email, password, business_name, phone, gst_no, address)
-- `POST /auth/forgot-password` - Verify GST number to initiate password reset
-- `POST /auth/reset-password` - Reset password using GST number
+- `POST /auth/register` - Register new vendor (requires: username, email, password, business_name, phone, address; optional: gst_no, fssai_license)
+- `POST /auth/forgot-password` - Verify username and phone number to initiate password reset
+- `POST /auth/reset-password` - Reset password using username and phone number
  - `POST /auth/vendor/users/create` - Vendor owner creates staff users (same vendor, same access to billing)
  - `GET /auth/vendor/users` - List all vendor users (owner + staff)
  - `POST /auth/vendor/users/<user_id>/reset-password` - Owner resets staff password (staff have no forgot-password)
@@ -1071,9 +1071,9 @@ vendor2 / vendor123  (Approved, ready to use)
 ### Key Endpoints
 ```
 POST /auth/login                    → Get token
-POST /auth/register                 → Register new vendor (all fields required)
-POST /auth/forgot-password          → Verify GST number for password reset
-POST /auth/reset-password           → Reset password using GST number
+POST /auth/register                 → Register new vendor (gst_no optional, can be added later)
+POST /auth/forgot-password          → Verify username and phone number for password reset
+POST /auth/reset-password           → Reset password using username and phone number
 GET  /items/                        → Get all items
 GET  /items/categories/             → Get all categories
 POST /items/sync                    → Batch sync items ⭐

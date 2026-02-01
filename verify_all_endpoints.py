@@ -464,7 +464,7 @@ def test_api_endpoints():
         print(f"✗ GET /health/ - Error: {e}")
         results.append(False)
     
-    # Test 2: Register (No auth) - with FSSAI license
+    # Test 2: Register (No auth) - with FSSAI license and GST
     try:
         import time
         unique_id = str(int(time.time()))
@@ -480,14 +480,39 @@ def test_api_endpoints():
             'address': '123 Test Street',
         }, format='json')
         if response.status_code in [200, 201]:
-            print("✓ POST /auth/register - Working")
+            print("✓ POST /auth/register (with GST) - Working")
             results.append(True)
         else:
-            print(f"⚠ POST /auth/register - Status: {response.status_code}")
+            print(f"⚠ POST /auth/register (with GST) - Status: {response.status_code}")
             results.append(True)  # Not critical if it fails (might be duplicate)
     except Exception as e:
-        print(f"⚠ POST /auth/register - Error: {e}")
+        print(f"⚠ POST /auth/register (with GST) - Error: {e}")
         results.append(True)  # Not critical
+    
+    # Test 2b: Register (No auth) - WITHOUT GST (optional)
+    try:
+        import time
+        unique_id = str(int(time.time()))
+        response = client.post('/auth/register', {
+            'username': 'test_register_no_gst_' + unique_id,
+            'password': 'testpass123',
+            'password_confirm': 'testpass123',
+            'email': f'test_no_gst_{unique_id}@example.com',
+            'business_name': 'Test Business No GST',
+            'phone': '+1234567891',
+            # 'gst_no' is omitted - should work now
+            'fssai_license': '12345678901235',
+            'address': '124 Test Street',
+        }, format='json')
+        if response.status_code in [200, 201]:
+            print("✓ POST /auth/register (without GST) - Working")
+            results.append(True)
+        else:
+            print(f"⚠ POST /auth/register (without GST) - Status: {response.status_code}, Response: {response.data if hasattr(response, 'data') else 'N/A'}")
+            results.append(False)  # This should work now
+    except Exception as e:
+        print(f"⚠ POST /auth/register (without GST) - Error: {e}")
+        results.append(False)  # This should work now
     
     # Test 3: Login (No auth) - verify vendor data includes new fields
     try:
@@ -2284,6 +2309,58 @@ def test_api_endpoints():
             results.append(False)
     except Exception as e:
         print(f"✗ PATCH /auth/profile (business details) - Error: {e}")
+        results.append(False)
+    
+    # Test 34b: Update Vendor Profile (GST number - now editable)
+    try:
+        if not client._credentials:
+            token, _ = Token.objects.get_or_create(user=test_user)
+            client.credentials(HTTP_AUTHORIZATION=f'Token {token.key}')
+        
+        import time
+        new_gst = 'UPDATEDGST' + str(int(time.time()))
+        response = client.patch('/auth/profile', {
+            'gst_no': new_gst
+        }, format='json')
+        if response.status_code == 200:
+            # Verify GST was updated
+            vendor_data = response.data.get('vendor', {})
+            if vendor_data.get('gst_no') == new_gst:
+                print("✓ PATCH /auth/profile (update GST) - Working")
+                results.append(True)
+            else:
+                print(f"⚠ PATCH /auth/profile (update GST) - GST not updated correctly")
+                results.append(False)
+        else:
+            print(f"✗ PATCH /auth/profile (update GST) - Status: {response.status_code}, Response: {response.data if hasattr(response, 'data') else 'N/A'}")
+            results.append(False)
+    except Exception as e:
+        print(f"✗ PATCH /auth/profile (update GST) - Error: {e}")
+        results.append(False)
+    
+    # Test 34c: Update Vendor Profile (set GST to None/empty - optional)
+    try:
+        if not client._credentials:
+            token, _ = Token.objects.get_or_create(user=test_user)
+            client.credentials(HTTP_AUTHORIZATION=f'Token {token.key}')
+        
+        response = client.patch('/auth/profile', {
+            'gst_no': ''  # Empty string should be converted to None
+        }, format='json')
+        if response.status_code == 200:
+            vendor_data = response.data.get('vendor', {})
+            gst_value = vendor_data.get('gst_no')
+            if gst_value is None or gst_value == '':
+                print("✓ PATCH /auth/profile (clear GST) - Working")
+                results.append(True)
+            else:
+                print(f"⚠ PATCH /auth/profile (clear GST) - GST should be None/empty, got: {gst_value}")
+                results.append(False)
+        else:
+            print(f"✗ PATCH /auth/profile (clear GST) - Status: {response.status_code}")
+            results.append(False)
+    except Exception as e:
+        print(f"✗ PATCH /auth/profile (clear GST) - Error: {e}")
         results.append(False)
     
     # Test 35: Update Vendor Profile (logo upload)

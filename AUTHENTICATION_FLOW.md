@@ -61,7 +61,7 @@ This document explains the authentication flow and ensures backward compatibilit
 
 ---
 
-## Registration Flow (GST Required)
+## Registration Flow (GST Optional)
 
 **Endpoint:** `POST /auth/register`
 
@@ -72,9 +72,11 @@ This document explains the authentication flow and ensures backward compatibilit
 - `password_confirm` (required)
 - `business_name` (required)
 - `phone` (required)
-- `gst_no` (required) ⭐ **New vendors must have GST**
 - `address` (required)
-- `fssai_license` (optional) - FSSAI License Number for bill printing
+
+**Optional Fields:**
+- `gst_no` (optional) - GST number (GSTIN). Can be omitted during registration and added later via profile update
+- `fssai_license` (optional) - FSSAI License Number for bill printing. Can be added later via profile update
 
 **Note:** Billing mode (GST/Non-GST) is set per bill when creating bills, not during registration.
 
@@ -82,6 +84,11 @@ This document explains the authentication flow and ensures backward compatibilit
 - New vendors need phone for password reset functionality
 - Ensures all new vendors can use password reset feature
 - Phone number is used for verification during password reset
+
+**GST Number:**
+- Can be provided during registration (must be unique if provided)
+- Can be omitted and added later via `PATCH /auth/profile`
+- Can be updated or cleared via profile update endpoint
 
 ---
 
@@ -132,23 +139,22 @@ This document explains the authentication flow and ensures backward compatibilit
 
 ---
 
-## Migration Path for Existing Vendors
+## Adding/Updating GST Number
 
-If you have existing vendors without GST numbers:
+Vendors can add or update their GST number at any time:
 
-1. **Option 1: Add GST via Admin Panel**
+1. **Option 1: Via Profile Update API**
+   - Use `PATCH /auth/profile` with `gst_no` field
+   - Can set, update, or clear (set to empty string) GST number
+   - Must be unique if provided
+
+2. **Option 2: Via Admin Panel**
    - Go to Django Admin
-   - Edit vendor → Add GST number → Save
-   - Vendor can now use password reset
+   - Edit vendor → Add/Update GST number → Save
 
-2. **Option 2: Add GST via Sales Rep Interface**
+3. **Option 3: Via Sales Rep Interface**
    - Sales rep can view vendor details
    - Can update GST number if needed
-
-3. **Option 3: Vendor Re-registers**
-   - Vendor creates new account with GST
-   - Admin approves new account
-   - Old account can be deleted
 
 ---
 
@@ -161,16 +167,17 @@ If you have existing vendors without GST numbers:
 - ✅ Backward compatible with existing vendors
 
 ### Registration Workflow (Protected)
-- ✅ Requires GST number (new requirement)
-- ✅ Validates GST is unique
-- ✅ Creates vendor with GST number
-- ✅ Ensures password reset will work
+- ✅ GST number is optional (can be omitted)
+- ✅ Validates GST is unique if provided
+- ✅ Creates vendor with or without GST number
+- ✅ GST can be added/updated later via profile endpoint
+- ✅ Ensures password reset will work (requires phone, not GST)
 
 ### Password Reset Workflow (Protected)
-- ✅ Requires GST number (security feature)
-- ✅ Validates username + GST match
-- ✅ Only works for **vendor owner** accounts with GST
-- ✅ Clear error if vendor doesn't have GST
+- ✅ Requires phone number (security feature)
+- ✅ Validates username + phone match
+- ✅ Only works for **vendor owner** accounts with phone
+- ✅ Clear error if vendor doesn't have phone
 
 ---
 
@@ -205,9 +212,10 @@ curl -X POST http://localhost:8000/auth/forgot-password \
 
 ## Summary
 
-✅ **Login:** Works for all vendors (with or without phone)  
-✅ **Registration:** Requires phone (new vendors)  
-✅ **Password Reset:** Requires phone number (security feature)  
+✅ **Login:** Works for all vendors (with or without GST/phone)  
+✅ **Registration:** Requires phone, GST is optional (can be added later)  
+✅ **Password Reset:** Requires phone number (security feature, not GST)  
+✅ **GST Management:** Can be set, updated, or cleared via profile endpoint  
 ✅ **Backward Compatible:** Existing vendors can still login  
 ✅ **Protected Workflow:** No breaking changes to login flow
 

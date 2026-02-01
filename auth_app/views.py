@@ -52,7 +52,7 @@ def register(request):
         "password_confirm": "password123",
         "business_name": "ABC Store",
         "phone": "+1234567890",
-        "gst_no": "29ABCDE1234F1Z5",
+        "gst_no": "29ABCDE1234F1Z5",  // Optional - can be omitted or set later
         "address": "123 Main St, City"
     }
     Returns: {"message": "Registration successful. Please wait for admin approval."}
@@ -257,7 +257,7 @@ def reset_password(request):
 def profile(request):
     """
     GET /auth/profile - Get vendor profile
-    PATCH /auth/profile - Update vendor profile (logo, business details)
+    PATCH /auth/profile - Update vendor profile (logo, business details, GST number)
     
     Headers: Authorization: Token <token>
     
@@ -266,6 +266,7 @@ def profile(request):
         "business_name": "Updated Restaurant Name",
         "phone": "+1234567890",
         "address": "Updated Address",
+        "gst_no": "29ABCDE1234F1Z5",  // Optional - can be set or updated
         "fssai_license": "12345678901234",
         "footer_note": "Thank you!",
         "logo": <file>  // Optional image file

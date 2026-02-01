@@ -10,7 +10,7 @@ class RegisterSerializer(serializers.ModelSerializer):
     password_confirm = serializers.CharField(write_only=True, min_length=6)
     business_name = serializers.CharField(required=True)
     phone = serializers.CharField(required=True)
-    gst_no = serializers.CharField(required=True, max_length=50)
+    gst_no = serializers.CharField(required=False, max_length=50, allow_blank=True, allow_null=True, help_text="GST Number (GSTIN) - Optional. Can be added later in profile settings.")
     address = serializers.CharField(required=True)
     fssai_license = serializers.CharField(required=False, max_length=50, allow_blank=True, help_text="FSSAI License Number (optional during registration)")
     
@@ -35,6 +35,10 @@ class RegisterSerializer(serializers.ModelSerializer):
         return value
     
     def validate_gst_no(self, value):
+        # Convert empty string to None for consistency
+        if value == '':
+            value = None
+        # Only validate uniqueness if GST number is provided
         if value and Vendor.objects.filter(gst_no=value).exists():
             raise serializers.ValidationError('GST number already registered.')
         return value
@@ -46,7 +50,10 @@ class RegisterSerializer(serializers.ModelSerializer):
         email = validated_data.pop('email')
         business_name = validated_data.pop('business_name')
         phone = validated_data.pop('phone')
-        gst_no = validated_data.pop('gst_no')  # Required for new registrations
+        gst_no = validated_data.pop('gst_no', None)  # Optional - can be None or empty string
+        # Convert empty string to None for consistency
+        if gst_no == '':
+            gst_no = None
         fssai_license = validated_data.pop('fssai_license', None)  # Optional
         address = validated_data.pop('address')
         
@@ -216,6 +223,7 @@ class VendorProfileSerializer(serializers.ModelSerializer):
     """Serializer for vendor profile (GET/PATCH)"""
     username = serializers.CharField(source='user.username', read_only=True)
     email = serializers.EmailField(source='user.email', read_only=True)
+    gst_no = serializers.CharField(required=False, max_length=50, allow_blank=True, allow_null=True, help_text="GST Number (GSTIN) - Optional. Can be set or updated via profile.")
     bill_prefix = serializers.CharField(required=False, allow_blank=True, max_length=50, help_text="Prefix for bill numbers (e.g., 'INV', 'BILL', 'REST')")
     bill_starting_number = serializers.IntegerField(required=False, min_value=1, help_text="Starting bill number (to account for existing bills before system migration)")
     last_bill_number = serializers.IntegerField(read_only=True, help_text="Last generated bill number (read-only, auto-incremented by server)")
@@ -233,11 +241,24 @@ class VendorProfileSerializer(serializers.ModelSerializer):
             'cgst_percentage', 'sgst_percentage',
             'is_approved', 'created_at', 'updated_at'
         ]
-        read_only_fields = ['id', 'is_approved', 'created_at', 'updated_at', 'gst_no', 'last_bill_number']  # GST and last_bill_number cannot be changed
+        read_only_fields = ['id', 'is_approved', 'created_at', 'updated_at', 'last_bill_number']  # last_bill_number cannot be changed
+        # Note: gst_no is now editable (can be set/updated via profile update)
     
     def validate_gst_no(self, value):
-        """GST number cannot be changed via API (read-only)"""
-        if self.instance and value != self.instance.gst_no:
-            raise serializers.ValidationError('GST number cannot be changed. Please contact admin.')
+        """Validate GST number if provided"""
+        # Convert empty string to None for consistency
+        if value == '':
+            value = None
+        # Only validate uniqueness if GST number is provided and different from current
+        if value and self.instance:
+            # Check if another vendor already has this GST number
+            existing = Vendor.objects.filter(gst_no=value).exclude(id=self.instance.id).first()
+            if existing:
+                raise serializers.ValidationError('GST number already registered to another vendor.')
+        elif value:
+            # New GST number (during update)
+            existing = Vendor.objects.filter(gst_no=value).first()
+            if existing:
+                raise serializers.ValidationError('GST number already registered to another vendor.')
         return value
 

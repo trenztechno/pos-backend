@@ -172,7 +172,7 @@ curl http://localhost:8000/health/
 
 Creates a new vendor account. The account will be **inactive** and require admin approval before login.
 
-**Request Body (All fields required):**
+**Request Body:**
 ```json
 {
   "username": "newvendor",
@@ -195,7 +195,7 @@ Creates a new vendor account. The account will be **inactive** and require admin
 - `password_confirm`: Password confirmation (must match password, required)
 - `business_name`: Name of the business/restaurant (required)
 - `phone`: Phone number with country code (required)
-- `gst_no`: GST number (GSTIN) (required, must be unique, used for bills)
+- `gst_no`: GST number (GSTIN) (optional, can be omitted or set later via profile update. If provided, must be unique)
 - `fssai_license`: FSSAI License Number (optional during registration, can be added later via admin)
 - `address`: Business address (required)
 
@@ -222,13 +222,14 @@ Creates a new vendor account. The account will be **inactive** and require admin
     "password": ["Passwords do not match."],
     "business_name": ["This field is required."],
     "phone": ["This field is required."],
-    "gst_no": ["This field is required."],
     "address": ["This field is required."]
   }
 }
 ```
 
-**Example (cURL):**
+**Note:** `gst_no` is optional. If provided, it must be unique. You can register without GST and add it later via profile update.
+
+**Example 1: Registration with GST (cURL):**
 ```bash
 curl -X POST http://localhost:8000/auth/register \
   -H "Content-Type: application/json" \
@@ -244,7 +245,22 @@ curl -X POST http://localhost:8000/auth/register \
   }'
 ```
 
-**Note:** Use a unique username and GST number. The test vendor `vendor1` already exists - use it for login, not registration. Billing mode (GST/Non-GST) is set per bill, not during registration.
+**Example 2: Registration without GST (cURL):**
+```bash
+curl -X POST http://localhost:8000/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{
+    "username": "newvendor2",
+    "email": "newvendor2@example.com",
+    "password": "password123",
+    "password_confirm": "password123",
+    "business_name": "New Business Store 2",
+    "phone": "+1234567891",
+    "address": "124 Main St, City, State"
+  }'
+```
+
+**Note:** Use a unique username. If providing GST number, it must be unique. The test vendor `vendor1` already exists - use it for login, not registration. Billing mode (GST/Non-GST) is set per bill, not during registration. GST number is optional and can be added later via `PATCH /auth/profile`.
 
 ---
 
@@ -392,7 +408,7 @@ Authorization: Token <your_token>
 
 **Field Descriptions:**
 - `logo_url`: Pre-signed URL to restaurant logo (temporary, expires in 1 hour) or null if not uploaded
-- `gst_no`: Read-only, cannot be changed via API
+- `gst_no`: GST number (GSTIN) - can be null if not set. Can be updated via PATCH /auth/profile
 
 **Example (cURL):**
 ```bash
@@ -423,6 +439,7 @@ Content-Type: application/json     (when updating text fields only)
   "business_name": "Updated Restaurant Name",
   "phone": "+1234567890",
   "address": "Updated Address, City",
+  "gst_no": "29UPDATED1234F1Z5",
   "fssai_license": "12345678901234",
   "footer_note": "Thank you for visiting!",
   "bill_prefix": "INV",
@@ -449,7 +466,7 @@ logo: <file>  (JPG, PNG, WebP)
 **Field Descriptions:**
 - All fields are optional (partial update supported)
 - `logo`: Image file (JPG, PNG, WebP) - optional
-- `gst_no`: Cannot be changed (read-only)
+- `gst_no`: GST number (GSTIN) - optional, can be set, updated, or cleared (set to empty string to clear). Must be unique if provided.
 - `bill_prefix`: Prefix for bill numbers (e.g., "INV", "BILL", "REST"). Format: `{prefix}-{date}-{number}` (e.g., "INV-2026-01-27-0001")
 - `bill_starting_number`: Starting bill number (to account for existing bills before system migration). **Can only be set once before any bills are created.** Cannot be changed after bills exist.
 - `last_bill_number`: Read-only field showing the last generated bill number (auto-incremented by server)
@@ -505,6 +522,38 @@ logo: <file>  (JPG, PNG, WebP)
   }
 }
 ```
+
+**Example 1: Update GST Number (cURL):**
+```bash
+curl -X PATCH http://localhost:8000/auth/profile \
+  -H "Authorization: Token YOUR_TOKEN_HERE" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "gst_no": "29NEWGST1234F1Z5"
+  }'
+```
+
+**Example 2: Add GST Number (if not set during registration):**
+```bash
+curl -X PATCH http://localhost:8000/auth/profile \
+  -H "Authorization: Token YOUR_TOKEN_HERE" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "gst_no": "29ADDEDGST1234F1Z5"
+  }'
+```
+
+**Example 3: Clear GST Number (set to empty):**
+```bash
+curl -X PATCH http://localhost:8000/auth/profile \
+  -H "Authorization: Token YOUR_TOKEN_HERE" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "gst_no": ""
+  }'
+```
+
+**Note:** Empty string will be converted to `null`. GST number must be unique if provided.
 
 **Example (cURL - update business details):**
 ```bash
@@ -1346,11 +1395,12 @@ fetch('http://localhost:8000/items/', {
 ### Registration Flow
 
 1. **Vendor registers** via `POST /auth/register`
-   - **Required fields:** `username`, `email`, `password`, `password_confirm`, `business_name`, `phone`, `gst_no`, `address`
+   - **Required fields:** `username`, `email`, `password`, `password_confirm`, `business_name`, `phone`, `address`
+   - **Optional fields:** `gst_no`, `fssai_license` (can be added later via profile update)
    - Creates User account (inactive)
-   - Creates Vendor profile (not approved, with GST number)
+   - Creates Vendor profile (not approved, GST number optional)
    - Returns: "Registration successful. Your account is pending approval."
-   - **Note:** GST number is required and must be unique. Phone number is required and will be used for password reset.
+   - **Note:** GST number is optional. If provided, must be unique. Phone number is required and will be used for password reset.
 
 2. **Vendor tries to login** (before approval)
    - Returns 403: "Your vendor account is pending approval..."

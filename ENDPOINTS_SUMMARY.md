@@ -13,16 +13,19 @@
 
 ### Authentication
 - **POST** `/auth/register` - Register new vendor (No auth)
-  - Required fields: username, email, password, password_confirm, business_name, phone, gst_no, address
+  - Required fields: username, email, password, password_confirm, business_name, phone, address
+  - Optional fields: gst_no, fssai_license (can be added later via profile update)
 - **POST** `/auth/login` - Login and get token (No auth)
   - Returns vendor object with `logo_url` (pre-signed URL if S3 enabled)
   - **Token is permanent** - same token reused on each login, never expires automatically
 - **GET** `/auth/profile` - Get vendor profile (Auth required)
   - Returns business details and logo URL
+  - `gst_no` can be null if not set
 - **PATCH** `/auth/profile` - Update vendor profile (Auth required)
   - Use `multipart/form-data` to upload logo
-  - Update business_name, phone, address, fssai_license, footer_note
+  - Update business_name, phone, address, gst_no, fssai_license, footer_note
   - Set `cgst_percentage` and `sgst_percentage` for vendor-level flat GST rates (e.g., 2.5% + 2.5%)
+  - `gst_no` can be set, updated, or cleared (set to empty string to clear)
 - **POST** `/auth/forgot-password` - Verify phone number for password reset (No auth)
 - **POST** `/auth/reset-password` - Reset password using phone number (No auth)
 - **POST** `/auth/logout` - Logout (Auth required)
