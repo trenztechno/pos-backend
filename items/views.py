@@ -23,10 +23,8 @@ class CategoryListView(APIView):
                 'error': 'Your vendor account is pending approval. Please wait for admin approval.'
             }, status=status.HTTP_403_FORBIDDEN)
         
-        # Get vendor-specific categories and global categories
-        categories = Category.objects.filter(
-            Q(vendor=vendor) | Q(vendor__isnull=True)
-        ).filter(is_active=True)
+        # Get only vendor's own categories
+        categories = Category.objects.filter(vendor=vendor, is_active=True)
         
         serializer = CategorySerializer(categories, many=True)
         return Response(serializer.data)
@@ -69,9 +67,9 @@ class CategoryDetailView(APIView):
         if error_response:
             return error_response
         
-        # Allow both vendor-specific and global categories (vendor=None)
+        # Only allow viewing vendor's own categories
         try:
-            category = Category.objects.get(Q(id=id) & (Q(vendor=vendor) | Q(vendor__isnull=True)))
+            category = Category.objects.get(id=id, vendor=vendor)
         except Category.DoesNotExist:
             return Response({'error': 'Category not found'}, status=status.HTTP_404_NOT_FOUND)
         
@@ -83,19 +81,11 @@ class CategoryDetailView(APIView):
         if error_response:
             return error_response
         
-        # Allow both vendor-specific and global categories (vendor=None)
-        # But only allow updating vendor-specific categories (not global ones)
+        # Only allow updating vendor's own categories
         try:
             category = Category.objects.get(id=id, vendor=vendor)
         except Category.DoesNotExist:
-            # Check if it's a global category
-            try:
-                global_category = Category.objects.get(id=id, vendor__isnull=True)
-                return Response({
-                    'error': 'Cannot update global category. Only vendor-specific categories can be modified.'
-                }, status=status.HTTP_403_FORBIDDEN)
-            except Category.DoesNotExist:
-                return Response({'error': 'Category not found'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'error': 'Category not found'}, status=status.HTTP_404_NOT_FOUND)
         
         serializer = CategorySerializer(category, data=request.data, partial=True)
         if serializer.is_valid():
@@ -108,18 +98,11 @@ class CategoryDetailView(APIView):
         if error_response:
             return error_response
         
-        # Only allow deleting vendor-specific categories (not global ones)
+        # Only allow deleting vendor's own categories
         try:
             category = Category.objects.get(id=id, vendor=vendor)
         except Category.DoesNotExist:
-            # Check if it's a global category
-            try:
-                global_category = Category.objects.get(id=id, vendor__isnull=True)
-                return Response({
-                    'error': 'Cannot delete global category. Only vendor-specific categories can be deleted.'
-                }, status=status.HTTP_403_FORBIDDEN)
-            except Category.DoesNotExist:
-                return Response({'error': 'Category not found'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'error': 'Category not found'}, status=status.HTTP_404_NOT_FOUND)
         
         category.delete()
         return Response({'message': 'Category deleted'}, status=status.HTTP_204_NO_CONTENT)
@@ -172,7 +155,7 @@ class ItemListView(APIView):
         
         serializer = ItemSerializer(data=request.data, context={'request': request})
         if serializer.is_valid():
-            # Validate categories belong to vendor or are global
+            # Validate categories - only allow vendor's own categories
             category_ids = request.data.get('categories', request.data.get('category_ids', []))
             validated_categories = None
             if category_ids:
@@ -182,8 +165,8 @@ class ItemListView(APIView):
                 
                 validated_categories = Category.objects.filter(
                     id__in=category_ids,
-                    vendor__in=[vendor, None]  # Vendor's categories or global
-                )
+                    vendor=vendor  # Only vendor's own categories
+                ).filter(is_active=True)
                 
                 if validated_categories.count() != len(category_ids):
                     return Response(
@@ -247,7 +230,7 @@ class ItemDetailView(APIView):
         
         serializer = ItemSerializer(item, data=request.data, partial=True, context={'request': request})
         if serializer.is_valid():
-            # Validate categories if being updated
+            # Validate categories if being updated - only allow vendor's own categories
             validated_categories = None
             if 'categories' in request.data or 'category_ids' in request.data:
                 category_ids = request.data.get('categories', request.data.get('category_ids', []))
@@ -258,8 +241,8 @@ class ItemDetailView(APIView):
                     
                     validated_categories = Category.objects.filter(
                         id__in=category_ids,
-                        vendor__in=[vendor, None]
-                    )
+                        vendor=vendor  # Only vendor's own categories
+                    ).filter(is_active=True)
                     
                     if validated_categories.count() != len(category_ids):
                         return Response(
@@ -533,7 +516,7 @@ class ItemSyncView(APIView):
                                     # Invalid timestamp format, proceed with update
                                     pass
                             
-                            # Validate categories if provided
+                            # Validate categories if provided - only vendor's own categories
                             category_ids = item_data.get('category_ids', item_data.get('categories', []))
                             validated_categories = None
                             if category_ids:
@@ -542,8 +525,8 @@ class ItemSyncView(APIView):
                                 
                                 validated_categories = Category.objects.filter(
                                     id__in=category_ids,
-                                    vendor__in=[vendor, None]
-                                )
+                                    vendor=vendor  # Only vendor's own categories
+                                ).filter(is_active=True)
                                 
                                 if validated_categories.count() != len(category_ids):
                                     errors.append({
@@ -571,7 +554,7 @@ class ItemSyncView(APIView):
                             item_data['id'] = item_id
                             serializer = ItemSerializer(data=item_data)
                             if serializer.is_valid():
-                                # Validate categories
+                                # Validate categories - only vendor's own categories
                                 category_ids = item_data.get('category_ids', item_data.get('categories', []))
                                 validated_categories = None
                                 if category_ids:
@@ -580,8 +563,8 @@ class ItemSyncView(APIView):
                                     
                                     validated_categories = Category.objects.filter(
                                         id__in=category_ids,
-                                        vendor__in=[vendor, None]
-                                    )
+                                        vendor=vendor  # Only vendor's own categories
+                                    ).filter(is_active=True)
                                     
                                     if validated_categories.count() != len(category_ids):
                                         errors.append({
@@ -605,7 +588,7 @@ class ItemSyncView(APIView):
                         # Create new (generate ID)
                         serializer = ItemSerializer(data=item_data)
                         if serializer.is_valid():
-                            # Validate categories
+                            # Validate categories - only vendor's own categories
                             category_ids = item_data.get('category_ids', item_data.get('categories', []))
                             validated_categories = None
                             if category_ids:
@@ -614,8 +597,8 @@ class ItemSyncView(APIView):
                                 
                                 validated_categories = Category.objects.filter(
                                     id__in=category_ids,
-                                    vendor__in=[vendor, None]
-                                )
+                                    vendor=vendor  # Only vendor's own categories
+                                ).filter(is_active=True)
                                 
                                 if validated_categories.count() != len(category_ids):
                                     errors.append({

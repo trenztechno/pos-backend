@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from django.conf import settings
+from django.db.models import Q
 from .models import Item, Category
 from auth_app.models import Vendor
 from backend.s3_utils import generate_presigned_url
@@ -14,12 +15,11 @@ class CategorySerializer(serializers.ModelSerializer):
 
 class ItemSerializer(serializers.ModelSerializer):
     categories_list = serializers.SerializerMethodField()
-    category_ids = serializers.PrimaryKeyRelatedField(
-        many=True,
-        queryset=Category.objects.all(),
-        source='categories',
+    category_ids = serializers.ListField(
+        child=serializers.UUIDField(),
         required=False,
-        allow_empty=True
+        allow_empty=True,
+        write_only=True
     )
     vendor_name = serializers.CharField(source='vendor.business_name', read_only=True)
     image_url = serializers.SerializerMethodField()
