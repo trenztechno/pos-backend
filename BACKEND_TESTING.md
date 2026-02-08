@@ -274,14 +274,13 @@ All functionality verified successfully!
 - ✅ Veg items
 - ✅ Non-veg items
 - ✅ Items with multiple categories
-- ✅ Items with additional discount
-- ✅ Items without additional discount
+- ✅ Items (item-level discounts removed - discounts are bill-level percentage only)
 
 **Bill Scenarios Tested:**
 - ✅ Bills with linked items (item_id present)
 - ✅ Bills with additional items (no item_id)
 - ✅ Bills with mixed items (some linked, some additional)
-- ✅ Bills with discounts
+- ✅ Bills with percentage discounts (applied to subtotal before tax)
 - ✅ Bills without discounts
 - ✅ Bills with multiple items (different GST percentages)
 

@@ -191,9 +191,13 @@ def dashboard_sales(request):
         total=Coalesce(Sum('sgst_amount'), Decimal('0'), output_field=DecimalField())
     )['total'] or Decimal('0')
     
-    total_discount = bills.aggregate(
-        total=Coalesce(Sum('discount_amount'), Decimal('0'), output_field=DecimalField())
-    )['total'] or Decimal('0')
+    # Calculate total discount from percentage (discount_amount is now a property, not a field)
+    # Discount is applied to subtotal (before tax)
+    total_discount = Decimal('0')
+    for bill in bills:
+        if bill.discount_percentage > 0:
+            discount_amount = (bill.subtotal * bill.discount_percentage / 100).quantize(Decimal('0.01'))
+            total_discount += discount_amount
     
     # Daily breakdown
     daily_breakdown = bills.values('bill_date').annotate(

@@ -14,8 +14,7 @@ class BillItemSerializer(serializers.ModelSerializer):
             'id', 'bill', 'item', 'original_item_id', 'item_id', 'item_name', 'item_description',
             'price', 'mrp_price', 'price_type', 'quantity', 'subtotal',
             'gst_percentage', 'item_gst_amount', 'veg_nonveg',
-            'additional_discount', 'discount_amount', 'unit',
-            'batch_number', 'expiry_date', 'created_at'
+            'unit', 'batch_number', 'expiry_date', 'created_at'
         ]
         read_only_fields = ['id', 'bill', 'created_at']
 
@@ -37,7 +36,7 @@ class BillSerializer(serializers.ModelSerializer):
             'billing_mode', 'subtotal', 'total_amount',
             'total_tax', 'cgst_amount', 'sgst_amount', 'igst_amount',
             'payment_mode', 'payment_reference', 'amount_paid', 'change_amount',
-            'discount_amount', 'discount_percentage',
+            'discount_percentage', 'discount_amount',  # discount_amount is a property, calculated from percentage
             'notes', 'table_number', 'waiter_name',
             'items', 'items_data', 'item_count', 'total_quantity',
             'created_at', 'synced_at', 'updated_at'

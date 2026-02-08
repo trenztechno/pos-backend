@@ -70,7 +70,7 @@ This README serves as the main entry point. For detailed documentation, refer to
 - **GST Bills (Intra-State):** [API_DOCUMENTATION.md](API_DOCUMENTATION.md#example-1-gst-bill---intra-state---cash-payment---no-discounts) - Examples 1-5
 - **GST Bills (Inter-State):** [API_DOCUMENTATION.md](API_DOCUMENTATION.md#example-6-gst-bill---inter-state---cash-payment---no-discounts) - Examples 6-7
 - **Non-GST Bills:** [API_DOCUMENTATION.md](API_DOCUMENTATION.md#example-9-non-gst-bill---cash-payment---no-discounts) - Examples 9-10
-- **Bills with Discounts:** [API_DOCUMENTATION.md](API_DOCUMENTATION.md#example-8-gst-bill---intra-state---cash-payment---with-discounts) - Example 8, 16
+- **Bills with Percentage Discounts:** [API_DOCUMENTATION.md](API_DOCUMENTATION.md#example-8-gst-bill---intra-state---cash-payment---with-percentage-discount) - Example 8, 16 (Percentage-based discounts applied to subtotal before tax)
 - **Vendor-Level Flat GST Rates:** [API_DOCUMENTATION.md](API_DOCUMENTATION.md#vendor-level-gst-rates-flat-rate-system) - For restaurants with fixed CGST/SGST rates (e.g., 2.5% + 2.5%)
 - **All Payment Modes:** [API_DOCUMENTATION.md](API_DOCUMENTATION.md#payment-mode-summary) - Cash, UPI, Card, Credit, Other
 - **Code Examples:** [MOBILE_APP_GUIDE.md](MOBILE_APP_GUIDE.md#example-1-gst-bill---intra-state---cash-payment) - Complete JavaScript/React Native examples

@@ -94,7 +94,7 @@ def test_models():
         
         # Test Item model
         item_fields = ['id', 'vendor', 'name', 'description', 'price', 'mrp_price', 'price_type', 'gst_percentage', 
-                      'veg_nonveg', 'additional_discount', 'stock_quantity', 'sku', 'barcode', 'is_active', 'sort_order', 'image']
+                      'veg_nonveg', 'stock_quantity', 'sku', 'barcode', 'is_active', 'sort_order', 'image']
         for field in item_fields:
             assert hasattr(Item, field) or hasattr(Item._meta.get_field(field), 'name'), f"Item missing field: {field}"
         assert hasattr(Item, 'categories'), "Item missing 'categories' field (many-to-many)"
@@ -115,7 +115,7 @@ def test_models():
         # Test BillItem model
         billitem_fields = ['id', 'bill', 'item', 'original_item_id', 'item_name', 'price', 'mrp_price',
                           'price_type', 'quantity', 'subtotal', 'gst_percentage', 'item_gst_amount',
-                          'veg_nonveg', 'additional_discount', 'created_at']
+                          'veg_nonveg', 'created_at']
         for field in billitem_fields:
             assert hasattr(BillItem, field) or hasattr(BillItem._meta.get_field(field), 'name'), f"BillItem missing field: {field}"
         print("✓ BillItem model has all required fields")
@@ -854,7 +854,6 @@ def test_api_endpoints():
             'price_type': 'exclusive',
             'gst_percentage': '18.00',
             'veg_nonveg': 'veg',
-            'additional_discount': '0.00',
             'stock_quantity': 10
         }, format='json')
         if response.status_code in [200, 201]:
@@ -1008,7 +1007,6 @@ def test_api_endpoints():
                 'price_type': 'exclusive',
                 'gst_percentage': '18.00',
                 'veg_nonveg': 'veg',
-                'additional_discount': '0.00',
                 'stock_quantity': 10
             },
             'timestamp': timezone.now().isoformat()
@@ -2834,7 +2832,7 @@ def main():
     
     # Additional verification
     print_section("ADDITIONAL VERIFICATIONS")
-    print("✓ GST fields in Item model: mrp_price, price_type, gst_percentage, veg_nonveg, additional_discount")
+    print("✓ GST fields in Item model: mrp_price, price_type, gst_percentage, veg_nonveg")
     print("✓ Vendor fields: fssai_license, logo, footer_note")
     print("✓ Bill structure: invoice_number, restaurant_name, address, gstin, fssai_license, bill_number, bill_date")
     print("✓ BillItem structure: item linking, original_item_id, item_name, price, mrp_price, quantity, subtotal, gst_percentage")

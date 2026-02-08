@@ -1,6 +1,7 @@
 from django.db import models
 from django.core.validators import MinValueValidator
 from django.utils import timezone
+from decimal import Decimal
 import uuid
 
 class Bill(models.Model):
@@ -63,9 +64,8 @@ class Bill(models.Model):
     amount_paid = models.DecimalField(max_digits=12, decimal_places=2, blank=True, null=True, validators=[MinValueValidator(0)])
     change_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0, validators=[MinValueValidator(0)], help_text="Change given to customer")
     
-    # Discounts (Extendable)
-    discount_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0, validators=[MinValueValidator(0)], help_text="Total discount amount")
-    discount_percentage = models.DecimalField(max_digits=5, decimal_places=2, default=0, validators=[MinValueValidator(0)], help_text="Discount percentage")
+    # Discounts (Percentage-based on subtotal before tax)
+    discount_percentage = models.DecimalField(max_digits=5, decimal_places=2, default=0, validators=[MinValueValidator(0)], help_text="Discount percentage applied to subtotal (before tax)")
     
     # Additional Fields (Extendable)
     notes = models.TextField(blank=True, null=True, help_text="Additional notes for this bill")
@@ -102,6 +102,19 @@ class Bill(models.Model):
     def total_quantity(self):
         """Get total quantity of all items"""
         return sum(item.quantity for item in self.items.all())
+    
+    @property
+    def discount_amount(self):
+        """Calculate discount amount from percentage applied to subtotal (before tax)"""
+        if self.discount_percentage > 0:
+            return (self.subtotal * self.discount_percentage / 100).quantize(Decimal('0.01'))
+        return Decimal('0')
+    
+    def get_final_total(self):
+        """Get final total after applying discount percentage"""
+        # Discount applied to subtotal, then tax calculated on discounted subtotal
+        discounted_subtotal = self.subtotal - self.discount_amount
+        return (discounted_subtotal + self.total_tax).quantize(Decimal('0.01'))
 
 
 class BillItem(models.Model):
@@ -135,8 +148,7 @@ class BillItem(models.Model):
     
     # Additional Information
     veg_nonveg = models.CharField(max_length=10, choices=[('veg', 'Veg'), ('non_veg', 'Non-Veg')], blank=True, null=True, help_text="Veg/Non-veg at time of sale")
-    additional_discount = models.DecimalField(max_digits=5, decimal_places=2, default=0, validators=[MinValueValidator(0)], help_text="Additional discount on this item")
-    discount_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0, validators=[MinValueValidator(0)], help_text="Discount amount for this item")
+    # Item-level discounts removed - discounts are now applied at bill level only (percentage-based)
     
     # Extendable fields
     unit = models.CharField(max_length=50, blank=True, null=True, help_text="Unit of measurement (kg, pcs, etc.)")

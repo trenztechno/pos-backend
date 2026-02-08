@@ -36,7 +36,8 @@ class BillAdmin(admin.ModelAdmin):
             'fields': ('payment_mode', 'payment_reference', 'amount_paid', 'change_amount')
         }),
         ('Discounts', {
-            'fields': ('discount_amount', 'discount_percentage'),
+            'fields': ('discount_percentage',),
+            'description': 'Discount is percentage-based, applied to subtotal (before tax). discount_amount is calculated automatically as a property.',
             'classes': ('collapse',)
         }),
         ('Additional Information', {
@@ -74,10 +75,7 @@ class BillItemAdmin(admin.ModelAdmin):
         ('Tax Information', {
             'fields': ('gst_percentage', 'item_gst_amount', 'veg_nonveg')
         }),
-        ('Discounts', {
-            'fields': ('additional_discount', 'discount_amount'),
-            'classes': ('collapse',)
-        }),
+        # Item-level discounts removed - discounts are now bill-level percentage only
         ('Additional Information', {
             'fields': ('unit', 'batch_number', 'expiry_date'),
             'classes': ('collapse',)

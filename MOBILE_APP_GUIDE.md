@@ -612,30 +612,24 @@ async function createGSTBillCredit(billData) {
 }
 ```
 
-#### Example 5: GST Bill with Discounts
+#### Example 5: GST Bill with Percentage Discount
 
 ```javascript
-// Creating a GST bill with item-level and bill-level discounts
-async function createGSTBillWithDiscounts(billData) {
+// Creating a GST bill with percentage-based discount (applied to subtotal before tax)
+async function createGSTBillWithDiscount(billData) {
   const billingMode = 'gst';
   const paymentMode = billData.payment_mode || 'cash';
+  const discountPercentage = billData.discount_percentage || 0; // e.g., 10 for 10% discount
   
+  // Calculate subtotal from items
   let subtotal = 0;
   let totalItemGST = 0;
-  let totalDiscount = 0;
   
   billData.items.forEach(item => {
-    let itemSubtotal = item.mrp_price * item.quantity;
-    
-    // Apply item-level discount
-    if (item.additional_discount > 0) {
-      itemSubtotal -= item.additional_discount;
-      totalDiscount += item.additional_discount;
-    }
-    
+    const itemSubtotal = item.mrp_price * item.quantity;
     subtotal += itemSubtotal;
     
-    // Calculate GST on discounted amount
+    // Calculate GST on item subtotal
     if (item.gst_percentage > 0) {
       const itemGST = itemSubtotal * (item.gst_percentage / 100);
       totalItemGST += itemGST;
@@ -643,17 +637,21 @@ async function createGSTBillWithDiscounts(billData) {
     }
   });
   
-  // Apply bill-level discount
-  if (billData.discount_amount > 0) {
-    subtotal -= billData.discount_amount;
-    totalDiscount += billData.discount_amount;
-  }
-  
+  // Calculate tax
   const cgst = totalItemGST / 2;
   const sgst = totalItemGST / 2;
   const igst = 0;
   const totalTax = totalItemGST;
-  const total = subtotal + totalTax;
+  
+  // Calculate total before discount
+  // Calculate discount amount from percentage (applied to subtotal before tax)
+  let discountAmount = 0;
+  if (discountPercentage > 0) {
+    discountAmount = (totalBeforeDiscount * discountPercentage / 100);
+  }
+  
+  // Calculate final total after discount
+  const total = totalBeforeDiscount - discountAmount;
   
   const invoiceNumber = await generateInvoiceNumber(billingMode);
   
@@ -675,10 +673,8 @@ async function createGSTBillWithDiscounts(billData) {
       price_type: item.price_type || 'exclusive',
       gst_percentage: item.gst_percentage || 0,
       quantity: item.quantity,
-      subtotal: (item.mrp_price * item.quantity) - (item.additional_discount || 0),
+      subtotal: item.mrp_price * item.quantity,
       item_gst: item.item_gst || 0,
-      additional_discount: item.additional_discount || 0,
-      discount_amount: item.additional_discount || 0,
       veg_nonveg: item.veg_nonveg || null
     })),
     subtotal: subtotal,
@@ -686,8 +682,7 @@ async function createGSTBillWithDiscounts(billData) {
     sgst: sgst,
     igst: igst,
     total_tax: totalTax,
-    discount_amount: totalDiscount,
-    discount_percentage: (totalDiscount / (subtotal + totalDiscount)) * 100,
+    discount_percentage: discountPercentage, // Percentage discount (e.g., 10 for 10%)
     total: total,
     payment_mode: paymentMode,
     amount_paid: total,
@@ -707,6 +702,12 @@ async function createGSTBillWithDiscounts(billData) {
   }
 }
 ```
+
+**Note:** 
+- Discount is now **percentage-based only** (e.g., `discount_percentage: 10` for 10% discount)
+- Discount is applied to the **subtotal** (before tax)
+- Item-level discounts have been removed - all discounts are bill-level percentage only
+- `discount_amount` is automatically calculated by the server from `discount_percentage` (read-only in API responses)
 
 #### Example 6: Sync Bill to Server
 

@@ -231,7 +231,6 @@ class SalesSyncView(APIView):
                     payment_reference=bill_data.get('payment_reference'),
                     amount_paid=Decimal(str(bill_data.get('amount_paid', 0))) if bill_data.get('amount_paid') else None,
                     change_amount=Decimal(str(bill_data.get('change_amount', 0))),
-                    discount_amount=Decimal(str(bill_data.get('discount_amount', 0))),
                     discount_percentage=Decimal(str(bill_data.get('discount_percentage', 0))),
                     notes=bill_data.get('notes'),
                     table_number=bill_data.get('table_number'),
@@ -265,8 +264,7 @@ class SalesSyncView(APIView):
                         gst_percentage=Decimal(str(item_data.get('gst_percentage', 0))),
                         item_gst_amount=Decimal(str(item_data.get('item_gst', 0))),
                         veg_nonveg=item_data.get('veg_nonveg'),
-                        additional_discount=Decimal(str(item_data.get('additional_discount', 0))),
-                        discount_amount=Decimal(str(item_data.get('discount_amount', 0))),
+                        # Item-level discounts removed - discounts are now bill-level percentage only
                         unit=item_data.get('unit'),
                         batch_number=item_data.get('batch_number'),
                         expiry_date=datetime.fromisoformat(item_data.get('expiry_date')).date() if item_data.get('expiry_date') else None,
@@ -388,7 +386,6 @@ class BillListView(APIView):
                     "gst_percentage": 18.00,  // Optional, default: 0
                     "quantity": 2,  // Required
                     "veg_nonveg": "veg",  // Optional
-                    "additional_discount": 0.00,  // Optional
                     ...
                 }
             ],
@@ -478,8 +475,21 @@ class BillListView(APIView):
                 igst_amount = Decimal(str(request.data.get('igst', request.data.get('igst_amount', 0))))
                 total_tax = Decimal(str(request.data.get('total_tax', cgst_amount + sgst_amount + igst_amount)))
         
-        # Calculate total amount
-        total_amount = subtotal + total_tax
+        # Calculate discount percentage (primary field)
+        discount_percentage = Decimal(str(request.data.get('discount_percentage', 0)))
+        
+        # Calculate discount amount from percentage (applied to subtotal before tax)
+        discount_amount = Decimal('0')
+        if discount_percentage > 0:
+            discount_amount = (subtotal * discount_percentage / 100).quantize(Decimal('0.01'))
+        
+        # Calculate discounted subtotal
+        discounted_subtotal = subtotal - discount_amount
+        
+        # Calculate final total: discounted subtotal + tax
+        total_amount = discounted_subtotal + total_tax
+        
+        # Allow override if client provides total (for backward compatibility)
         if request.data.get('total') or request.data.get('total_amount'):
             total_amount = Decimal(str(request.data.get('total', request.data.get('total_amount', total_amount))))
         
@@ -511,8 +521,7 @@ class BillListView(APIView):
             'payment_reference': request.data.get('payment_reference'),
             'amount_paid': Decimal(str(request.data.get('amount_paid', 0))) if request.data.get('amount_paid') else None,
             'change_amount': Decimal(str(request.data.get('change_amount', 0))),
-            'discount_amount': Decimal(str(request.data.get('discount_amount', 0))),
-            'discount_percentage': Decimal(str(request.data.get('discount_percentage', 0))),
+            'discount_percentage': discount_percentage,
             'notes': request.data.get('notes'),
             'table_number': request.data.get('table_number'),
             'waiter_name': request.data.get('waiter_name'),
@@ -646,11 +655,28 @@ class BillDetailView(APIView):
         if 'change_amount' in request.data:
             update_data['change_amount'] = Decimal(str(request.data.get('change_amount')))
         
-        if 'discount_amount' in request.data:
-            update_data['discount_amount'] = Decimal(str(request.data.get('discount_amount')))
-        
+        # Update discount_percentage (primary field)
         if 'discount_percentage' in request.data:
-            update_data['discount_percentage'] = Decimal(str(request.data.get('discount_percentage')))
+            discount_percentage = Decimal(str(request.data.get('discount_percentage')))
+            update_data['discount_percentage'] = discount_percentage
+        
+        # Recalculate total_amount if discount_percentage, subtotal, or tax changed
+        if 'discount_percentage' in update_data or 'subtotal' in update_data or 'total_tax' in update_data:
+            subtotal = update_data.get('subtotal', bill.subtotal)
+            total_tax = update_data.get('total_tax', bill.total_tax)
+            discount_percentage = update_data.get('discount_percentage', bill.discount_percentage)
+            
+            # Calculate discount amount from percentage (applied to subtotal before tax)
+            if discount_percentage > 0:
+                discount_amount = (subtotal * discount_percentage / 100).quantize(Decimal('0.01'))
+            else:
+                discount_amount = Decimal('0')
+            
+            # Calculate discounted subtotal
+            discounted_subtotal = subtotal - discount_amount
+            
+            # Recalculate total_amount: discounted subtotal + tax
+            update_data['total_amount'] = (discounted_subtotal + total_tax).quantize(Decimal('0.01'))
         
         # Update other fields
         for field in ['restaurant_name', 'address', 'gstin', 'fssai_license', 'logo_url', 'footer_note',

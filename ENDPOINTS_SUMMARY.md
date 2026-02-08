@@ -112,6 +112,7 @@
 - **POST** `/bills/` - Create a new bill (Auth required)
   - Body: Bill object with `items_data` array
   - **Server always generates invoice number** (client cannot provide it)
+  - **Discount:** Use `discount_percentage` (e.g., 10.00 for 10%) - applied to subtotal (before tax)
   - Returns: Created Bill object with server-generated `invoice_number`
 - **GET** `/bills/<uuid:id>/` - Get bill details (Auth required)
   - Returns: Bill object with nested BillItem objects

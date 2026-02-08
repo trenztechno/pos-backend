@@ -1703,7 +1703,6 @@ Creates a new item. Items can be assigned to multiple categories.
   "price_type": "exclusive",
   "gst_percentage": "18.00",
   "veg_nonveg": "veg",
-  "additional_discount": "0.00",
   "stock_quantity": 100,
   "sku": "COKE-001",
   "barcode": "1234567890123",
@@ -1725,7 +1724,6 @@ Creates a new item. Items can be assigned to multiple categories.
   - **Inclusive**: GST included in MRP (GST already in price)
 - `gst_percentage`: GST percentage - 0%, 5%, 8%, 18%, or custom (optional, not compulsory for item creation)
 - `veg_nonveg`: `"veg"` or `"nonveg"` (optional)
-- `additional_discount`: Additional discount amount (optional, default: 0)
 - `category_ids`: Array of category UUIDs (must be vendor's own categories only)
 - `image`: Item image file (optional - item name shown if no image)
 
@@ -1754,7 +1752,6 @@ Creates a new item. Items can be assigned to multiple categories.
   "price_type": "exclusive",
   "gst_percentage": "18.00",
   "veg_nonveg": "veg",
-  "additional_discount": "0.00",
   "stock_quantity": 100,
   "sku": "COKE-001",
   "barcode": "1234567890123",
@@ -1785,7 +1782,6 @@ Creates a new item. Items can be assigned to multiple categories.
   "price_type": "exclusive",
   "gst_percentage": "0.00",
   "veg_nonveg": "veg",
-  "additional_discount": "0.00",
   "stock_quantity": 100,
   "category_ids": ["550e8400-e29b-41d4-a716-446655440000"]
 }
@@ -1822,7 +1818,6 @@ curl -X POST http://localhost:8000/items/ \
   "price_type": "exclusive",
   "gst_percentage": "5.00",
   "veg_nonveg": "veg",
-  "additional_discount": "0.00",
   "stock_quantity": 200,
   "category_ids": ["550e8400-e29b-41d4-a716-446655440001"]
 }
@@ -1859,7 +1854,6 @@ curl -X POST http://localhost:8000/items/ \
   "price_type": "exclusive",
   "gst_percentage": "8.00",
   "veg_nonveg": "veg",
-  "additional_discount": "0.00",
   "stock_quantity": 50,
   "category_ids": ["550e8400-e29b-41d4-a716-446655440002"]
 }
@@ -1880,7 +1874,6 @@ curl -X POST http://localhost:8000/items/ \
   "price_type": "exclusive",
   "gst_percentage": "18.00",
   "veg_nonveg": "veg",
-  "additional_discount": "0.00",
   "stock_quantity": 30,
   "category_ids": ["550e8400-e29b-41d4-a716-446655440003"]
 }
@@ -1901,7 +1894,6 @@ curl -X POST http://localhost:8000/items/ \
   "price_type": "exclusive",
   "gst_percentage": "12.00",
   "veg_nonveg": "veg",
-  "additional_discount": "0.00",
   "stock_quantity": 25,
   "category_ids": ["550e8400-e29b-41d4-a716-446655440004"]
 }
@@ -1924,7 +1916,6 @@ curl -X POST http://localhost:8000/items/ \
   "price_type": "inclusive",
   "gst_percentage": "18.00",
   "veg_nonveg": "veg",
-  "additional_discount": "0.00",
   "stock_quantity": 30,
   "category_ids": ["550e8400-e29b-41d4-a716-446655440003"]
 }
@@ -1994,7 +1985,6 @@ const item = await response.json();
   "price_type": "exclusive",
   "gst_percentage": "18.00",
   "veg_nonveg": "nonveg",
-  "additional_discount": "0.00",
   "stock_quantity": 20,
   "category_ids": ["550e8400-e29b-41d4-a716-446655440005"]
 }
@@ -2002,26 +1992,26 @@ const item = await response.json();
 
 ---
 
-### Example 9: Item with Additional Discount - Exclusive Pricing
+### Example 9: Item Creation (No Discounts at Item Level)
 
-**Scenario:** Item with additional discount applied.
+**Note:** Item-level discounts have been removed. All discounts are now applied at the bill level using `discount_percentage` when creating bills.
 
+**Item Example (Standard):**
 ```json
 {
-  "name": "Pizza (Discounted)",
-  "description": "Pizza with discount",
+  "name": "Pizza",
+  "description": "Classic pizza",
   "price": "200.00",
   "mrp_price": "200.00",
   "price_type": "exclusive",
   "gst_percentage": "18.00",
   "veg_nonveg": "veg",
-  "additional_discount": "20.00",
   "stock_quantity": 30,
   "category_ids": ["550e8400-e29b-41d4-a716-446655440003"]
 }
 ```
 
-**Note:** `additional_discount` is the discount amount (not percentage). Final price = MRP - additional_discount.
+**To apply discounts:** Use `discount_percentage` when creating bills (see Bill Examples 8 and 16).
 
 ---
 
@@ -2038,7 +2028,6 @@ const item = await response.json();
   "price_type": "exclusive",
   "gst_percentage": "18.00",
   "veg_nonveg": "veg",
-  "additional_discount": "0.00",
   "stock_quantity": 15,
   "category_ids": [
     "550e8400-e29b-41d4-a716-446655440001",
@@ -2319,7 +2308,6 @@ Returns details of a specific item.
   "price_type": "exclusive",
   "gst_percentage": "18.00",
   "veg_nonveg": "veg",
-  "additional_discount": "0.00",
   "stock_quantity": 100,
   "sku": "COKE-001",
   "barcode": "1234567890123",
@@ -4190,8 +4178,6 @@ Batch upload sales/bill data for syncing existing bills between devices. Accepts
         "subtotal": 200.00,
         "item_gst": 36.00,
         "veg_nonveg": "veg",
-        "additional_discount": 0.00,
-        "discount_amount": 0.00,
         "unit": "pcs"
       }
     ],
@@ -4302,7 +4288,7 @@ Batch upload sales/bill data for syncing existing bills between devices. Accepts
     "payment_mode": "cash",
     "amount_paid": 531.00,
     "change_amount": 0.00,
-    "discount_amount": 0.00,
+    "discount_percentage": 0.00,
     "timestamp": "2026-01-01T10:00:00Z"
   },
   "device_id": "device-001"
@@ -4626,9 +4612,16 @@ curl -X POST http://localhost:8000/backup/sync \
 
 ---
 
-### Example 8: GST Bill - Intra-State - Cash Payment - With Discounts
+### Example 8: GST Bill - Intra-State - Cash Payment - With Percentage Discount
 
-**Scenario:** Customer pays with cash, discounts applied on items and bill.
+**Scenario:** Customer pays with cash, 10% discount applied to subtotal (before tax).
+
+**Calculation:**
+- Subtotal: 400.00 (2 × Pizza @ 200.00)
+- Tax: 72.00 (18% GST on 400.00)
+- Total before discount: 472.00
+- Discount (10%): 47.20 (10% of 472.00)
+- Final total: 424.80
 
 ```json
 {
@@ -4651,27 +4644,31 @@ curl -X POST http://localhost:8000/backup/sync \
         "quantity": 2,
         "subtotal": 400.00,
         "item_gst": 72.00,
-        "additional_discount": 20.00,
-        "discount_amount": 20.00,
         "veg_nonveg": "veg"
       }
     ],
-    "subtotal": 380.00,
-    "cgst": 34.20,
-    "sgst": 34.20,
+    "subtotal": 400.00,
+    "cgst": 36.00,
+    "sgst": 36.00,
     "igst": 0.00,
-    "total_tax": 68.40,
-    "discount_amount": 20.00,
-    "discount_percentage": 5.00,
-    "total": 448.40,
+    "total_tax": 72.00,
+    "discount_percentage": 10.00,
+    "discount_amount": 40.00, // 10% of subtotal (400.00)
+    "total": 432.00, // (400.00 - 40.00) + 72.00
     "payment_mode": "cash",
-    "amount_paid": 450.00,
-    "change_amount": 1.60,
+    "amount_paid": 432.00,
+    "change_amount": 0.00,
     "timestamp": "2026-01-01T10:00:00Z"
   },
   "device_id": "device-001"
 }
 ```
+
+**Note:** 
+- `discount_percentage` is the discount percentage (e.g., 10.00 for 10%)
+- Discount is applied to **subtotal** (before tax)
+- `discount_amount` is automatically calculated by server (read-only in API responses)
+- Item-level discounts have been removed - all discounts are bill-level percentage only
 
 ---
 
@@ -5032,9 +5029,15 @@ curl -X POST http://localhost:8000/backup/sync \
 
 ---
 
-### Example 16: Non-GST Bill - With Discounts
+### Example 16: Non-GST Bill - With Percentage Discount
 
-**Scenario:** Non-GST bill with discounts applied.
+**Scenario:** Non-GST bill with 15% discount applied to subtotal.
+
+**Calculation:**
+- Subtotal: 100.00 (5 × Tea @ 20.00)
+- Total before discount: 100.00 (no tax for non-GST)
+- Discount (15%): 15.00 (15% of 100.00)
+- Final total: 85.00
 
 ```json
 {
@@ -5055,22 +5058,25 @@ curl -X POST http://localhost:8000/backup/sync \
         "price_type": "exclusive",
         "quantity": 5,
         "subtotal": 100.00,
-        "additional_discount": 10.00,
-        "discount_amount": 10.00,
         "veg_nonveg": "veg"
       }
     ],
-    "subtotal": 90.00,
-    "discount_amount": 10.00,
-    "discount_percentage": 10.00,
-    "total": 90.00,
+    "subtotal": 100.00,
+    "discount_percentage": 15.00,
+    "discount_amount": 15.00, // 15% of subtotal (100.00)
+    "total": 85.00, // 100.00 - 15.00
     "payment_mode": "cash",
-    "amount_paid": 90.00,
+    "amount_paid": 85.00,
     "timestamp": "2026-01-01T10:00:00Z"
   },
   "device_id": "device-001"
 }
 ```
+
+**Note:** 
+- `discount_percentage` is the discount percentage (e.g., 15.00 for 15%)
+- Discount is applied to **subtotal** (before tax)
+- `discount_amount` is automatically calculated by server (read-only in API responses)
 
 ---
 
@@ -5152,8 +5158,6 @@ curl -X POST http://localhost:8000/backup/sync \
 - `item_gst`: GST amount for this item (only for GST bills)
 - `veg_nonveg`: `"veg"` or `"nonveg"` (optional)
 - `description`: Item description (optional)
-- `additional_discount`: Additional discount amount (optional, default: 0)
-- `discount_amount`: Discount amount applied (optional, default: 0)
 - `unit`: Unit of measurement (optional, e.g., "kg", "L", "pcs")
 - `batch_number`: Batch number (optional)
 - `expiry_date`: Expiry date in YYYY-MM-DD format (optional)
@@ -5258,6 +5262,15 @@ curl -X POST http://localhost:8000/backup/sync \
   "errors": []  // Only present if some bills failed to sync
 }
 ```
+
+**Discount System:**
+- **Percentage-Based Only**: Discounts are applied using `discount_percentage` (e.g., 10.00 for 10% discount)
+- **Applied to Subtotal**: Discount percentage is applied to the subtotal (before tax)
+- **Calculation**: `discount_amount = subtotal × discount_percentage / 100`
+- **Final Total**: `final_total = (subtotal - discount_amount) + total_tax`
+- **Final Total**: `total_amount = (subtotal + tax) - discount_amount`
+- **Item-Level Discounts Removed**: All discounts are bill-level percentage only (no item-level discounts)
+- **Auto-Calculated**: `discount_amount` is automatically calculated by the server from `discount_percentage` (read-only in API responses)
 
 **Important Notes:**
 - Bills are stored in a **structured, relational format** (Bill and BillItem models) instead of JSON blobs
