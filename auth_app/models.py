@@ -21,6 +21,15 @@ class Vendor(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     # Primary owner account for this vendor (created during registration)
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='vendor_profile')
+    # Vendor ID Number - Custom identifier for easy vendor lookup
+    vendor_id = models.CharField(
+        max_length=50,
+        unique=True,
+        blank=True,
+        null=True,
+        db_index=True,
+        help_text="Custom vendor ID number for easy identification (e.g., V001, VENDOR-001). Auto-generated if not provided.",
+    )
     business_name = models.CharField(max_length=255, blank=True, null=True)
     phone = models.CharField(max_length=20, blank=True, null=True)
     address = models.TextField(blank=True, null=True)
@@ -100,10 +109,43 @@ class Vendor(models.Model):
             models.Index(fields=['id']),
             models.Index(fields=['is_approved']),
             models.Index(fields=['gst_no']),
+            models.Index(fields=['vendor_id']),
         ]
 
     def __str__(self):
-        return f"{self.user.username} - {self.business_name or 'No Business Name'}"
+        vendor_id_display = f" [{self.vendor_id}]" if self.vendor_id else ""
+        return f"{self.user.username} - {self.business_name or 'No Business Name'}{vendor_id_display}"
+
+    def save(self, *args, **kwargs):
+        """
+        Auto-generate vendor_id if not provided.
+        Format: V001, V002, V003, etc.
+        """
+        if not self.vendor_id:
+            # Get the highest existing vendor_id number
+            last_vendor = Vendor.objects.filter(
+                vendor_id__iregex=r'^V\d+$'
+            ).order_by('-vendor_id').first()
+            
+            if last_vendor and last_vendor.vendor_id:
+                # Extract number and increment
+                try:
+                    last_number = int(last_vendor.vendor_id[1:])  # Remove 'V' prefix
+                    next_number = last_number + 1
+                except (ValueError, IndexError):
+                    next_number = 1
+            else:
+                next_number = 1
+            
+            # Format as V001, V002, etc. (3 digits minimum)
+            self.vendor_id = f"V{next_number:03d}"
+            
+            # Ensure uniqueness (in case of race condition)
+            while Vendor.objects.filter(vendor_id=self.vendor_id).exists():
+                next_number += 1
+                self.vendor_id = f"V{next_number:03d}"
+        
+        super().save(*args, **kwargs)
 
     @classmethod
     def get_vendor_for_user(cls, user):

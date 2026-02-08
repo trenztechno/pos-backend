@@ -388,6 +388,7 @@ Authorization: Token <your_token>
   "id": "550e8400-e29b-41d4-a716-446655440000",
   "username": "vendor1",
   "email": "vendor@example.com",
+  "vendor_id": "V001",
   "business_name": "ABC Restaurant",
   "phone": "+1234567890",
   "address": "123 Main St, City",
@@ -466,6 +467,7 @@ logo: <file>  (JPG, PNG, WebP)
 **Field Descriptions:**
 - All fields are optional (partial update supported)
 - `logo`: Image file (JPG, PNG, WebP) - optional
+- `vendor_id`: Custom vendor ID number (e.g., "V001", "VENDOR-001"). **Auto-generated if not provided** (format: V001, V002, V003, etc.). Can be customized for easy vendor identification.
 - `gst_no`: GST number (GSTIN) - optional, can be set, updated, or cleared (set to empty string to clear). Must be unique if provided.
 - `bill_prefix`: Prefix for bill numbers (e.g., "INV", "BILL", "REST"). Format: `{prefix}-{date}-{number}` (e.g., "INV-2026-01-27-0001")
 - `bill_starting_number`: Starting bill number (to account for existing bills before system migration). **Can only be set once before any bills are created.** Cannot be changed after bills exist.

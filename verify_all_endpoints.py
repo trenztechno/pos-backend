@@ -74,10 +74,10 @@ def test_models():
         print("✓ User model accessible")
         
         # Test Vendor model
-        vendor_fields = ['id', 'user', 'business_name', 'phone', 'address', 'gst_no', 'fssai_license', 'logo', 'footer_note', 'is_approved']
+        vendor_fields = ['id', 'user', 'vendor_id', 'business_name', 'phone', 'address', 'gst_no', 'fssai_license', 'logo', 'footer_note', 'is_approved']
         for field in vendor_fields:
             assert hasattr(Vendor, field) or hasattr(Vendor._meta.get_field(field), 'name'), f"Vendor missing field: {field}"
-        print("✓ Vendor model has all required fields including FSSAI, logo, and footer_note")
+        print("✓ Vendor model has all required fields including vendor_id, FSSAI, logo, and footer_note")
         
         # Test SalesRep model
         salesrep_fields = ['id', 'user', 'name', 'is_active']

@@ -19,7 +19,8 @@
 ### 1. **Vendors** (`/admin/auth_app/vendor/`)
 
 **List View Shows:**
-- Vendor ID
+- **Vendor ID**: Custom vendor ID number (e.g., V001, V002) - auto-generated if not provided
+- **UUID**: Database UUID (for reference)
 - Business Name
 - Username (owner)
 - Email
@@ -38,6 +39,7 @@
 
 #### Vendor Information
 - Owner User (primary account)
+- **Vendor ID**: Custom vendor ID number (e.g., V001) - auto-generated if not provided, can be customized for easy identification
 - Business Name
 - Phone
 - Address

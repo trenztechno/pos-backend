@@ -229,11 +229,12 @@ class VendorProfileSerializer(serializers.ModelSerializer):
     last_bill_number = serializers.IntegerField(read_only=True, help_text="Last generated bill number (read-only, auto-incremented by server)")
     sac_code = serializers.CharField(required=False, max_length=20, allow_blank=True, allow_null=True, help_text="SAC (Service Accounting Code) for vendor-level GST. If set, all items use this SAC GST rate instead of their HSN codes.")
     sac_gst_percentage = serializers.DecimalField(required=False, max_digits=5, decimal_places=2, allow_null=True, min_value=0, max_value=100, help_text="GST percentage for SAC code (e.g., 5.00 for 5%). If SAC code is set but this is not set, default rate from mapping will be used.")
+    vendor_id = serializers.CharField(required=False, max_length=50, allow_blank=True, allow_null=True, help_text="Custom vendor ID number for easy identification (e.g., V001). Auto-generated if not provided.")
     
     class Meta:
         model = Vendor
         fields = [
-            'id', 'username', 'email',
+            'id', 'username', 'email', 'vendor_id',
             'business_name', 'phone', 'address',
             'gst_no', 'fssai_license',
             'logo', 'footer_note',

@@ -111,6 +111,7 @@ def login(request):
         if vendor:
             vendor_data = {
                 'id': str(vendor.id),
+                'vendor_id': vendor.vendor_id,
                 'business_name': vendor.business_name,
                 'gst_no': vendor.gst_no,
                 'fssai_license': vendor.fssai_license,

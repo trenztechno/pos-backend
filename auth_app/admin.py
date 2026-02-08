@@ -91,9 +91,9 @@ class VendorAdmin(admin.ModelAdmin):
     This is where you approve vendors and manage their staff users!
     """
     form = SecurityPINForm
-    list_display = ['id', 'business_name', 'username', 'email', 'phone', 'approval_status', 'has_pin_display', 'staff_count', 'created_at']
+    list_display = ['vendor_id', 'id', 'business_name', 'username', 'email', 'phone', 'approval_status', 'has_pin_display', 'staff_count', 'created_at']
     list_filter = ['is_approved', 'created_at']
-    search_fields = ['business_name', 'user__username', 'user__email', 'phone', 'gst_no']
+    search_fields = ['vendor_id', 'business_name', 'user__username', 'user__email', 'phone', 'gst_no']
     readonly_fields = ['id', 'created_at', 'updated_at', 'logo_preview', 'security_pin_status']
     inlines = [VendorUserInline]
     actions = ['approve_vendors', 'reject_vendors']
@@ -127,7 +127,8 @@ class VendorAdmin(admin.ModelAdmin):
     
     fieldsets = (
         ('Vendor Information', {
-            'fields': ('user', 'business_name', 'phone', 'address')
+            'fields': ('user', 'vendor_id', 'business_name', 'phone', 'address'),
+            'description': 'Vendor ID is auto-generated (V001, V002, etc.) if not provided. Can be customized for easy vendor identification.'
         }),
         ('License & Registration', {
             'fields': ('gst_no', 'fssai_license'),

@@ -24,6 +24,7 @@
 - **PATCH** `/auth/profile` - Update vendor profile (Auth required)
   - Use `multipart/form-data` to upload logo
   - Update business_name, phone, address, gst_no, fssai_license, footer_note
+  - Set `vendor_id` for custom vendor identification (auto-generated if not provided: V001, V002, etc.)
   - Set `sac_code` and `sac_gst_percentage` for vendor-level SAC tax (e.g., "996331" with 5.00%)
   - `gst_no` can be set, updated, or cleared (set to empty string to clear)
 - **POST** `/auth/forgot-password` - Verify phone number for password reset (No auth)
