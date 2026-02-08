@@ -1,0 +1,35 @@
+{
+  "2106": {
+    "gst_percentage": 5.00,
+    "description": "Cooked food (packed), Sweets / Mithai, Packaged snacks"
+  },
+  "1905": {
+    "gst_percentage": 5.00,
+    "description": "Bakery items"
+  },
+  "2105": {
+    "gst_percentage": 18.00,
+    "description": "Ice cream"
+  },
+  "1806": {
+    "gst_percentage": 18.00,
+    "description": "Chocolates"
+  },
+  "2202": {
+    "gst_percentage": 28.00,
+    "description": "Soft drinks"
+  },
+  "2201": {
+    "gst_percentage": 18.00,
+    "description": "Mineral water"
+  },
+  "0902": {
+    "gst_percentage": 5.00,
+    "description": "Tea powder"
+  },
+  "0901": {
+    "gst_percentage": 5.00,
+    "description": "Coffee powder"
+  }
+}
+

@@ -48,12 +48,6 @@ class Item(models.Model):
         ('inclusive', 'Inclusive (GST included in MRP)'),
     ]
     
-    GST_PERCENTAGE_CHOICES = [
-        (0, '0%'),
-        (5, '5%'),
-        (8, '8%'),
-        (18, '18%'),
-    ]
     
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     vendor = models.ForeignKey('auth_app.Vendor', on_delete=models.CASCADE, related_name='items', null=True, blank=True)
@@ -67,13 +61,21 @@ class Item(models.Model):
     price_type = models.CharField(max_length=10, choices=PRICE_TYPE_CHOICES, default='exclusive', help_text="Exclusive: GST not included in MRP. Inclusive: GST included in MRP")
     additional_discount = models.DecimalField(max_digits=10, decimal_places=2, default=0, validators=[MinValueValidator(0)], help_text="Additional discount amount (optional)")
     
-    # GST fields
-    gst_percentage = models.DecimalField(
-        max_digits=5, 
-        decimal_places=2, 
-        default=0, 
+    # HSN Code (for GST calculation)
+    hsn_code = models.CharField(
+        max_length=20,
+        blank=True,
+        null=True,
+        help_text="HSN (Harmonized System of Nomenclature) code"
+    )
+    hsn_gst_percentage = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=0,
+        blank=True,
+        null=True,
         validators=[MinValueValidator(0), MaxValueValidator(100)],
-        help_text="GST percentage (0%, 5%, 8%, 18%, or custom) - Not compulsory for item creation"
+        help_text="GST percentage for this HSN code (e.g., 5.00 for 5%). Can override mapping defaults."
     )
     
     # Food type

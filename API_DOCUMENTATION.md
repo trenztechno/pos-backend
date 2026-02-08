@@ -12,7 +12,7 @@
 - Staff user is removed by owner
 
 **Billing Modes:** The system supports per-bill billing modes (not vendor-specific):
-- **GST Billing** (`"gst"`): GST calculations are applied to the bill (CGST, SGST for intra-state; IGST for inter-state). Vendors can configure vendor-level flat CGST/SGST rates for intra-state transactions.
+- **GST Billing** (`"gst"`): GST calculations are applied to the bill (CGST, SGST for intra-state; IGST for inter-state). Tax is calculated per item using HSN codes, or vendor-level SAC code if configured.
 - **Non-GST Billing** (`"non_gst"`): No GST calculations are applied
 
 Each bill can be either GST or Non-GST. The `billing_mode` field in the bill data determines how taxes are calculated. Vendors can create both types of bills.
@@ -398,8 +398,8 @@ Authorization: Token <your_token>
   "bill_prefix": "INV",
   "bill_starting_number": 1,
   "last_bill_number": 42,
-  "cgst_percentage": "2.50",
-  "sgst_percentage": "2.50",
+  "sac_code": "996331",
+  "sac_gst_percentage": "5.00",
   "is_approved": true,
   "created_at": "2026-01-01T10:00:00Z",
   "updated_at": "2026-01-01T10:00:00Z"
@@ -444,8 +444,8 @@ Content-Type: application/json     (when updating text fields only)
   "footer_note": "Thank you for visiting!",
   "bill_prefix": "INV",
   "bill_starting_number": 100,
-  "cgst_percentage": 2.5,
-  "sgst_percentage": 2.5
+  "sac_code": "996331",
+  "sac_gst_percentage": 5.00
 }
 ```
 
@@ -458,8 +458,8 @@ fssai_license: 12345678901234
 footer_note: Thank you for visiting!
 bill_prefix: INV
 bill_starting_number: 100
-cgst_percentage: 2.5
-sgst_percentage: 2.5
+sac_code: 996331
+sac_gst_percentage: 5.00
 logo: <file>  (JPG, PNG, WebP)
 ```
 
@@ -470,22 +470,24 @@ logo: <file>  (JPG, PNG, WebP)
 - `bill_prefix`: Prefix for bill numbers (e.g., "INV", "BILL", "REST"). Format: `{prefix}-{date}-{number}` (e.g., "INV-2026-01-27-0001")
 - `bill_starting_number`: Starting bill number (to account for existing bills before system migration). **Can only be set once before any bills are created.** Cannot be changed after bills exist.
 - `last_bill_number`: Read-only field showing the last generated bill number (auto-incremented by server)
-- `cgst_percentage`: Vendor-level CGST percentage (e.g., 2.5 for 2.5%). **If set, bills automatically calculate CGST on subtotal using this rate.** Leave 0 or null to use product-level GST calculations.
-- `sgst_percentage`: Vendor-level SGST percentage (e.g., 2.5 for 2.5%). **If set, bills automatically calculate SGST on subtotal using this rate.** Leave 0 or null to use product-level GST calculations.
+- `sac_code`: SAC (Service Accounting Code) for vendor-level GST (e.g., "996331" for restaurant service). **If set, all items in bills use this SAC GST rate instead of their HSN codes.** Leave blank to use item-level HSN codes.
+- `sac_gst_percentage`: GST percentage for SAC code (e.g., 5.00 for 5%). If SAC code is set but this is not set, default rate from mapping will be used.
 
-**Vendor-Level GST Rates (Flat Rate System):**
-- Many restaurants/cafes in India use a **flat CGST/SGST rate** (e.g., 2.5% + 2.5% = 5% total) applied to the entire bill subtotal
-- When `cgst_percentage` and `sgst_percentage` are set on the vendor profile, the system automatically calculates taxes on bill creation:
-  - `cgst_amount = subtotal × (cgst_percentage / 100)`
-  - `sgst_amount = subtotal × (sgst_percentage / 100)`
-  - `total_tax = cgst_amount + sgst_amount`
-  - `igst_amount = 0` (vendor-level rates are for intra-state transactions only)
-- **Note:** Vendor-level rates are for **intra-state transactions only**. For inter-state transactions, use product-level GST with IGST calculation.
-- This is useful for restaurants where:
-  - Products have MRP that already includes taxes
-  - Restaurant applies a flat service tax/GST rate on the entire bill
-  - Product-level GST percentages are set to 0%
-- If vendor-level rates are **not set** (0 or null), the system uses product-level GST calculations (existing behavior)
+**SAC Code (Service Accounting Code) - Vendor-Level GST:**
+- SAC codes are used for **service-based businesses** like restaurants, hotels, catering services
+- When `sac_code` is set on the vendor profile, **all items in bills use the SAC GST rate** (ignores item HSN codes)
+- Common SAC codes:
+  - `996331`: Restaurant service (dine-in/takeaway) - 5% GST
+  - `996334`: Outdoor catering / Event catering - 5% or 18% GST (vendor must specify)
+- Tax calculation with SAC:
+  - Each item's tax = `item_subtotal × sac_gst_percentage / 100`
+  - Total tax = sum of all item taxes
+  - CGST = total_tax / 2, SGST = total_tax / 2 (for intra-state)
+  - IGST = total_tax (for inter-state)
+- **If SAC code is NOT set**, the system uses item-level HSN codes for tax calculation:
+  - Each item uses its own `hsn_code` and `hsn_gst_percentage`
+  - Different items can have different HSN codes and different GST rates
+  - Tax calculated per item, then summed
 
 **Success Response (200):**
 ```json
@@ -501,12 +503,12 @@ logo: <file>  (JPG, PNG, WebP)
     "fssai_license": "12345678901234",
     "logo_url": "https://bucket.s3.region.amazonaws.com/vendors/.../logo.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Expires=3600&...",
     "footer_note": "Thank you for visiting!",
-    "bill_prefix": "INV",
-    "bill_starting_number": 100,
-    "last_bill_number": 150,
-    "cgst_percentage": "2.50",
-    "sgst_percentage": "2.50",
-    "is_approved": true,
+  "bill_prefix": "INV",
+  "bill_starting_number": 100,
+  "last_bill_number": 150,
+  "sac_code": "996331",
+  "sac_gst_percentage": "5.00",
+  "is_approved": true,
     "created_at": "2026-01-01T10:00:00Z",
     "updated_at": "2026-01-01T10:05:00Z"
   }
@@ -1701,7 +1703,8 @@ Creates a new item. Items can be assigned to multiple categories.
   "price": "25.00",
   "mrp_price": "25.00",
   "price_type": "exclusive",
-  "gst_percentage": "18.00",
+  "hsn_code": "2105",
+  "hsn_gst_percentage": "18.00",
   "veg_nonveg": "veg",
   "stock_quantity": 100,
   "sku": "COKE-001",
@@ -1722,7 +1725,8 @@ Creates a new item. Items can be assigned to multiple categories.
 - `price_type`: `"exclusive"` or `"inclusive"` (default: `"exclusive"`)
   - **Exclusive**: GST not included in MRP (GST added separately)
   - **Inclusive**: GST included in MRP (GST already in price)
-- `gst_percentage`: GST percentage - 0%, 5%, 8%, 18%, or custom (optional, not compulsory for item creation)
+- `hsn_code`: HSN (Harmonized System of Nomenclature) code (optional, e.g., "2106", "2202")
+- `hsn_gst_percentage`: GST percentage for this HSN code (optional, e.g., 5.00 for 5%). Can override mapping defaults.
 - `veg_nonveg`: `"veg"` or `"nonveg"` (optional)
 - `category_ids`: Array of category UUIDs (must be vendor's own categories only)
 - `image`: Item image file (optional - item name shown if no image)
@@ -1750,7 +1754,8 @@ Creates a new item. Items can be assigned to multiple categories.
   "price": "25.00",
   "mrp_price": "25.00",
   "price_type": "exclusive",
-  "gst_percentage": "18.00",
+  "hsn_code": "2105",
+  "hsn_gst_percentage": "18.00",
   "veg_nonveg": "veg",
   "stock_quantity": 100,
   "sku": "COKE-001",
@@ -1780,7 +1785,8 @@ Creates a new item. Items can be assigned to multiple categories.
   "price": "50.00",
   "mrp_price": "50.00",
   "price_type": "exclusive",
-  "gst_percentage": "0.00",
+  "hsn_code": "2106",
+  "hsn_gst_percentage": "0.00",
   "veg_nonveg": "veg",
   "stock_quantity": 100,
   "category_ids": ["550e8400-e29b-41d4-a716-446655440000"]
@@ -1797,7 +1803,8 @@ curl -X POST http://localhost:8000/items/ \
     "price": "50.00",
     "mrp_price": "50.00",
     "price_type": "exclusive",
-    "gst_percentage": "0.00",
+    "hsn_code": "2106",
+    "hsn_gst_percentage": "0.00",
     "veg_nonveg": "veg",
     "category_ids": ["550e8400-e29b-41d4-a716-446655440000"]
   }'
@@ -1816,7 +1823,8 @@ curl -X POST http://localhost:8000/items/ \
   "price": "20.00",
   "mrp_price": "20.00",
   "price_type": "exclusive",
-  "gst_percentage": "5.00",
+  "hsn_code": "2106",
+  "hsn_gst_percentage": "5.00",
   "veg_nonveg": "veg",
   "stock_quantity": 200,
   "category_ids": ["550e8400-e29b-41d4-a716-446655440001"]
@@ -1833,7 +1841,8 @@ curl -X POST http://localhost:8000/items/ \
     "price": "20.00",
     "mrp_price": "20.00",
     "price_type": "exclusive",
-    "gst_percentage": "5.00",
+    "hsn_code": "2106",
+    "hsn_gst_percentage": "5.00",
     "veg_nonveg": "veg",
     "category_ids": ["550e8400-e29b-41d4-a716-446655440001"]
   }'
@@ -1852,7 +1861,8 @@ curl -X POST http://localhost:8000/items/ \
   "price": "100.00",
   "mrp_price": "100.00",
   "price_type": "exclusive",
-  "gst_percentage": "8.00",
+  "hsn_code": "2106",
+  "hsn_gst_percentage": "12.00",
   "veg_nonveg": "veg",
   "stock_quantity": 50,
   "category_ids": ["550e8400-e29b-41d4-a716-446655440002"]
@@ -1872,7 +1882,8 @@ curl -X POST http://localhost:8000/items/ \
   "price": "200.00",
   "mrp_price": "200.00",
   "price_type": "exclusive",
-  "gst_percentage": "18.00",
+  "hsn_code": "2105",
+  "hsn_gst_percentage": "18.00",
   "veg_nonveg": "veg",
   "stock_quantity": 30,
   "category_ids": ["550e8400-e29b-41d4-a716-446655440003"]
@@ -1892,7 +1903,8 @@ curl -X POST http://localhost:8000/items/ \
   "price": "150.00",
   "mrp_price": "150.00",
   "price_type": "exclusive",
-  "gst_percentage": "12.00",
+  "hsn_code": "2106",
+  "hsn_gst_percentage": "12.00",
   "veg_nonveg": "veg",
   "stock_quantity": 25,
   "category_ids": ["550e8400-e29b-41d4-a716-446655440004"]
@@ -1914,7 +1926,8 @@ curl -X POST http://localhost:8000/items/ \
   "price": "200.00",
   "mrp_price": "236.00",
   "price_type": "inclusive",
-  "gst_percentage": "18.00",
+  "hsn_code": "2105",
+  "hsn_gst_percentage": "18.00",
   "veg_nonveg": "veg",
   "stock_quantity": 30,
   "category_ids": ["550e8400-e29b-41d4-a716-446655440003"]
@@ -1938,7 +1951,8 @@ curl -X POST http://localhost:8000/items/ \
   -F "price=200.00" \
   -F "mrp_price=200.00" \
   -F "price_type=exclusive" \
-  -F "gst_percentage=18.00" \
+  -F "hsn_code=2105" \
+  -F "hsn_gst_percentage=18.00" \
   -F "veg_nonveg=veg" \
   -F "stock_quantity=30" \
   -F "category_ids=[\"550e8400-e29b-41d4-a716-446655440003\"]" \
@@ -1952,7 +1966,8 @@ formData.append('name', 'Pizza Margherita');
 formData.append('price', '200.00');
 formData.append('mrp_price', '200.00');
 formData.append('price_type', 'exclusive');
-formData.append('gst_percentage', '18.00');
+formData.append('hsn_code', '2105');
+formData.append('hsn_gst_percentage', '18.00');
 formData.append('veg_nonveg', 'veg');
 formData.append('stock_quantity', '30');
 formData.append('category_ids', JSON.stringify(['550e8400-e29b-41d4-a716-446655440003']));
@@ -1983,7 +1998,8 @@ const item = await response.json();
   "price": "250.00",
   "mrp_price": "250.00",
   "price_type": "exclusive",
-  "gst_percentage": "18.00",
+  "hsn_code": "2105",
+  "hsn_gst_percentage": "18.00",
   "veg_nonveg": "nonveg",
   "stock_quantity": 20,
   "category_ids": ["550e8400-e29b-41d4-a716-446655440005"]
@@ -2004,7 +2020,8 @@ const item = await response.json();
   "price": "200.00",
   "mrp_price": "200.00",
   "price_type": "exclusive",
-  "gst_percentage": "18.00",
+  "hsn_code": "2105",
+  "hsn_gst_percentage": "18.00",
   "veg_nonveg": "veg",
   "stock_quantity": 30,
   "category_ids": ["550e8400-e29b-41d4-a716-446655440003"]
@@ -2026,7 +2043,8 @@ const item = await response.json();
   "price": "300.00",
   "mrp_price": "300.00",
   "price_type": "exclusive",
-  "gst_percentage": "18.00",
+  "hsn_code": "2105",
+  "hsn_gst_percentage": "18.00",
   "veg_nonveg": "veg",
   "stock_quantity": 15,
   "category_ids": [
@@ -2079,7 +2097,7 @@ curl -X POST http://localhost:8000/items/ \
 }
 ```
 
-**Note:** `gst_percentage` is optional during item creation. It can be set to 0% by default or updated later.
+**Note:** `hsn_code` and `hsn_gst_percentage` are optional during item creation. If not provided, items will have 0% GST. HSN codes can be updated later.
 
 ---
 
@@ -2137,7 +2155,8 @@ curl -X POST http://localhost:8000/items/ \
   -F "description=Cold drink" \
   -F "mrp_price=25.00" \
   -F "price_type=exclusive" \
-  -F "gst_percentage=18.00" \
+  -F "hsn_code=2105" \
+  -F "hsn_gst_percentage=18.00" \
   -F "veg_nonveg=veg" \
   -F "stock_quantity=100" \
   -F "category_ids=[\"550e8400-e29b-41d4-a716-446655440000\"]" \
@@ -2151,7 +2170,8 @@ formData.append('name', 'Coca Cola');
 formData.append('description', 'Cold drink');
 formData.append('mrp_price', '25.00');
 formData.append('price_type', 'exclusive');
-formData.append('gst_percentage', '18.00');
+formData.append('hsn_code', '2105');
+formData.append('hsn_gst_percentage', '18.00');
 formData.append('veg_nonveg', 'veg');
 formData.append('stock_quantity', '100');
 formData.append('category_ids', JSON.stringify(['550e8400-e29b-41d4-a716-446655440000']));
@@ -2180,7 +2200,8 @@ const formData = new FormData();
 formData.append('name', 'Coca Cola');
 formData.append('mrp_price', '25.00');
 formData.append('price_type', 'exclusive');
-formData.append('gst_percentage', '18.00');
+formData.append('hsn_code', '2105');
+formData.append('hsn_gst_percentage', '18.00');
 formData.append('image', {
   uri: Platform.OS === 'ios' ? imageUri.replace('file://', '') : imageUri,
   type: 'image/jpeg',
@@ -2208,7 +2229,8 @@ const item = await response.json();
   "description": "Cold drink",
   "mrp_price": "25.00",
   "price_type": "exclusive",
-  "gst_percentage": "18.00",
+  "hsn_code": "2105",
+  "hsn_gst_percentage": "18.00",
   "veg_nonveg": "veg",
   "stock_quantity": 100,
   "image": "items/660e8400-e29b-41d4-a716-446655440000/image.jpg",
@@ -2306,7 +2328,8 @@ Returns details of a specific item.
   "price": "25.00",
   "mrp_price": "25.00",
   "price_type": "exclusive",
-  "gst_percentage": "18.00",
+  "hsn_code": "2105",
+  "hsn_gst_percentage": "18.00",
   "veg_nonveg": "veg",
   "stock_quantity": 100,
   "sku": "COKE-001",
@@ -2346,7 +2369,8 @@ Updates an item. Supports partial updates. Can update categories and images.
   "price": "30.00",
   "mrp_price": "35.00",
   "stock_quantity": 150,
-  "gst_percentage": "5.00",
+    "hsn_code": "2106",
+    "hsn_gst_percentage": "5.00",
   "category_ids": [
     "550e8400-e29b-41d4-a716-446655440000",
     "550e8400-e29b-41d4-a716-446655440002"
@@ -3152,7 +3176,8 @@ Downloads all items for the vendor. Used for initial sync and refreshing item li
     "price": "200.00",
     "mrp_price": "236.00",
     "price_type": "exclusive",
-    "gst_percentage": "18.00",
+    "hsn_code": "2105",
+  "hsn_gst_percentage": "18.00",
     "veg_nonveg": "veg",
     "categories": ["550e8400-e29b-41d4-a716-446655440000"],
     "category_ids": ["550e8400-e29b-41d4-a716-446655440000"],
@@ -3249,7 +3274,8 @@ Downloads bills from server. Supports incremental sync with `since` parameter.
           "price": "200.00",
           "quantity": "2.00",
           "subtotal": "400.00",
-          "gst_percentage": "18.00",
+          "hsn_code": "2105",
+  "hsn_gst_percentage": "18.00",
           "item_gst_amount": "72.00"
         }
       ],
@@ -3536,7 +3562,8 @@ Create a new bill directly on the server. **Invoice number is always auto-genera
       "price": "200.00",
       "mrp_price": "200.00",
       "price_type": "exclusive",
-      "gst_percentage": "18.00",
+      "hsn_code": "2105",
+  "hsn_gst_percentage": "18.00",
       "quantity": "2",
       "subtotal": "400.00",
       "item_gst_amount": "72.00",
@@ -3602,7 +3629,8 @@ curl -X POST http://localhost:8000/bills/ \
         "price": "200.00",
         "mrp_price": "200.00",
         "quantity": "2",
-        "gst_percentage": "18.00"
+        "hsn_code": "2105",
+        "hsn_gst_percentage": "18.00"
       }
     ],
     "subtotal": "400.00",
@@ -3636,7 +3664,8 @@ Get detailed information about a specific bill including all items.
       "mrp_price": "200.00",
       "quantity": "2.00",
       "subtotal": "400.00",
-      "gst_percentage": "18.00",
+      "hsn_code": "2105",
+  "hsn_gst_percentage": "18.00",
       "item_gst_amount": "72.00"
     }
   ],
@@ -3834,7 +3863,8 @@ Create a new bill directly on the server. **Invoice number is always auto-genera
       "price": "200.00",
       "mrp_price": "200.00",
       "price_type": "exclusive",
-      "gst_percentage": "18.00",
+      "hsn_code": "2105",
+  "hsn_gst_percentage": "18.00",
       "quantity": "2",
       "subtotal": "400.00",
       "item_gst_amount": "72.00",
@@ -3900,7 +3930,8 @@ curl -X POST http://localhost:8000/bills/ \
         "price": "200.00",
         "mrp_price": "200.00",
         "quantity": "2",
-        "gst_percentage": "18.00"
+        "hsn_code": "2105",
+        "hsn_gst_percentage": "18.00"
       }
     ],
     "subtotal": "400.00",
@@ -3934,7 +3965,8 @@ Get detailed information about a specific bill including all items.
       "mrp_price": "200.00",
       "quantity": "2.00",
       "subtotal": "400.00",
-      "gst_percentage": "18.00",
+      "hsn_code": "2105",
+  "hsn_gst_percentage": "18.00",
       "item_gst_amount": "72.00"
     }
   ],
@@ -4094,7 +4126,8 @@ Download bills from the server. This is used when a new device logs in with the 
           "price_type": "exclusive",
           "quantity": "2.00",
           "subtotal": "200.00",
-          "gst_percentage": "18.00",
+          "hsn_code": "2105",
+  "hsn_gst_percentage": "18.00",
           "item_gst_amount": "36.00",
           "veg_nonveg": "veg"
         }
@@ -4173,7 +4206,8 @@ Batch upload sales/bill data for syncing existing bills between devices. Accepts
         "price": 100.00,
         "mrp_price": 100.00,
         "price_type": "exclusive",
-        "gst_percentage": 18.00,
+        "hsn_code": "2105",
+        "hsn_gst_percentage": 18.00,
         "quantity": 2,
         "subtotal": 200.00,
         "item_gst": 36.00,
@@ -4259,7 +4293,8 @@ Batch upload sales/bill data for syncing existing bills between devices. Accepts
         "price": 200.00,
         "mrp_price": 200.00,
         "price_type": "exclusive",
-        "gst_percentage": 18.00,
+        "hsn_code": "2105",
+        "hsn_gst_percentage": 18.00,
         "quantity": 2,
         "subtotal": 400.00,
         "item_gst": 72.00,
@@ -4272,7 +4307,8 @@ Batch upload sales/bill data for syncing existing bills between devices. Accepts
         "price": 50.00,
         "mrp_price": 50.00,
         "price_type": "exclusive",
-        "gst_percentage": 18.00,
+        "hsn_code": "2105",
+        "hsn_gst_percentage": 18.00,
         "quantity": 1,
         "subtotal": 50.00,
         "item_gst": 9.00,
@@ -4316,7 +4352,8 @@ curl -X POST http://localhost:8000/backup/sync \
           "price": 200.00,
           "mrp_price": 200.00,
           "price_type": "exclusive",
-          "gst_percentage": 18.00,
+          "hsn_code": "2105",
+        "hsn_gst_percentage": 18.00,
           "quantity": 2,
           "subtotal": 400.00,
           "item_gst": 72.00,
@@ -4359,7 +4396,8 @@ curl -X POST http://localhost:8000/backup/sync \
         "price": 150.00,
         "mrp_price": 150.00,
         "price_type": "exclusive",
-        "gst_percentage": 18.00,
+        "hsn_code": "2105",
+        "hsn_gst_percentage": 18.00,
         "quantity": 1,
         "subtotal": 150.00,
         "item_gst": 27.00,
@@ -4404,7 +4442,8 @@ curl -X POST http://localhost:8000/backup/sync \
         "price": 180.00,
         "mrp_price": 180.00,
         "price_type": "exclusive",
-        "gst_percentage": 18.00,
+        "hsn_code": "2105",
+        "hsn_gst_percentage": 18.00,
         "quantity": 1,
         "subtotal": 180.00,
         "item_gst": 32.40,
@@ -4449,7 +4488,8 @@ curl -X POST http://localhost:8000/backup/sync \
         "price": 500.00,
         "mrp_price": 500.00,
         "price_type": "exclusive",
-        "gst_percentage": 18.00,
+        "hsn_code": "2105",
+        "hsn_gst_percentage": 18.00,
         "quantity": 1,
         "subtotal": 500.00,
         "item_gst": 90.00,
@@ -4497,7 +4537,8 @@ curl -X POST http://localhost:8000/backup/sync \
         "price": 100.00,
         "mrp_price": 100.00,
         "price_type": "exclusive",
-        "gst_percentage": 18.00,
+        "hsn_code": "2105",
+        "hsn_gst_percentage": 18.00,
         "quantity": 1,
         "subtotal": 100.00,
         "item_gst": 18.00,
@@ -4542,7 +4583,8 @@ curl -X POST http://localhost:8000/backup/sync \
         "price": 300.00,
         "mrp_price": 300.00,
         "price_type": "exclusive",
-        "gst_percentage": 18.00,
+        "hsn_code": "2105",
+        "hsn_gst_percentage": 18.00,
         "quantity": 1,
         "subtotal": 300.00,
         "item_gst": 54.00,
@@ -4588,7 +4630,8 @@ curl -X POST http://localhost:8000/backup/sync \
         "price": 250.00,
         "mrp_price": 250.00,
         "price_type": "exclusive",
-        "gst_percentage": 18.00,
+        "hsn_code": "2105",
+        "hsn_gst_percentage": 18.00,
         "quantity": 1,
         "subtotal": 250.00,
         "item_gst": 45.00,
@@ -4640,7 +4683,8 @@ curl -X POST http://localhost:8000/backup/sync \
         "price": 200.00,
         "mrp_price": 200.00,
         "price_type": "exclusive",
-        "gst_percentage": 18.00,
+        "hsn_code": "2105",
+        "hsn_gst_percentage": 18.00,
         "quantity": 2,
         "subtotal": 400.00,
         "item_gst": 72.00,
@@ -4773,7 +4817,8 @@ curl -X POST http://localhost:8000/backup/sync \
         "price": 200.00,
         "mrp_price": 200.00,
         "price_type": "exclusive",
-        "gst_percentage": 18.00,
+        "hsn_code": "2105",
+        "hsn_gst_percentage": 18.00,
         "quantity": 1,
         "subtotal": 200.00,
         "item_gst": 36.00,
@@ -4819,7 +4864,8 @@ curl -X POST http://localhost:8000/backup/sync \
         "price": 350.00,
         "mrp_price": 350.00,
         "price_type": "exclusive",
-        "gst_percentage": 18.00,
+        "hsn_code": "2105",
+        "hsn_gst_percentage": 18.00,
         "quantity": 1,
         "subtotal": 350.00,
         "item_gst": 63.00,
@@ -4866,7 +4912,8 @@ curl -X POST http://localhost:8000/backup/sync \
         "price": 200.00,
         "mrp_price": 200.00,
         "price_type": "exclusive",
-        "gst_percentage": 18.00,
+        "hsn_code": "2105",
+        "hsn_gst_percentage": 18.00,
         "quantity": 1,
         "subtotal": 200.00,
         "item_gst": 36.00,
@@ -4878,7 +4925,8 @@ curl -X POST http://localhost:8000/backup/sync \
         "price": 300.00,
         "mrp_price": 300.00,
         "price_type": "exclusive",
-        "gst_percentage": 18.00,
+        "hsn_code": "2105",
+        "hsn_gst_percentage": 18.00,
         "quantity": 1,
         "subtotal": 300.00,
         "item_gst": 54.00,
@@ -4922,7 +4970,8 @@ curl -X POST http://localhost:8000/backup/sync \
         "price": 50.00,
         "mrp_price": 50.00,
         "price_type": "exclusive",
-        "gst_percentage": 0.00,
+        "hsn_code": "2106",
+        "hsn_gst_percentage": 0.00,
         "quantity": 1,
         "subtotal": 50.00,
         "item_gst": 0.00,
@@ -4934,7 +4983,8 @@ curl -X POST http://localhost:8000/backup/sync \
         "price": 20.00,
         "mrp_price": 20.00,
         "price_type": "exclusive",
-        "gst_percentage": 5.00,
+        "hsn_code": "2106",
+        "hsn_gst_percentage": 5.00,
         "quantity": 2,
         "subtotal": 40.00,
         "item_gst": 2.00,
@@ -4946,7 +4996,8 @@ curl -X POST http://localhost:8000/backup/sync \
         "price": 100.00,
         "mrp_price": 100.00,
         "price_type": "exclusive",
-        "gst_percentage": 8.00,
+        "hsn_code": "2106",
+        "hsn_gst_percentage": 12.00,
         "quantity": 1,
         "subtotal": 100.00,
         "item_gst": 8.00,
@@ -4958,7 +5009,8 @@ curl -X POST http://localhost:8000/backup/sync \
         "price": 200.00,
         "mrp_price": 200.00,
         "price_type": "exclusive",
-        "gst_percentage": 18.00,
+        "hsn_code": "2105",
+        "hsn_gst_percentage": 18.00,
         "quantity": 1,
         "subtotal": 200.00,
         "item_gst": 36.00,
@@ -5004,7 +5056,8 @@ curl -X POST http://localhost:8000/backup/sync \
         "price": 200.00,
         "mrp_price": 236.00,
         "price_type": "inclusive",
-        "gst_percentage": 18.00,
+        "hsn_code": "2105",
+        "hsn_gst_percentage": 18.00,
         "quantity": 1,
         "subtotal": 236.00,
         "item_gst": 36.00,
@@ -5120,19 +5173,27 @@ curl -X POST http://localhost:8000/backup/sync \
 
 **For GST Bills (`billing_mode: "gst"`):**
 
-**Tax Calculation (Automatic if Vendor-Level Rates Set):**
-- If vendor has `cgst_percentage` and `sgst_percentage` set in profile, server **automatically calculates**:
-  - `cgst_amount = subtotal × (cgst_percentage / 100)`
-  - `sgst_amount = subtotal × (sgst_percentage / 100)`
-  - `total_tax = cgst_amount + sgst_amount`
-  - `igst_amount = 0` (intra-state only)
-- If vendor-level rates are **not set** (0 or null), provide tax values manually:
+**Tax Calculation (HSN/SAC Based):**
+- **If vendor has SAC code set:**
+  - All items use the vendor's `sac_gst_percentage` for tax calculation
+  - Each item's tax = `item_subtotal × sac_gst_percentage / 100`
+  - Total tax = sum of all item taxes
+  - CGST = total_tax / 2, SGST = total_tax / 2 (intra-state)
+  - IGST = total_tax (inter-state)
+- **If vendor does NOT have SAC code:**
+  - Each item uses its own `hsn_code` and `hsn_gst_percentage` for tax calculation
+  - Each item's tax = `item_subtotal × hsn_gst_percentage / 100`
+  - Total tax = sum of all item taxes
+  - Different items can have different HSN codes and different GST rates
+  - CGST = total_tax / 2, SGST = total_tax / 2 (intra-state)
+  - IGST = total_tax (inter-state)
+- **Tax fields in bill:**
   - `cgst`: Central GST amount (for intra-state)
   - `sgst`: State GST amount (for intra-state)
   - `igst`: Integrated GST amount (for inter-state, 0 for intra-state)
   - `total_tax`: Sum of all taxes (cgst + sgst + igst)
 
-**Note:** Vendor-level rates are ideal for restaurants/cafes with flat GST rates (e.g., 2.5% CGST + 2.5% SGST = 5% total). Set product-level `gst_percentage` to 0% when using vendor-level rates.
+**Note:** SAC codes are ideal for service-based businesses (restaurants, hotels, catering). HSN codes are used for goods/products where each item can have different tax rates.
 
 **For Non-GST Bills (`billing_mode: "non_gst"`):**
 - No tax fields required
@@ -5154,8 +5215,10 @@ curl -X POST http://localhost:8000/backup/sync \
 - `price_type`: `"exclusive"` or `"inclusive"` (default: "exclusive")
   - **Exclusive**: GST not included in MRP (GST added separately)
   - **Inclusive**: GST included in MRP (GST already in price)
-- `gst_percentage`: GST percentage for this item (0%, 5%, 8%, 18%, or custom)
-- `item_gst`: GST amount for this item (only for GST bills)
+- `hsn_code`: HSN code for this item (optional, e.g., "2106", "2202")
+- `hsn_gst_percentage`: GST percentage for this HSN code (optional, e.g., 5.00 for 5%)
+- `gst_percentage`: GST percentage at time of sale (calculated from HSN/SAC, read-only in response)
+- `item_gst`: GST amount for this item (only for GST bills, calculated automatically)
 - `veg_nonveg`: `"veg"` or `"nonveg"` (optional)
 - `description`: Item description (optional)
 - `unit`: Unit of measurement (optional, e.g., "kg", "L", "pcs")
@@ -5246,7 +5309,8 @@ curl -X POST http://localhost:8000/backup/sync \
           "price_type": "exclusive",
           "quantity": "2.00",
           "subtotal": "200.00",
-          "gst_percentage": "18.00",
+          "hsn_code": "2105",
+  "hsn_gst_percentage": "18.00",
           "item_gst_amount": "36.00",
           "veg_nonveg": "veg"
         }
@@ -5558,17 +5622,20 @@ Get total tax (GST) collected with breakdown by GST percentage.
   },
   "tax_by_percentage": [
     {
-      "gst_percentage": "18.00",
+      "hsn_code": "2105",
+  "hsn_gst_percentage": "18.00",
       "item_count": 500,
       "tax_collected": "5400.00"
     },
     {
-      "gst_percentage": "5.00",
+      "hsn_code": "2106",
+    "hsn_gst_percentage": "5.00",
       "item_count": 200,
       "tax_collected": "2500.00"
     },
     {
-      "gst_percentage": "0.00",
+      "hsn_code": "2106",
+    "hsn_gst_percentage": "0.00",
       "item_count": 100,
       "tax_collected": "0.00"
     }

@@ -1,0 +1,14 @@
+{
+  "996331": {
+    "gst_percentage": 5.00,
+    "description": "Restaurant service (dine-in / takeaway) - No IT",
+    "default": true
+  },
+  "996334": {
+    "gst_percentage": 5.00,
+    "description": "Outdoor catering / Event catering - Can be 5% or 18% (vendor must specify)",
+    "default": 5.00,
+    "alternate_rate": 18.00
+  }
+}
+

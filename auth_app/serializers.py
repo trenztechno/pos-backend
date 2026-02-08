@@ -227,8 +227,8 @@ class VendorProfileSerializer(serializers.ModelSerializer):
     bill_prefix = serializers.CharField(required=False, allow_blank=True, max_length=50, help_text="Prefix for bill numbers (e.g., 'INV', 'BILL', 'REST')")
     bill_starting_number = serializers.IntegerField(required=False, min_value=1, help_text="Starting bill number (to account for existing bills before system migration)")
     last_bill_number = serializers.IntegerField(read_only=True, help_text="Last generated bill number (read-only, auto-incremented by server)")
-    cgst_percentage = serializers.DecimalField(required=False, max_digits=5, decimal_places=2, allow_null=True, min_value=0, max_value=100, help_text="Vendor-level CGST percentage (e.g., 2.5 for 2.5%). If set, bills automatically calculate CGST on subtotal. Leave 0 or null to use product-level GST.")
-    sgst_percentage = serializers.DecimalField(required=False, max_digits=5, decimal_places=2, allow_null=True, min_value=0, max_value=100, help_text="Vendor-level SGST percentage (e.g., 2.5 for 2.5%). If set, bills automatically calculate SGST on subtotal. Leave 0 or null to use product-level GST.")
+    sac_code = serializers.CharField(required=False, max_length=20, allow_blank=True, allow_null=True, help_text="SAC (Service Accounting Code) for vendor-level GST. If set, all items use this SAC GST rate instead of their HSN codes.")
+    sac_gst_percentage = serializers.DecimalField(required=False, max_digits=5, decimal_places=2, allow_null=True, min_value=0, max_value=100, help_text="GST percentage for SAC code (e.g., 5.00 for 5%). If SAC code is set but this is not set, default rate from mapping will be used.")
     
     class Meta:
         model = Vendor
@@ -238,7 +238,7 @@ class VendorProfileSerializer(serializers.ModelSerializer):
             'gst_no', 'fssai_license',
             'logo', 'footer_note',
             'bill_prefix', 'bill_starting_number', 'last_bill_number',
-            'cgst_percentage', 'sgst_percentage',
+            'sac_code', 'sac_gst_percentage',
             'is_approved', 'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'is_approved', 'created_at', 'updated_at', 'last_bill_number']  # last_bill_number cannot be changed

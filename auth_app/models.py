@@ -72,26 +72,23 @@ class Vendor(models.Model):
         default=0,
         help_text="Last generated bill number (for sequential generation, auto-incremented)"
     )
-    # Vendor-Level GST Rates (for flat rate restaurants/cafes)
-    # If set, bills will automatically calculate CGST/SGST using these rates on subtotal
-    # Common rates: 2.5% CGST + 2.5% SGST = 5% total, or 3% + 3% = 6% total
-    cgst_percentage = models.DecimalField(
-        max_digits=5,
-        decimal_places=2,
-        default=0,
+    # SAC Code (Service Accounting Code) - Vendor-level GST
+    # If SAC code is present, all items use SAC GST rate (ignores item HSN codes)
+    # If SAC code is not present, items use their HSN codes for GST calculation
+    sac_code = models.CharField(
+        max_length=20,
         blank=True,
         null=True,
-        validators=[MinValueValidator(0), MaxValueValidator(100)],
-        help_text="Vendor-level CGST percentage (e.g., 2.5 for 2.5%). If set, bills automatically calculate CGST on subtotal. Leave 0 or null to use product-level GST."
+        help_text="SAC (Service Accounting Code) for vendor-level GST. If set, all items use this SAC GST rate instead of their HSN codes."
     )
-    sgst_percentage = models.DecimalField(
+    sac_gst_percentage = models.DecimalField(
         max_digits=5,
         decimal_places=2,
         default=0,
         blank=True,
         null=True,
         validators=[MinValueValidator(0), MaxValueValidator(100)],
-        help_text="Vendor-level SGST percentage (e.g., 2.5 for 2.5%). If set, bills automatically calculate SGST on subtotal. Leave 0 or null to use product-level GST."
+        help_text="GST percentage for SAC code (e.g., 5.00 for 5%). If SAC code is set but this is not set, default rate from mapping will be used."
     )
     is_approved = models.BooleanField(default=False)  # Admin approval status
     created_at = models.DateTimeField(auto_now_add=True)

@@ -585,8 +585,10 @@ def create_comprehensive_items(vendor, categories):
                 item.mrp_price = item_data['mrp_price']
             if not item.price_type:
                 item.price_type = item_data['price_type']
-            if not item.gst_percentage:
-                item.gst_percentage = item_data['gst_percentage']
+            if not item.hsn_code:
+                item.hsn_code = item_data.get('hsn_code', '')
+            if not item.hsn_gst_percentage:
+                item.hsn_gst_percentage = item_data.get('hsn_gst_percentage', Decimal('0'))
             if not item.veg_nonveg:
                 item.veg_nonveg = item_data['veg_nonveg']
             item.save()
@@ -645,7 +647,7 @@ def create_sample_bills(vendor):
     # Calculate GST bill totals
     gst_items = items[:3]
     subtotal = sum(float(item.mrp_price * 2) for item in gst_items)
-    total_tax = sum(float((item.mrp_price * 2 * item.gst_percentage) / 100) for item in gst_items if item.price_type == 'exclusive')
+    total_tax = sum(float((item.mrp_price * 2 * item.hsn_gst_percentage) / 100) for item in gst_items if item.price_type == 'exclusive')
     cgst = total_tax / 2  # Split equally for intra-state
     sgst = total_tax / 2
     total = subtotal + total_tax
@@ -676,7 +678,7 @@ def create_sample_bills(vendor):
     for item in gst_items:
         quantity = Decimal('2.00')
         item_subtotal = item.mrp_price * quantity
-        item_gst = (item_subtotal * item.gst_percentage / 100) if item.price_type == 'exclusive' else Decimal('0.00')
+        item_gst = (item_subtotal * item.hsn_gst_percentage / 100) if item.price_type == 'exclusive' else Decimal('0.00')
         
         BillItem.objects.create(
             bill=gst_bill,
@@ -689,7 +691,9 @@ def create_sample_bills(vendor):
             price_type=item.price_type,
             quantity=quantity,
             subtotal=item_subtotal,
-            gst_percentage=item.gst_percentage,
+            hsn_code=item.hsn_code or '',
+            hsn_gst_percentage=item.hsn_gst_percentage or Decimal('0'),
+            gst_percentage=item.hsn_gst_percentage or Decimal('0'), # Calculated from HSN
             item_gst_amount=item_gst,
             veg_nonveg=item.veg_nonveg,
             additional_discount=item.additional_discount,

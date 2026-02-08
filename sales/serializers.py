@@ -13,7 +13,7 @@ class BillItemSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'bill', 'item', 'original_item_id', 'item_id', 'item_name', 'item_description',
             'price', 'mrp_price', 'price_type', 'quantity', 'subtotal',
-            'gst_percentage', 'item_gst_amount', 'veg_nonveg',
+            'hsn_code', 'hsn_gst_percentage', 'gst_percentage', 'item_gst_amount', 'veg_nonveg',
             'unit', 'batch_number', 'expiry_date', 'created_at'
         ]
         read_only_fields = ['id', 'bill', 'created_at']

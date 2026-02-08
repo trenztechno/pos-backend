@@ -350,7 +350,7 @@ def create_test_bills(vendor1, vendor2):
         # GST Bill for vendor1
         gst_items = vendor1_items[:3]
         subtotal = sum(float(item.mrp_price or item.price or 0) * 2 for item in gst_items)
-        total_tax = sum(float((item.mrp_price or item.price or 0) * 2 * (item.gst_percentage or 0) / 100) for item in gst_items)
+        total_tax = sum(float((item.mrp_price or item.price or 0) * 2 * (item.hsn_gst_percentage or 0) / 100) for item in gst_items)
         cgst = total_tax / 2
         sgst = total_tax / 2
         total = subtotal + total_tax
@@ -396,7 +396,7 @@ def create_test_bills(vendor1, vendor2):
             for item in gst_items:
                 quantity = Decimal('2.00')
                 item_subtotal = (item.mrp_price or item.price or Decimal('0')) * quantity
-                item_gst = (item_subtotal * (item.gst_percentage or Decimal('0')) / 100)
+                item_gst = (item_subtotal * (item.hsn_gst_percentage or Decimal('0')) / 100)
                 
                 BillItem.objects.create(
                     bill=gst_bill,
@@ -409,7 +409,9 @@ def create_test_bills(vendor1, vendor2):
                     price_type=getattr(item, 'price_type', 'exclusive'),
                     quantity=quantity,
                     subtotal=item_subtotal,
-                    gst_percentage=item.gst_percentage or Decimal('0'),
+                    hsn_code=item.hsn_code or '',
+                    hsn_gst_percentage=item.hsn_gst_percentage or Decimal('0'),
+                    gst_percentage=item.hsn_gst_percentage or Decimal('0'), # Calculated from HSN
                     item_gst_amount=item_gst,
                     veg_nonveg=getattr(item, 'veg_nonveg', 'veg'),
                     additional_discount=getattr(item, 'additional_discount', Decimal('0')),
@@ -462,7 +464,9 @@ def create_test_bills(vendor1, vendor2):
                         price_type=getattr(item, 'price_type', 'exclusive'),
                         quantity=quantity,
                         subtotal=item_subtotal,
-                        gst_percentage=Decimal('0.00'),
+                        hsn_code='2106',
+                        hsn_gst_percentage=Decimal('0.00'),
+                        gst_percentage=Decimal('0.00'), # Calculated
                         item_gst_amount=Decimal('0.00'),
                         veg_nonveg=getattr(item, 'veg_nonveg', 'veg'),
                         additional_discount=getattr(item, 'additional_discount', Decimal('0')),
@@ -505,7 +509,9 @@ def create_test_bills(vendor1, vendor2):
                     mrp_price=item.mrp_price or item.price or Decimal('50.00'),
                     quantity=Decimal('2.00'),
                     subtotal=Decimal('100.00'),
-                    gst_percentage=Decimal('18.00'),
+                    hsn_code='2105',
+                    hsn_gst_percentage=Decimal('18.00'),
+                    gst_percentage=Decimal('18.00'), # Calculated
                     item_gst_amount=Decimal('18.00'),
                 )
                 print(f"  ✓ Created Yesterday's Bill: {yesterday_bill.invoice_number}")
@@ -550,7 +556,9 @@ def create_test_bills(vendor1, vendor2):
                     mrp_price=item.mrp_price or item.price or Decimal('50.00'),
                     quantity=Decimal('3.00'),
                     subtotal=Decimal(str(credit_subtotal)),
-                    gst_percentage=Decimal('18.00'),
+                    hsn_code='2105',
+                    hsn_gst_percentage=Decimal('18.00'),
+                    gst_percentage=Decimal('18.00'), # Calculated
                     item_gst_amount=Decimal(str(credit_tax)),
                 )
                 print(f"  ✓ Created Credit Bill (Pending Payment): {credit_bill.invoice_number} (₹{credit_bill.total_amount:.2f} outstanding)")

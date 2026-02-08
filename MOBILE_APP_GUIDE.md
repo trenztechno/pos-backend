@@ -266,28 +266,28 @@ async function syncQueuedOperations() {
 
 **Complete Bill Creation Examples for All Cases:**
 
-**Important - Vendor-Level GST Rates:**
-- Check vendor profile (`GET /auth/profile`) for `cgst_percentage` and `sgst_percentage`
-- If both are set and > 0, use vendor-level flat rates instead of product-level GST
-- Vendor-level rates apply to **intra-state transactions only** (CGST + SGST)
-- For inter-state transactions, always use product-level GST with IGST
-- When using vendor-level rates, set product `gst_percentage` to 0%
+**Important - HSN/SAC Tax Calculation:**
+- Check vendor profile (`GET /auth/profile`) for `sac_code` and `sac_gst_percentage`
+- If `sac_code` is set, all items use the vendor's SAC GST rate (ignores item HSN codes)
+- If `sac_code` is NOT set, each item uses its own `hsn_code` and `hsn_gst_percentage`
+- Different items can have different HSN codes and different GST rates
+- Tax is calculated per item, then summed for total tax
 
 #### Example 1: GST Bill - Intra-State - Cash Payment
 
 ```javascript
 // Creating a GST bill with intra-state tax (CGST + SGST)
-// NOTE: Check if vendor has vendor-level CGST/SGST rates set
-// If vendor.cgst_percentage and vendor.sgst_percentage are set, use those instead of product-level GST
+  // NOTE: Check if vendor has SAC code set
+  // If vendor.sac_code is set, all items use SAC GST rate
+  // Otherwise, each item uses its own HSN code and GST rate
 async function createGSTBillIntraStateCash(billData, vendorData) {
   const billingMode = 'gst';
   const paymentMode = 'cash';
   const isInterState = false; // Intra-state transaction
   
-  // Check for vendor-level flat rates
-  const hasVendorLevelRates = vendorData.cgst_percentage && vendorData.sgst_percentage && 
-                               parseFloat(vendorData.cgst_percentage) > 0 && 
-                               parseFloat(vendorData.sgst_percentage) > 0;
+  // Check for vendor SAC code
+  const hasSACCode = vendorData.sac_code && vendorData.sac_code.trim() !== '';
+  const sacGSTRate = hasSACCode ? parseFloat(vendorData.sac_gst_percentage || 0) : 0;
   
   // Calculate subtotal
   let subtotal = 0;
@@ -297,33 +297,36 @@ async function createGSTBillIntraStateCash(billData, vendorData) {
     const itemSubtotal = item.mrp_price * item.quantity;
     subtotal += itemSubtotal;
     
-    // Calculate GST for each item (only if NOT using vendor-level rates)
-    if (!hasVendorLevelRates && item.gst_percentage > 0) {
-      const itemGST = itemSubtotal * (item.gst_percentage / 100);
-      totalItemGST += itemGST;
-      item.item_gst = itemGST;
+    // Calculate GST for each item
+    let itemGST = 0;
+    if (hasSACCode) {
+      // Use vendor SAC rate for all items
+      itemGST = itemSubtotal * (sacGSTRate / 100);
+    } else if (item.hsn_code && item.hsn_gst_percentage > 0) {
+      // Use item's HSN GST rate
+      itemGST = itemSubtotal * (item.hsn_gst_percentage / 100);
     } else {
-      // When using vendor-level rates, product GST is 0%
-      item.item_gst = 0;
+      // If no HSN/SAC, GST is 0%
+      itemGST = 0;
     }
+    totalItemGST += itemGST;
+    item.item_gst = itemGST;
   });
   
-  // Calculate CGST and SGST
+  // Calculate CGST and SGST from total tax
   let cgst, sgst, igst, totalTax;
-  if (hasVendorLevelRates) {
-    // Use vendor-level flat rates (e.g., 2.5% CGST + 2.5% SGST)
-    const cgstRate = parseFloat(vendorData.cgst_percentage);
-    const sgstRate = parseFloat(vendorData.sgst_percentage);
-    cgst = (subtotal * cgstRate / 100);
-    sgst = (subtotal * sgstRate / 100);
-    igst = 0;
-    totalTax = cgst + sgst;
+  totalTax = totalItemGST; // Sum of all item taxes
+  
+  if (isInterState) {
+    // Inter-state: Use IGST
+    igst = totalTax;
+    cgst = 0;
+    sgst = 0;
   } else {
-    // Use product-level GST (split equally for intra-state)
-    cgst = totalItemGST / 2;
-    sgst = totalItemGST / 2;
+    // Intra-state: Split equally between CGST and SGST
+    cgst = totalTax / 2;
+    sgst = totalTax / 2;
     igst = 0;
-    totalTax = totalItemGST;
   }
   const total = subtotal + totalTax;
   
@@ -347,7 +350,8 @@ async function createGSTBillIntraStateCash(billData, vendorData) {
       price: item.price,
       mrp_price: item.mrp_price,
       price_type: item.price_type || 'exclusive',
-      gst_percentage: item.gst_percentage || 0,
+      hsn_code: item.hsn_code || '',
+      hsn_gst_percentage: item.hsn_gst_percentage || 0,
       quantity: item.quantity,
       subtotal: item.mrp_price * item.quantity,
       item_gst: item.item_gst || 0,
@@ -384,7 +388,7 @@ async function createGSTBillIntraStateCash(billData, vendorData) {
 
 #### Example 2: GST Bill - Inter-State - UPI Payment
 
-**Note:** Vendor-level CGST/SGST rates do NOT apply to inter-state transactions. Always use product-level GST with IGST for inter-state.
+**Note:** SAC codes work for both intra-state (CGST + SGST) and inter-state (IGST) transactions. The system automatically splits tax appropriately based on transaction type.
 
 ```javascript
 // Creating a GST bill with inter-state tax (IGST only)
@@ -398,15 +402,23 @@ async function createGSTBillInterStateUPI(billData) {
   let subtotal = 0;
   let totalItemGST = 0;
   
+  // Check for vendor SAC code
+  const hasSACCode = vendorData.sac_code && vendorData.sac_code.trim() !== '';
+  const sacGSTRate = hasSACCode ? parseFloat(vendorData.sac_gst_percentage || 0) : 0;
+  
   billData.items.forEach(item => {
     const itemSubtotal = item.mrp_price * item.quantity;
     subtotal += itemSubtotal;
     
-    if (item.gst_percentage > 0) {
-      const itemGST = itemSubtotal * (item.gst_percentage / 100);
-      totalItemGST += itemGST;
-      item.item_gst = itemGST;
+    // Calculate GST on item subtotal (using HSN/SAC)
+    let itemGST = 0;
+    if (hasSACCode) {
+      itemGST = itemSubtotal * (sacGSTRate / 100);
+    } else if (item.hsn_code && item.hsn_gst_percentage > 0) {
+      itemGST = itemSubtotal * (item.hsn_gst_percentage / 100);
     }
+    totalItemGST += itemGST;
+    item.item_gst = itemGST;
   });
   
   // For inter-state: IGST only (no CGST/SGST)
@@ -434,7 +446,9 @@ async function createGSTBillInterStateUPI(billData) {
       price: item.price,
       mrp_price: item.mrp_price,
       price_type: item.price_type || 'exclusive',
-      gst_percentage: item.gst_percentage || 0,
+      hsn_code: item.hsn_code || '',
+      hsn_gst_percentage: item.hsn_gst_percentage || 0,
+      gst_percentage: hasSACCode ? sacGSTRate : (item.hsn_gst_percentage || 0), // Calculated GST rate
       quantity: item.quantity,
       subtotal: item.mrp_price * item.quantity,
       item_gst: item.item_gst || 0,
@@ -540,15 +554,23 @@ async function createGSTBillCredit(billData) {
   let subtotal = 0;
   let totalItemGST = 0;
   
+  // Check for vendor SAC code
+  const hasSACCode = vendorData.sac_code && vendorData.sac_code.trim() !== '';
+  const sacGSTRate = hasSACCode ? parseFloat(vendorData.sac_gst_percentage || 0) : 0;
+  
   billData.items.forEach(item => {
     const itemSubtotal = item.mrp_price * item.quantity;
     subtotal += itemSubtotal;
     
-    if (item.gst_percentage > 0) {
-      const itemGST = itemSubtotal * (item.gst_percentage / 100);
-      totalItemGST += itemGST;
-      item.item_gst = itemGST;
+    // Calculate GST on item subtotal (using HSN/SAC)
+    let itemGST = 0;
+    if (hasSACCode) {
+      itemGST = itemSubtotal * (sacGSTRate / 100);
+    } else if (item.hsn_code && item.hsn_gst_percentage > 0) {
+      itemGST = itemSubtotal * (item.hsn_gst_percentage / 100);
     }
+    totalItemGST += itemGST;
+    item.item_gst = itemGST;
   });
   
   const cgst = totalItemGST / 2;
@@ -575,7 +597,9 @@ async function createGSTBillCredit(billData) {
       price: item.price,
       mrp_price: item.mrp_price,
       price_type: item.price_type || 'exclusive',
-      gst_percentage: item.gst_percentage || 0,
+      hsn_code: item.hsn_code || '',
+      hsn_gst_percentage: item.hsn_gst_percentage || 0,
+      gst_percentage: hasSACCode ? sacGSTRate : (item.hsn_gst_percentage || 0), // Calculated GST rate
       quantity: item.quantity,
       subtotal: item.mrp_price * item.quantity,
       item_gst: item.item_gst || 0,
@@ -616,10 +640,14 @@ async function createGSTBillCredit(billData) {
 
 ```javascript
 // Creating a GST bill with percentage-based discount (applied to subtotal before tax)
-async function createGSTBillWithDiscount(billData) {
+async function createGSTBillWithDiscount(billData, vendorData) {
   const billingMode = 'gst';
   const paymentMode = billData.payment_mode || 'cash';
   const discountPercentage = billData.discount_percentage || 0; // e.g., 10 for 10% discount
+  
+  // Check for vendor SAC code
+  const hasSACCode = vendorData.sac_code && vendorData.sac_code.trim() !== '';
+  const sacGSTRate = hasSACCode ? parseFloat(vendorData.sac_gst_percentage || 0) : 0;
   
   // Calculate subtotal from items
   let subtotal = 0;
@@ -629,12 +657,15 @@ async function createGSTBillWithDiscount(billData) {
     const itemSubtotal = item.mrp_price * item.quantity;
     subtotal += itemSubtotal;
     
-    // Calculate GST on item subtotal
-    if (item.gst_percentage > 0) {
-      const itemGST = itemSubtotal * (item.gst_percentage / 100);
-      totalItemGST += itemGST;
-      item.item_gst = itemGST;
+    // Calculate GST on item subtotal (using HSN/SAC)
+    let itemGST = 0;
+    if (hasSACCode) {
+      itemGST = itemSubtotal * (sacGSTRate / 100);
+    } else if (item.hsn_code && item.hsn_gst_percentage > 0) {
+      itemGST = itemSubtotal * (item.hsn_gst_percentage / 100);
     }
+    totalItemGST += itemGST;
+    item.item_gst = itemGST;
   });
   
   // Calculate tax
@@ -643,15 +674,15 @@ async function createGSTBillWithDiscount(billData) {
   const igst = 0;
   const totalTax = totalItemGST;
   
-  // Calculate total before discount
   // Calculate discount amount from percentage (applied to subtotal before tax)
   let discountAmount = 0;
   if (discountPercentage > 0) {
-    discountAmount = (totalBeforeDiscount * discountPercentage / 100);
+    discountAmount = (subtotal * discountPercentage / 100);
   }
   
   // Calculate final total after discount
-  const total = totalBeforeDiscount - discountAmount;
+  const discountedSubtotal = subtotal - discountAmount;
+  const total = discountedSubtotal + totalTax;
   
   const invoiceNumber = await generateInvoiceNumber(billingMode);
   
@@ -671,7 +702,9 @@ async function createGSTBillWithDiscount(billData) {
       price: item.price,
       mrp_price: item.mrp_price,
       price_type: item.price_type || 'exclusive',
-      gst_percentage: item.gst_percentage || 0,
+      hsn_code: item.hsn_code || '',
+      hsn_gst_percentage: item.hsn_gst_percentage || 0,
+      gst_percentage: hasSACCode ? sacGSTRate : (item.hsn_gst_percentage || 0), // Calculated GST rate
       quantity: item.quantity,
       subtotal: item.mrp_price * item.quantity,
       item_gst: item.item_gst || 0,

@@ -134,8 +134,13 @@ class VendorAdmin(admin.ModelAdmin):
             'description': 'GST number (GSTIN) is used for password reset and bills. FSSAI License is required for restaurant bills.'
         }),
         ('Bill Customization', {
-            'fields': ('logo', 'footer_note'),
-            'description': 'Logo and footer note will appear on all bills. Logo is optional.'
+            'fields': ('logo', 'footer_note', 'bill_prefix', 'bill_starting_number', 'last_bill_number'),
+            'description': 'Logo and footer note will appear on all bills. Logo is optional. Bill numbering configuration for sequential invoice numbers.'
+        }),
+        ('SAC Code (Service Accounting Code)', {
+            'fields': ('sac_code', 'sac_gst_percentage'),
+            'description': 'SAC code for vendor-level GST. If set, all items use this SAC GST rate instead of their HSN codes. Leave blank to use item-level HSN codes.',
+            'classes': ('collapse',)
         }),
         ('Security PIN Management', {
             'fields': ('security_pin_status', 'security_pin_display', 'security_pin_clear'),

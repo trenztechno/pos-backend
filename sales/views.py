@@ -10,6 +10,7 @@ import uuid
 from .models import Bill, BillItem, SalesBackup
 from .serializers import BillSerializer, BillListSerializer, BillItemSerializer, SalesBackupSerializer
 from .utils import generate_bill_number
+from .tax_utils import calculate_item_tax
 from auth_app.models import Vendor
 from items.models import Item
 
@@ -238,17 +239,42 @@ class SalesSyncView(APIView):
                     created_at=created_at
                 )
                 
-                # Create bill items
+                # Create bill items with HSN/SAC tax calculation
                 items_data = bill_data.get('items', [])
+                vendor_sac_code = vendor.sac_code
+                vendor_sac_gst = vendor.sac_gst_percentage
+                
                 for item_data in items_data:
                     # Try to link to master Item if item_id provided
                     item_id = item_data.get('item_id') or item_data.get('id')
                     item = None
+                    item_hsn_code = None
+                    item_hsn_gst = None
+                    
                     if item_id:
                         try:
                             item = Item.objects.get(id=item_id, vendor=vendor)
+                            item_hsn_code = item.hsn_code
+                            item_hsn_gst = item.hsn_gst_percentage
                         except Item.DoesNotExist:
                             pass
+                    
+                    # Use HSN from item_data if provided (for additional items)
+                    if not item_hsn_code:
+                        item_hsn_code = item_data.get('hsn_code')
+                        item_hsn_gst = item_data.get('hsn_gst_percentage')
+                    
+                    # Calculate item subtotal
+                    item_subtotal = Decimal(str(item_data.get('subtotal', item_data.get('quantity', 1) * item_data.get('price', 0))))
+                    
+                    # Calculate tax for this item
+                    item_tax, item_gst_percentage = calculate_item_tax(
+                        item_subtotal=item_subtotal,
+                        hsn_code=item_hsn_code,
+                        hsn_gst_percentage=item_hsn_gst,
+                        sac_code=vendor_sac_code,
+                        sac_gst_percentage=vendor_sac_gst
+                    )
                     
                     BillItem.objects.create(
                         bill=bill,
@@ -260,9 +286,11 @@ class SalesSyncView(APIView):
                         mrp_price=Decimal(str(item_data.get('mrp_price', item_data.get('price', 0)))),
                         price_type=item_data.get('price_type', 'exclusive'),
                         quantity=Decimal(str(item_data.get('quantity', 1))),
-                        subtotal=Decimal(str(item_data.get('subtotal', item_data.get('quantity', 1) * item_data.get('price', 0)))),
-                        gst_percentage=Decimal(str(item_data.get('gst_percentage', 0))),
-                        item_gst_amount=Decimal(str(item_data.get('item_gst', 0))),
+                        subtotal=item_subtotal,
+                        hsn_code=item_hsn_code,
+                        hsn_gst_percentage=item_hsn_gst,
+                        gst_percentage=item_gst_percentage,
+                        item_gst_amount=item_tax,
                         veg_nonveg=item_data.get('veg_nonveg'),
                         # Item-level discounts removed - discounts are now bill-level percentage only
                         unit=item_data.get('unit'),
@@ -450,30 +478,87 @@ class BillListView(APIView):
         # Use provided subtotal or calculated subtotal
         subtotal = Decimal(str(request.data.get('subtotal', calculated_subtotal)))
         
-        # Calculate taxes based on vendor-level rates or client-provided values
+        # Calculate taxes per item based on HSN/SAC
         billing_mode = request.data.get('billing_mode', 'gst')
         cgst_amount = Decimal('0')
         sgst_amount = Decimal('0')
         igst_amount = Decimal('0')
         total_tax = Decimal('0')
         
+        # Store item tax details for BillItem creation
+        item_tax_details = []
+        
         if billing_mode == 'gst':
-            # Check if vendor has CGST/SGST percentages set (vendor-level flat rate)
-            vendor_cgst = Decimal(str(vendor.cgst_percentage or 0))
-            vendor_sgst = Decimal(str(vendor.sgst_percentage or 0))
-            if vendor_cgst > 0 and vendor_sgst > 0:
-                # Use vendor-level flat rates (for restaurants/cafes with fixed rates)
-                # Calculate CGST and SGST on subtotal
-                cgst_amount = (subtotal * vendor_cgst / 100).quantize(Decimal('0.01'))
-                sgst_amount = (subtotal * vendor_sgst / 100).quantize(Decimal('0.01'))
-                igst_amount = Decimal('0')  # Intra-state only (CGST + SGST)
-                total_tax = cgst_amount + sgst_amount
-            else:
-                # Use client-provided tax values (product-level GST or manual calculation)
+            # Get vendor's SAC code and percentage
+            vendor_sac_code = vendor.sac_code
+            vendor_sac_gst = vendor.sac_gst_percentage
+            
+            # Calculate tax for each item
+            for item_data in items_data:
+                # Get item HSN if item_id is provided
+                item_id = item_data.get('item_id')
+                item_hsn_code = None
+                item_hsn_gst = None
+                
+                if item_id:
+                    try:
+                        item = Item.objects.get(id=item_id, vendor=vendor)
+                        item_hsn_code = item.hsn_code
+                        item_hsn_gst = item.hsn_gst_percentage
+                    except Item.DoesNotExist:
+                        pass
+                
+                # Use HSN from item_data if provided (for additional items)
+                if not item_hsn_code:
+                    item_hsn_code = item_data.get('hsn_code')
+                    item_hsn_gst = item_data.get('hsn_gst_percentage')
+                
+                # Calculate item subtotal
+                if 'subtotal' in item_data:
+                    item_subtotal = Decimal(str(item_data.get('subtotal', 0)))
+                else:
+                    mrp_price = Decimal(str(item_data.get('mrp_price', 0)))
+                    quantity = Decimal(str(item_data.get('quantity', 1)))
+                    item_subtotal = mrp_price * quantity
+                
+                # Calculate tax for this item
+                item_tax, item_gst_percentage = calculate_item_tax(
+                    item_subtotal=item_subtotal,
+                    hsn_code=item_hsn_code,
+                    hsn_gst_percentage=item_hsn_gst,
+                    sac_code=vendor_sac_code,
+                    sac_gst_percentage=vendor_sac_gst
+                )
+                
+                total_tax += item_tax
+                
+                # Store tax details for this item
+                item_tax_details.append({
+                    'hsn_code': item_hsn_code,
+                    'hsn_gst_percentage': item_hsn_gst,
+                    'gst_percentage': item_gst_percentage,
+                    'item_gst_amount': item_tax
+                })
+            
+            # Calculate CGST/SGST/IGST from total_tax
+            # For now, assume intra-state (CGST + SGST split equally)
+            # TODO: Add logic to determine inter-state vs intra-state
+            cgst_amount = (total_tax / 2).quantize(Decimal('0.01'))
+            sgst_amount = (total_tax / 2).quantize(Decimal('0.01'))
+            igst_amount = Decimal('0')
+            
+            # Allow override if client provides tax values
+            if request.data.get('cgst') or request.data.get('cgst_amount'):
                 cgst_amount = Decimal(str(request.data.get('cgst', request.data.get('cgst_amount', 0))))
+            if request.data.get('sgst') or request.data.get('sgst_amount'):
                 sgst_amount = Decimal(str(request.data.get('sgst', request.data.get('sgst_amount', 0))))
+            if request.data.get('igst') or request.data.get('igst_amount'):
                 igst_amount = Decimal(str(request.data.get('igst', request.data.get('igst_amount', 0))))
-                total_tax = Decimal(str(request.data.get('total_tax', cgst_amount + sgst_amount + igst_amount)))
+                # If IGST is provided, CGST and SGST should be 0
+                if igst_amount > 0:
+                    cgst_amount = Decimal('0')
+                    sgst_amount = Decimal('0')
+                    total_tax = igst_amount
         
         # Calculate discount percentage (primary field)
         discount_percentage = Decimal(str(request.data.get('discount_percentage', 0)))
@@ -527,8 +612,20 @@ class BillListView(APIView):
             'waiter_name': request.data.get('waiter_name'),
         }
         
+        # Merge tax details into items_data
+        items_data_with_tax = []
+        for idx, item_data in enumerate(items_data):
+            item_data_copy = item_data.copy()
+            if idx < len(item_tax_details):
+                tax_detail = item_tax_details[idx]
+                item_data_copy['hsn_code'] = tax_detail['hsn_code']
+                item_data_copy['hsn_gst_percentage'] = tax_detail['hsn_gst_percentage']
+                item_data_copy['gst_percentage'] = tax_detail['gst_percentage']
+                item_data_copy['item_gst'] = tax_detail['item_gst_amount']
+            items_data_with_tax.append(item_data_copy)
+        
         # Use serializer to create bill with items
-        serializer = BillSerializer(data={**bill_data, 'items_data': items_data})
+        serializer = BillSerializer(data={**bill_data, 'items_data': items_data_with_tax})
         
         if serializer.is_valid():
             # Vendor is in bill_data - serializer will handle it

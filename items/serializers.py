@@ -24,7 +24,7 @@ class ItemSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'vendor', 'categories', 'category_ids', 'categories_list',
             'name', 'description', 'price', 'mrp_price', 'price_type', 'additional_discount',
-            'gst_percentage', 'veg_nonveg',
+            'hsn_code', 'hsn_gst_percentage', 'veg_nonveg',
             'stock_quantity', 'sku', 'barcode',
             'is_active', 'sort_order', 'vendor_name', 'image', 'image_url',
             'last_updated', 'created_at'
@@ -72,7 +72,7 @@ class ItemListSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Item
-        fields = ['id', 'name', 'price', 'mrp_price', 'price_type', 'gst_percentage', 'veg_nonveg', 
+        fields = ['id', 'name', 'price', 'mrp_price', 'price_type', 'hsn_code', 'hsn_gst_percentage', 'veg_nonveg', 
                   'stock_quantity', 'is_active', 'categories_list', 'sort_order', 'image_url']
     
     def get_categories_list(self, obj):

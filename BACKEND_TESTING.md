@@ -257,12 +257,12 @@ All functionality verified successfully!
 - ✅ Credit payment (pending payment)
 - ✅ Other payment methods
 
-**GST Percentages Tested:**
-- ✅ 0% GST
-- ✅ 5% GST
-- ✅ 8% GST
-- ✅ 18% GST
-- ✅ Custom GST percentages
+**HSN/SAC Tax System Tested:**
+- ✅ Items with HSN codes (different GST rates per item)
+- ✅ Vendors with SAC codes (vendor-level tax)
+- ✅ Tax calculation with HSN codes (item-level)
+- ✅ Tax calculation with SAC codes (vendor-level, overrides HSN)
+- ✅ Multiple items with different HSN codes in same bill
 
 **Price Types Tested:**
 - ✅ Exclusive pricing (GST not included in MRP)
@@ -282,7 +282,7 @@ All functionality verified successfully!
 - ✅ Bills with mixed items (some linked, some additional)
 - ✅ Bills with percentage discounts (applied to subtotal before tax)
 - ✅ Bills without discounts
-- ✅ Bills with multiple items (different GST percentages)
+- ✅ Bills with multiple items (different HSN codes and GST rates)
 
 ---
 
@@ -308,7 +308,7 @@ python verify_default_setup.py
 
 2. **Test Data:**
    - Categories (global and vendor-specific)
-   - Items (with GST fields and images)
+   - Items (with HSN/GST fields and images)
    - Bills (GST and Non-GST)
 
 3. **Mobile Developer Data:**
@@ -345,7 +345,7 @@ python verify_default_setup.py
 ✓ Global Categories: 3 found
 ✓ Vendor-Specific Categories: 12 found
   Total Items: 22
-✓ Items with GST fields (mrp_price): 15
+✓ Items with HSN/GST fields (mrp_price, hsn_code, hsn_gst_percentage): 15
 ✓ Items with images: 15
 
 ======================================================================
@@ -353,7 +353,7 @@ python verify_default_setup.py
 ======================================================================
 ✓ Categories: 9 available (expected: 6+)
 ✓ Items: 15 found (expected: 15+)
-✓ Items with complete GST fields: 15
+✓ Items with complete HSN/GST fields: 15
 ✓ Items with images: 15
 ✓ Sample Bills: 2 found
   - GST Bills: 1

@@ -166,7 +166,7 @@ def test_get_items(token):
             print_info(f"Total items: {len(items)}")
             
             # Check items have required fields
-            required_fields = ['id', 'name', 'mrp_price', 'price_type', 'gst_percentage', 'veg_nonveg', 'image_url']
+            required_fields = ['id', 'name', 'mrp_price', 'price_type', 'hsn_code', 'hsn_gst_percentage', 'veg_nonveg', 'image_url']
             items_with_images = 0
             items_with_all_fields = 0
             
@@ -212,7 +212,7 @@ def test_get_items(token):
                 print_info(f"  Name: {sample.get('name')}")
                 print_info(f"  MRP: ₹{sample.get('mrp_price')}")
                 print_info(f"  Price Type: {sample.get('price_type')}")
-                print_info(f"  GST: {sample.get('gst_percentage')}%")
+                print_info(f"  HSN: {sample.get('hsn_code', 'N/A')}, GST: {sample.get('hsn_gst_percentage', 0)}%")
                 print_info(f"  Veg/Nonveg: {sample.get('veg_nonveg')}")
                 img_url = sample.get('image_url', 'None')
                 if img_url and img_url != 'None':
@@ -386,18 +386,20 @@ def test_create_bill(token):
                         "price": float(item.get('price', 0)),
                         "mrp_price": float(item.get('mrp_price', 0)),
                         "price_type": item.get('price_type'),
-                        "gst_percentage": float(item.get('gst_percentage', 0)),
+                        "hsn_code": item.get('hsn_code', ''),
+                        "hsn_gst_percentage": float(item.get('hsn_gst_percentage', 0)),
+                        "gst_percentage": float(item.get('hsn_gst_percentage', 0)), # Calculated from HSN
                         "quantity": 2,
                         "subtotal": float(item.get('mrp_price', 0)) * 2,
-                        "item_gst": float(item.get('mrp_price', 0)) * 2 * float(item.get('gst_percentage', 0)) / 100 if item.get('price_type') == 'exclusive' else 0
+                        "item_gst": float(item.get('mrp_price', 0)) * 2 * float(item.get('hsn_gst_percentage', 0)) / 100 if item.get('price_type') == 'exclusive' else 0
                     }
                 ],
                 "subtotal": float(item.get('mrp_price', 0)) * 2,
-                "cgst": float(item.get('mrp_price', 0)) * 2 * float(item.get('gst_percentage', 0)) / 200 if item.get('price_type') == 'exclusive' else 0,
-                "sgst": float(item.get('mrp_price', 0)) * 2 * float(item.get('gst_percentage', 0)) / 200 if item.get('price_type') == 'exclusive' else 0,
+                "cgst": float(item.get('mrp_price', 0)) * 2 * float(item.get('hsn_gst_percentage', 0)) / 200 if item.get('price_type') == 'exclusive' else 0,
+                "sgst": float(item.get('mrp_price', 0)) * 2 * float(item.get('hsn_gst_percentage', 0)) / 200 if item.get('price_type') == 'exclusive' else 0,
                 "igst": 0.00,
-                "total_tax": float(item.get('mrp_price', 0)) * 2 * float(item.get('gst_percentage', 0)) / 100 if item.get('price_type') == 'exclusive' else 0,
-                "total": float(item.get('mrp_price', 0)) * 2 + (float(item.get('mrp_price', 0)) * 2 * float(item.get('gst_percentage', 0)) / 100 if item.get('price_type') == 'exclusive' else 0),
+                "total_tax": float(item.get('mrp_price', 0)) * 2 * float(item.get('hsn_gst_percentage', 0)) / 100 if item.get('price_type') == 'exclusive' else 0,
+                "total": float(item.get('mrp_price', 0)) * 2 + (float(item.get('mrp_price', 0)) * 2 * float(item.get('hsn_gst_percentage', 0)) / 100 if item.get('price_type') == 'exclusive' else 0),
                 "footer_note": vendor_data.get('footer_note'),
                 "timestamp": datetime.now().isoformat()
             }
@@ -459,7 +461,8 @@ def test_database_data():
             print_info(f"\nSample item fields:")
             print_info(f"  mrp_price: {'✅' if sample_item.mrp_price else '❌'}")
             print_info(f"  price_type: {'✅' if sample_item.price_type else '❌'}")
-            print_info(f"  gst_percentage: {'✅' if sample_item.gst_percentage is not None else '❌'}")
+            print_info(f"  hsn_code: {'✅' if sample_item.get('hsn_code') else '❌'}")
+            print_info(f"  hsn_gst_percentage: {'✅' if sample_item.get('hsn_gst_percentage') is not None else '❌'}")
             print_info(f"  veg_nonveg: {'✅' if sample_item.veg_nonveg else '❌'}")
             print_info(f"  image: {'✅' if sample_item.image else '❌'}")
         

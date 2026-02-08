@@ -93,7 +93,7 @@ def test_models():
         print("✓ Category model has all required fields and relationships")
         
         # Test Item model
-        item_fields = ['id', 'vendor', 'name', 'description', 'price', 'mrp_price', 'price_type', 'gst_percentage', 
+        item_fields = ['id', 'vendor', 'name', 'description', 'price', 'mrp_price', 'price_type', 'hsn_code', 'hsn_gst_percentage', 
                       'veg_nonveg', 'stock_quantity', 'sku', 'barcode', 'is_active', 'sort_order', 'image']
         for field in item_fields:
             assert hasattr(Item, field) or hasattr(Item._meta.get_field(field), 'name'), f"Item missing field: {field}"
@@ -114,7 +114,7 @@ def test_models():
         
         # Test BillItem model
         billitem_fields = ['id', 'bill', 'item', 'original_item_id', 'item_name', 'price', 'mrp_price',
-                          'price_type', 'quantity', 'subtotal', 'gst_percentage', 'item_gst_amount',
+                          'price_type', 'quantity', 'subtotal', 'hsn_code', 'hsn_gst_percentage', 'gst_percentage', 'item_gst_amount',
                           'veg_nonveg', 'created_at']
         for field in billitem_fields:
             assert hasattr(BillItem, field) or hasattr(BillItem._meta.get_field(field), 'name'), f"BillItem missing field: {field}"
@@ -684,7 +684,8 @@ def test_api_endpoints():
             'price': '25.00',
             'mrp_price': '30.00',
             'price_type': 'exclusive',
-            'gst_percentage': '18.00',
+            'hsn_code': '2106',
+            'hsn_gst_percentage': '5.00',
             'stock_quantity': 10
         }, format='json')
         if item_response.status_code in [200, 201]:
@@ -799,7 +800,7 @@ def test_api_endpoints():
             items = response.data.get('results', []) if isinstance(response.data, dict) else response.data
             if items and len(items) > 0:
                 sample_item = items[0]
-                required_gst_fields = ['mrp_price', 'price_type', 'gst_percentage', 'veg_nonveg', 'image_url']
+                required_gst_fields = ['mrp_price', 'price_type', 'hsn_code', 'hsn_gst_percentage', 'veg_nonveg', 'image_url']
                 has_all = all(field in sample_item for field in required_gst_fields)
                 if has_all:
                     # Check if image_url is pre-signed (if S3 enabled and image exists)
@@ -807,11 +808,11 @@ def test_api_endpoints():
                     if image_url:
                         is_presigned = '?' in image_url and ('X-Amz-Algorithm' in image_url or 'X-Amz-Expires' in image_url)
                         if is_presigned:
-                            print("  ✓ Items include all GST fields + pre-signed image URLs")
+                            print("  ✓ Items include all HSN/GST fields + pre-signed image URLs")
                         else:
-                            print("  ✓ Items include all GST fields (mrp_price, price_type, gst_percentage, veg_nonveg, image_url)")
+                            print("  ✓ Items include all HSN/GST fields (mrp_price, price_type, hsn_code, hsn_gst_percentage, veg_nonveg, image_url)")
                     else:
-                        print("  ✓ Items include all GST fields (mrp_price, price_type, gst_percentage, veg_nonveg, image_url)")
+                        print("  ✓ Items include all HSN/GST fields (mrp_price, price_type, hsn_code, hsn_gst_percentage, veg_nonveg, image_url)")
                 else:
                     missing = [f for f in required_gst_fields if f not in sample_item]
                     print(f"  ⚠ Items missing fields: {', '.join(missing)}")
@@ -852,7 +853,8 @@ def test_api_endpoints():
             'price': '25.00',
             'mrp_price': '30.00',
             'price_type': 'exclusive',
-            'gst_percentage': '18.00',
+            'hsn_code': '2106',
+            'hsn_gst_percentage': '5.00',
             'veg_nonveg': 'veg',
             'stock_quantity': 10
         }, format='json')
@@ -883,7 +885,8 @@ def test_api_endpoints():
                     'price': '50.00',
                     'mrp_price': '60.00',
                     'price_type': 'exclusive',
-                    'gst_percentage': '18.00',
+                    'hsn_code': '2106',
+                    'hsn_gst_percentage': '5.00',
                     'veg_nonveg': 'veg',
                     'stock_quantity': 5,
                     'image': image_file
@@ -926,11 +929,12 @@ def test_api_endpoints():
                     print(f"✗ GET /items/{item_id}/ - Status: {response.status_code}")
                     results.append(False)
                 
-                # Test 12: Update Item (with GST fields)
+                # Test 12: Update Item (with HSN/GST fields)
                 response = client.patch(f'/items/{item_id}/', {
                     'price': '30.00',
                     'mrp_price': '35.00',
-                    'gst_percentage': '5.00',
+                    'hsn_code': '1905',
+                    'hsn_gst_percentage': '5.00',
                     'price_type': 'inclusive'
                 }, format='json')
                 if response.status_code == 200:
@@ -1005,7 +1009,8 @@ def test_api_endpoints():
                 'price': '25.00',
                 'mrp_price': '30.00',
                 'price_type': 'exclusive',
-                'gst_percentage': '18.00',
+                'hsn_code': '2106',
+                'hsn_gst_percentage': '5.00',
                 'veg_nonveg': 'veg',
                 'stock_quantity': 10
             },
@@ -1208,18 +1213,19 @@ def test_api_endpoints():
                         'price': 1000.00,
                         'mrp_price': 1000.00,
                         'price_type': 'exclusive',
-                        'gst_percentage': 18.00,
+                        'hsn_code': '2202',
+                        'hsn_gst_percentage': 28.00,
                         'quantity': 1,
                         'subtotal': 1000.00,
-                        'item_gst': 180.00
+                        'item_gst': 280.00
                     }
                 ],
                 'subtotal': 1000.00,
-                'cgst': 90.00,  # 9% for intra-state
-                'sgst': 90.00,  # 9% for intra-state
+                'cgst': 140.00,  # 14% for intra-state (28% / 2)
+                'sgst': 140.00,  # 14% for intra-state (28% / 2)
                 'igst': 0.00,   # 0 for intra-state
-                'total_tax': 180.00,
-                'total': 1180.00,
+                'total_tax': 280.00,
+                'total': 1280.00,
                 'timestamp': timezone.now().isoformat()
             }
         }, format='json')
@@ -1270,10 +1276,11 @@ def test_api_endpoints():
                         'price': 2000.00,
                         'mrp_price': 2000.00,
                         'price_type': 'exclusive',
-                        'gst_percentage': 18.00,
+                        'hsn_code': '2202',
+                        'hsn_gst_percentage': 28.00,
                         'quantity': 1,
                         'subtotal': 2000.00,
-                        'item_gst': 360.00
+                        'item_gst': 560.00
                     }
                 ],
                 'subtotal': 2000.00,
@@ -1616,18 +1623,20 @@ def test_api_endpoints():
                             'price': float(existing_item.mrp_price or existing_item.price or 0),
                             'mrp_price': float(existing_item.mrp_price or existing_item.price or 0),
                             'price_type': existing_item.price_type or 'exclusive',
-                            'gst_percentage': float(existing_item.gst_percentage or 0),
+                            'hsn_code': existing_item.hsn_code or '',
+                            'hsn_gst_percentage': float(existing_item.hsn_gst_percentage or 0),
+                            'gst_percentage': float(existing_item.hsn_gst_percentage or 0), # Calculated from HSN
                             'quantity': 2,
                             'subtotal': float((existing_item.mrp_price or existing_item.price or 0) * 2),
-                            'item_gst': float((existing_item.mrp_price or existing_item.price or 0) * 2 * (existing_item.gst_percentage or 0) / 100) if existing_item.price_type == 'exclusive' else 0
+                            'item_gst': float((existing_item.mrp_price or existing_item.price or 0) * 2 * (existing_item.hsn_gst_percentage or 0) / 100) if existing_item.price_type == 'exclusive' else 0
                         }
                     ],
                     'subtotal': float((existing_item.mrp_price or existing_item.price or 0) * 2),
-                    'cgst': float((existing_item.mrp_price or existing_item.price or 0) * 2 * (existing_item.gst_percentage or 0) / 200) if existing_item.price_type == 'exclusive' else 0,
-                    'sgst': float((existing_item.mrp_price or existing_item.price or 0) * 2 * (existing_item.gst_percentage or 0) / 200) if existing_item.price_type == 'exclusive' else 0,
+                    'cgst': float((existing_item.mrp_price or existing_item.price or 0) * 2 * (existing_item.hsn_gst_percentage or 0) / 200) if existing_item.price_type == 'exclusive' else 0,
+                    'sgst': float((existing_item.mrp_price or existing_item.price or 0) * 2 * (existing_item.hsn_gst_percentage or 0) / 200) if existing_item.price_type == 'exclusive' else 0,
                     'igst': 0.00,
-                    'total_tax': float((existing_item.mrp_price or existing_item.price or 0) * 2 * (existing_item.gst_percentage or 0) / 100) if existing_item.price_type == 'exclusive' else 0,
-                    'total': float((existing_item.mrp_price or existing_item.price or 0) * 2) + (float((existing_item.mrp_price or existing_item.price or 0) * 2 * (existing_item.gst_percentage or 0) / 100) if existing_item.price_type == 'exclusive' else 0),
+                    'total_tax': float((existing_item.mrp_price or existing_item.price or 0) * 2 * (existing_item.hsn_gst_percentage or 0) / 100) if existing_item.price_type == 'exclusive' else 0,
+                    'total': float((existing_item.mrp_price or existing_item.price or 0) * 2) + (float((existing_item.mrp_price or existing_item.price or 0) * 2 * (existing_item.hsn_gst_percentage or 0) / 100) if existing_item.price_type == 'exclusive' else 0),
                     'timestamp': timezone.now().isoformat()
                 }
             }
@@ -1701,7 +1710,8 @@ def test_api_endpoints():
                     'price': '200.00',
                     'mrp_price': '200.00',
                     'price_type': 'exclusive',
-                    'gst_percentage': '18.00',
+                    'hsn_code': '2105',
+                    'hsn_gst_percentage': '18.00',
                     'quantity': '2',
                     'subtotal': '400.00',
                     'item_gst_amount': '72.00',
@@ -1909,34 +1919,32 @@ def test_api_endpoints():
             token, _ = Token.objects.get_or_create(user=test_user)
             client.credentials(HTTP_AUTHORIZATION=f'Token {token.key}')
         
-        # Get vendor and set vendor-level CGST/SGST rates (2.5% each = 5% total)
+        # Get vendor and set vendor-level SAC code (5% GST)
         vendor = Vendor.get_vendor_for_user(test_user)
         if vendor:
-            vendor.cgst_percentage = Decimal('2.5')
-            vendor.sgst_percentage = Decimal('2.5')
+            vendor.sac_code = '996331'
+            vendor.sac_gst_percentage = Decimal('5.00')
             vendor.save()
         
-        # Create bill WITHOUT providing cgst/sgst - server should calculate automatically
+        # Create bill - server should calculate tax using SAC rate for all items
         bill_data_vendor_tax = {
             'billing_mode': 'gst',
             'bill_date': '2026-01-27',
             'items_data': [
                 {
-                    'item_name': 'Test Item (Vendor Tax)',
+                    'item_name': 'Test Item (SAC Tax)',
                     'price': '100.00',
                     'mrp_price': '100.00',
                     'price_type': 'exclusive',
-                    'gst_percentage': '0.00',  # Product-level GST is 0% when using vendor-level rates
                     'quantity': '2',
                     'subtotal': '200.00',
-                    'item_gst_amount': '0.00',  # No item-level GST
                     'veg_nonveg': 'veg'
                 }
             ],
             'subtotal': '200.00',
-            # DO NOT provide cgst/sgst - server should calculate: 200 * 2.5% = 5.00 each
+            # Server should calculate: 200 * 5% = 10.00 tax (CGST 5.00 + SGST 5.00)
             'payment_mode': 'cash',
-            'amount_paid': '210.00'  # 200 + 5 (CGST) + 5 (SGST) = 210
+            'amount_paid': '210.00'  # 200 + 10 (tax) = 210
         }
         
         response = client.post('/bills/', bill_data_vendor_tax, format='json')
@@ -1953,10 +1961,10 @@ def test_api_endpoints():
             if (cgst_calculated == expected_cgst and 
                 sgst_calculated == expected_sgst and 
                 total_tax_calculated == expected_total_tax):
-                print("✓ POST /bills/ (vendor-level CGST/SGST auto-calculation) - Working")
+                print("✓ POST /bills/ (vendor-level SAC tax auto-calculation) - Working")
                 results.append(True)
             else:
-                print(f"⚠ POST /bills/ (vendor-level tax) - Calculated CGST: {cgst_calculated}, SGST: {sgst_calculated}, Expected: CGST=5.00, SGST=5.00")
+                print(f"⚠ POST /bills/ (vendor-level SAC tax) - Calculated CGST: {cgst_calculated}, SGST: {sgst_calculated}, Expected: CGST=5.00, SGST=5.00 (5% of 200 = 10, split equally)")
                 results.append(True)  # Not critical, might be rounding differences
         elif response.status_code == 400 and 'unique' in str(response.data).lower():
             # Invoice number conflict - this is okay, just verify the calculation logic works
@@ -1973,7 +1981,7 @@ def test_api_endpoints():
                         sgst_calculated = Decimal(str(data.get('sgst_amount', 0)))
                         # If vendor rates are set, verify they're being used
                         if cgst_calculated > 0 or sgst_calculated > 0:
-                            print("✓ POST /bills/ (vendor-level CGST/SGST auto-calculation) - Working (verified via existing bill)")
+                            print("✓ POST /bills/ (vendor-level SAC tax auto-calculation) - Working (verified via existing bill)")
                             results.append(True)
                         else:
                             print("⚠ POST /bills/ (vendor-level tax) - Could not verify (invoice conflict)")
@@ -1995,8 +2003,8 @@ def test_api_endpoints():
         
         # Reset vendor rates for other tests
         if vendor:
-            vendor.cgst_percentage = None
-            vendor.sgst_percentage = None
+            vendor.sac_code = None
+            vendor.sac_gst_percentage = None
             vendor.save()
     except Exception as e:
         print(f"✗ POST /bills/ (vendor-level tax) - Error: {e}")
@@ -2832,10 +2840,10 @@ def main():
     
     # Additional verification
     print_section("ADDITIONAL VERIFICATIONS")
-    print("✓ GST fields in Item model: mrp_price, price_type, gst_percentage, veg_nonveg")
+    print("✓ HSN/GST fields in Item model: mrp_price, price_type, hsn_code, hsn_gst_percentage, veg_nonveg")
     print("✓ Vendor fields: fssai_license, logo, footer_note")
     print("✓ Bill structure: invoice_number, restaurant_name, address, gstin, fssai_license, bill_number, bill_date")
-    print("✓ BillItem structure: item linking, original_item_id, item_name, price, mrp_price, quantity, subtotal, gst_percentage")
+    print("✓ BillItem structure: item linking, original_item_id, item_name, price, mrp_price, quantity, subtotal, hsn_code, hsn_gst_percentage, gst_percentage")
     print("✓ Image uploads: POST /items/ with multipart/form-data (image file)")
     print("✓ Image updates: PATCH /items/<id>/ with multipart/form-data (image file)")
     print("✓ Image URLs: All items and vendor logo have image_url fields")

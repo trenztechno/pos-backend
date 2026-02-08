@@ -6,7 +6,7 @@ class BillItemInline(admin.TabularInline):
     model = BillItem
     extra = 0
     readonly_fields = ['id', 'created_at']
-    fields = ['item', 'item_name', 'quantity', 'price', 'mrp_price', 'subtotal', 'gst_percentage', 'item_gst_amount', 'veg_nonveg']
+    fields = ['item', 'item_name', 'quantity', 'price', 'mrp_price', 'subtotal', 'hsn_code', 'hsn_gst_percentage', 'gst_percentage', 'item_gst_amount', 'veg_nonveg']
     can_delete = False  # Bills are typically immutable
 
 @admin.register(Bill)
@@ -60,7 +60,7 @@ class BillAdmin(admin.ModelAdmin):
 
 @admin.register(BillItem)
 class BillItemAdmin(admin.ModelAdmin):
-    list_display = ['item_name', 'bill', 'quantity', 'price', 'subtotal', 'gst_percentage', 'item_gst_amount', 'created_at']
+    list_display = ['item_name', 'bill', 'quantity', 'price', 'subtotal', 'hsn_code', 'hsn_gst_percentage', 'gst_percentage', 'item_gst_amount', 'created_at']
     list_filter = ['veg_nonveg', 'price_type', 'created_at']
     search_fields = ['item_name', 'bill__invoice_number', 'bill__vendor__business_name']
     readonly_fields = ['id', 'created_at']
@@ -73,7 +73,7 @@ class BillItemAdmin(admin.ModelAdmin):
             'fields': ('price', 'mrp_price', 'price_type', 'quantity', 'subtotal')
         }),
         ('Tax Information', {
-            'fields': ('gst_percentage', 'item_gst_amount', 'veg_nonveg')
+            'fields': ('hsn_code', 'hsn_gst_percentage', 'gst_percentage', 'item_gst_amount', 'veg_nonveg')
         }),
         # Item-level discounts removed - discounts are now bill-level percentage only
         ('Additional Information', {

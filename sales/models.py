@@ -143,7 +143,9 @@ class BillItem(models.Model):
     subtotal = models.DecimalField(max_digits=12, decimal_places=2, validators=[MinValueValidator(0)], help_text="Subtotal for this item (quantity * price)")
     
     # Tax Information (for GST bills)
-    gst_percentage = models.DecimalField(max_digits=5, decimal_places=2, default=0, validators=[MinValueValidator(0)], help_text="GST percentage at time of sale")
+    hsn_code = models.CharField(max_length=20, blank=True, null=True, help_text="HSN code at time of sale (snapshot)")
+    hsn_gst_percentage = models.DecimalField(max_digits=5, decimal_places=2, default=0, validators=[MinValueValidator(0)], help_text="HSN GST percentage at time of sale (snapshot)")
+    gst_percentage = models.DecimalField(max_digits=5, decimal_places=2, default=0, validators=[MinValueValidator(0)], help_text="GST percentage at time of sale (calculated from HSN/SAC)")
     item_gst_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0, validators=[MinValueValidator(0)], help_text="GST amount for this item")
     
     # Additional Information

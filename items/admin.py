@@ -31,8 +31,8 @@ class CategoryAdmin(admin.ModelAdmin):
 
 @admin.register(Item)
 class ItemAdmin(admin.ModelAdmin):
-    list_display = ['name', 'vendor', 'display_categories', 'mrp_price', 'price_type', 'gst_percentage', 'veg_nonveg', 'stock_quantity', 'is_active', 'last_updated']
-    list_filter = ['is_active', 'categories', 'vendor', 'price_type', 'veg_nonveg', 'gst_percentage', 'created_at']
+    list_display = ['name', 'vendor', 'display_categories', 'mrp_price', 'price_type', 'hsn_code', 'hsn_gst_percentage', 'veg_nonveg', 'stock_quantity', 'is_active', 'last_updated']
+    list_filter = ['is_active', 'categories', 'vendor', 'price_type', 'veg_nonveg', 'hsn_code', 'created_at']
     search_fields = ['name', 'description', 'sku', 'barcode', 'vendor__business_name']
     readonly_fields = ['id', 'created_at', 'last_updated']
     filter_horizontal = ['categories']  # Better UI for many-to-many
@@ -45,9 +45,9 @@ class ItemAdmin(admin.ModelAdmin):
             'fields': ('categories',),
             'description': 'Items can belong to multiple categories. Select one or more categories for this item.'
         }),
-        ('Pricing (GST Settings)', {
-            'fields': ('price', 'mrp_price', 'price_type', 'gst_percentage', 'additional_discount'),
-            'description': 'MRP Price is MANDATORY. Price Type: Exclusive (GST not in MRP) or Inclusive (GST in MRP). GST: 0%, 5%, 8%, 18%, or custom.'
+        ('Pricing (HSN/GST Settings)', {
+            'fields': ('price', 'mrp_price', 'price_type', 'hsn_code', 'hsn_gst_percentage', 'additional_discount'),
+            'description': 'MRP Price is MANDATORY. Price Type: Exclusive (GST not in MRP) or Inclusive (GST in MRP). HSN Code and GST percentage for tax calculation.'
         }),
         ('Inventory', {
             'fields': ('stock_quantity', 'sku', 'barcode')
