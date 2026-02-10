@@ -696,9 +696,8 @@ def create_sample_bills(vendor):
             gst_percentage=item.hsn_gst_percentage or Decimal('0'), # Calculated from HSN
             item_gst_amount=item_gst,
             veg_nonveg=item.veg_nonveg,
-            additional_discount=item.additional_discount,
         )
-    
+
     print(f"  ✓ Created GST Bill: {gst_bill.invoice_number} (₹{gst_bill.total_amount:.2f})")
     
     # Sample Non-GST Bill
@@ -747,9 +746,8 @@ def create_sample_bills(vendor):
             gst_percentage=Decimal('0.00'),  # No GST for non-GST bills
             item_gst_amount=Decimal('0.00'),
             veg_nonveg=item.veg_nonveg,
-            additional_discount=item.additional_discount,
         )
-    
+
     print(f"  ✓ Created Non-GST Bill: {non_gst_bill.invoice_number} (₹{non_gst_bill.total_amount:.2f})")
     
     print(f"\n  ✅ Created 2 sample bills (1 GST, 1 Non-GST)")

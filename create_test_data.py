@@ -414,7 +414,6 @@ def create_test_bills(vendor1, vendor2):
                     gst_percentage=item.hsn_gst_percentage or Decimal('0'), # Calculated from HSN
                     item_gst_amount=item_gst,
                     veg_nonveg=getattr(item, 'veg_nonveg', 'veg'),
-                    additional_discount=getattr(item, 'additional_discount', Decimal('0')),
                 )
             print(f"  ✓ Created GST Bill for {vendor1.business_name}: {gst_bill.invoice_number} (₹{gst_bill.total_amount:.2f})")
         
@@ -469,7 +468,6 @@ def create_test_bills(vendor1, vendor2):
                         gst_percentage=Decimal('0.00'), # Calculated
                         item_gst_amount=Decimal('0.00'),
                         veg_nonveg=getattr(item, 'veg_nonveg', 'veg'),
-                        additional_discount=getattr(item, 'additional_discount', Decimal('0')),
                     )
                 print(f"  ✓ Created Non-GST Bill for {vendor1.business_name}: {non_gst_bill.invoice_number} (₹{non_gst_bill.total_amount:.2f})")
         

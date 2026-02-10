@@ -1339,7 +1339,8 @@ def test_api_endpoints():
                         'price': 500.00,
                         'mrp_price': 500.00,
                         'quantity': 2,
-                        'subtotal': 1000.00
+                        'subtotal': 1000.00,
+                        'hsn_gst_percentage': 0
                     }
                 ],
                 'subtotal': 1000.00,
@@ -1351,8 +1352,8 @@ def test_api_endpoints():
             # Verify bill structure (new Bill model - should have zero tax for non-GST)
             if 'bills' in response.data and len(response.data['bills']) > 0:
                 bill = response.data['bills'][0]
-                if (bill.get('billing_mode') == 'non_gst' and 
-                    'subtotal' in bill and 
+                if (bill.get('billing_mode') == 'non_gst' and
+                    'subtotal' in bill and
                     'total_amount' in bill and
                     float(bill.get('total_tax', 0)) == 0 and
                     'items' in bill):
@@ -1384,7 +1385,7 @@ def test_api_endpoints():
                 'fssai_license': vendor.fssai_license or '12345678901234',
                 'bill_number': 'BN-2024-004',
                 'bill_date': timezone.now().date().isoformat(),
-                'items': [{'id': str(uuid.uuid4()), 'name': 'GST Item', 'price': 100.00, 'mrp_price': 100.00, 'quantity': 1, 'subtotal': 100.00}],
+                'items': [{'id': str(uuid.uuid4()), 'name': 'GST Item', 'price': 100.00, 'mrp_price': 100.00, 'quantity': 1, 'subtotal': 100.00, 'hsn_gst_percentage': 18}],
                 'subtotal': 100.00,
                 'cgst': 9.00,
                 'sgst': 9.00,
@@ -1406,7 +1407,7 @@ def test_api_endpoints():
                 'fssai_license': vendor.fssai_license or '12345678901234',
                 'bill_number': 'BN-2024-005',
                 'bill_date': timezone.now().date().isoformat(),
-                'items': [{'id': str(uuid.uuid4()), 'name': 'Non-GST Item', 'price': 50.00, 'mrp_price': 50.00, 'quantity': 1, 'subtotal': 50.00}],
+                'items': [{'id': str(uuid.uuid4()), 'name': 'Non-GST Item', 'price': 50.00, 'mrp_price': 50.00, 'quantity': 1, 'subtotal': 50.00, 'hsn_gst_percentage': 0}],
                 'subtotal': 50.00,
                 'total': 50.00,
                 'timestamp': timezone.now().isoformat()
@@ -1938,6 +1939,7 @@ def test_api_endpoints():
                     'price_type': 'exclusive',
                     'quantity': '2',
                     'subtotal': '200.00',
+                    'hsn_gst_percentage': '0.00',
                     'veg_nonveg': 'veg'
                 }
             ],

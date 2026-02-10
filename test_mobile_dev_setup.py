@@ -461,8 +461,8 @@ def test_database_data():
             print_info(f"\nSample item fields:")
             print_info(f"  mrp_price: {'✅' if sample_item.mrp_price else '❌'}")
             print_info(f"  price_type: {'✅' if sample_item.price_type else '❌'}")
-            print_info(f"  hsn_code: {'✅' if sample_item.get('hsn_code') else '❌'}")
-            print_info(f"  hsn_gst_percentage: {'✅' if sample_item.get('hsn_gst_percentage') is not None else '❌'}")
+            print_info(f"  hsn_code: {'✅' if sample_item.hsn_code else '❌'}")
+            print_info(f"  hsn_gst_percentage: {'✅' if sample_item.hsn_gst_percentage is not None else '❌'}")
             print_info(f"  veg_nonveg: {'✅' if sample_item.veg_nonveg else '❌'}")
             print_info(f"  image: {'✅' if sample_item.image else '❌'}")
         
